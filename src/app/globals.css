@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #0e1216;
+  --color-card: #161c23;
+  --color-card-2: #1d2530;
+  --color-edge: #26303b;
+  --color-fog: #8fa0b0;
+  --color-mint: #00d474;
+  --color-gold: #ffb43a;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: #dbe4ec;
+}
+
+::selection {
+  background-color: var(--color-mint);
+  color: #0e1216;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
