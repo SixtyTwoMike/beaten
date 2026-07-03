@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
-# Creates (or reports on) a Lightsail instance running Beaten.
+# Creates a Lightsail instance running Beaten from a PREBUILT bundle.
 # Flat-rate pricing: the chosen bundle's monthly price is printed before
-# anything is created. The instance clones this repo (public) and builds
-# on-box, so there is nothing else to pay for — one instance, one price.
+# anything is created. The app is built locally and shipped as a tarball
+# (via a Lightsail bucket or any URL) — nothing is compiled on the
+# instance, so the cheapest dual-stack instance size works.
 #
 # Requires lightsail:* permissions (see deploy/iam-lightsail-policy.json).
 #
+# Typical flow:
+#   1. Build + upload the artifact (see deploy/README.md):
+#        npm run build; stage standalone bundle; upload beaten-bundle.tar.gz
+#        to a Lightsail bucket with public getObject access
+#   2. BUNDLE_URL=https://<bucket>.s3.<region>.amazonaws.com/beaten-bundle.tar.gz \
+#        ./deploy/deploy-lightsail.sh
+#
 # Env overrides:
-#   LIGHTSAIL_BUNDLE   bundle id (default: cheapest Linux bundle with >= 1GB RAM)
+#   BUNDLE_URL         URL of the prebuilt tarball (required)
+#   LIGHTSAIL_BUNDLE   instance size id (default: cheapest dual-stack >= 1GB)
 #   LIGHTSAIL_NAME     instance name (default beaten-prod)
-#   DEPLOY_BRANCH      git branch to deploy (default: current branch)
+#   DEPLOY_BRANCH      branch whose installer script the instance fetches
 #   TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET   enable live IGDB search
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,8 +27,9 @@ NAME="${LIGHTSAIL_NAME:-beaten-prod}"
 REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 AZ="${LIGHTSAIL_AZ:-${REGION}a}"
 BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
-REPO_URL="https://github.com/SixtyTwoMike/beaten.git"
 STATIC_IP_NAME="${LIGHTSAIL_STATIC_IP:-beaten-ip}"
+BUNDLE_URL="${BUNDLE_URL:?set BUNDLE_URL to the prebuilt tarball URL}"
+INSTALLER_URL="https://raw.githubusercontent.com/SixtyTwoMike/beaten/$BRANCH/deploy/lightsail/install-from-bundle.sh"
 
 BLUEPRINT=$(aws lightsail get-blueprints \
   --query "blueprints[?platform=='LINUX_UNIX' && contains(blueprintId,'ubuntu_24')] | [0].blueprintId" \
@@ -28,9 +38,9 @@ BLUEPRINT=$(aws lightsail get-blueprints \
 if [ -n "${LIGHTSAIL_BUNDLE:-}" ]; then
   BUNDLE="$LIGHTSAIL_BUNDLE"
 else
-  # Cheapest dual-stack Linux bundle with at least 1 GB RAM (needed for the
-  # on-box build). IPv6-only bundles are $2/mo cheaper but can't attach a
-  # static IPv4 and can't reach GitHub (no IPv6 there), so they're excluded.
+  # Cheapest dual-stack Linux bundle with at least 1 GB RAM. IPv6-only
+  # bundles are $2/mo cheaper but can't attach a static IPv4 and can't
+  # reach GitHub (no IPv6 there), so they're excluded.
   BUNDLE=$(aws lightsail get-bundles --query \
     "sort_by(bundles[?contains(supportedPlatforms, 'LINUX_UNIX') && ramSizeInGb >= \`1.0\` && !contains(bundleId, 'ipv6')], &price) | [0].bundleId" \
     --output text)
@@ -41,7 +51,7 @@ PRICE=$(aws lightsail get-bundles \
 echo "==> plan: instance '$NAME' in $AZ"
 echo "    blueprint: $BLUEPRINT"
 echo "    bundle:    $BUNDLE — \$$PRICE/month flat"
-echo "    branch:    $BRANCH"
+echo "    artifact:  $BUNDLE_URL"
 
 AUTH_SECRET=$(openssl rand -base64 32)
 mkdir -p deploy/out
@@ -70,8 +80,8 @@ ENV
 chmod 600 /etc/beaten.env
 
 cat > /etc/default/beaten-setup <<CONF
-DEPLOY_BRANCH=$BRANCH
-DEPLOY_REPO=$REPO_URL
+BUNDLE_URL=$BUNDLE_URL
+INSTALLER_URL=$INSTALLER_URL
 CONF
 
 cat > /usr/local/bin/beaten-bootstrap <<'BOOT'
@@ -81,27 +91,16 @@ source /etc/default/beaten-setup
 export DEBIAN_FRONTEND=noninteractive
 APT="apt-get -o DPkg::Lock::Timeout=300"
 
-# swap so the Next.js build fits in a small instance
-if [ ! -f /swapfile ]; then
-  fallocate -l 3G /swapfile
-  chmod 600 /swapfile
-  mkswap /swapfile
-fi
-swapon /swapfile 2>/dev/null || true
-grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-
 \$APT update
-\$APT install -y nginx git curl
+\$APT install -y nginx curl
 if ! command -v node >/dev/null || [ "\$(node -v | cut -d. -f1)" != "v22" ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   \$APT install -y nodejs
 fi
 
-if [ ! -d /opt/beaten/src/.git ]; then
-  rm -rf /opt/beaten/src
-  git clone --branch "\$DEPLOY_BRANCH" --depth 1 "\$DEPLOY_REPO" /opt/beaten/src
-fi
-bash /opt/beaten/src/deploy/lightsail/install.sh
+curl -fsSL --retry 5 "\$INSTALLER_URL" -o /usr/local/bin/beaten-install
+chmod +x /usr/local/bin/beaten-install
+/usr/local/bin/beaten-install "\$BUNDLE_URL"
 systemctl disable beaten-setup.service
 BOOT
 chmod +x /usr/local/bin/beaten-bootstrap
@@ -155,12 +154,12 @@ IP=$(aws lightsail get-static-ip --static-ip-name "$STATIC_IP_NAME" \
 
 if [ "${SKIP_HTTP_POLL:-0}" = "1" ]; then
   echo ""
-  echo "Instance created. App will be at: http://$IP (allow ~10 min for first build)"
+  echo "Instance created. App will be at: http://$IP (allow ~3 min for setup)"
   exit 0
 fi
 
-echo "==> waiting for the app (first boot installs Node and builds — usually 5-10 min)"
-for i in $(seq 1 60); do
+echo "==> waiting for the app (setup usually takes ~3 min)"
+for i in $(seq 1 30); do
   CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://$IP/login" || true)
   if [ "$CODE" = "200" ]; then
     echo ""
