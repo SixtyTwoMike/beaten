@@ -44,21 +44,18 @@ echo "    bundle:    $BUNDLE — \$$PRICE/month flat"
 echo "    branch:    $BRANCH"
 
 AUTH_SECRET=$(openssl rand -base64 32)
-UD=$(mktemp)
+mkdir -p deploy/out
+UD=deploy/out/user-data.sh
+
+# The bootstrap runs as a retrying systemd service rather than inline in
+# user-data: first boot on Ubuntu races unattended-upgrades for the dpkg
+# lock, and any transient apt/network failure would otherwise strand the
+# instance half-configured. The service retries every 30s until it succeeds.
 cat > "$UD" <<USERDATA
 #!/bin/bash
-set -eux
-exec > /var/log/beaten-bootstrap.log 2>&1
-# swap so the Next.js build fits in a small instance
-fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y nginx git curl
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt-get install -y nodejs
-mkdir -p /opt/beaten
-git clone --branch $BRANCH --depth 1 $REPO_URL /opt/beaten/src
+set -eu
+exec > /var/log/beaten-userdata.log 2>&1
+
 cat > /etc/beaten.env <<ENV
 NODE_ENV=production
 PORT=3000
@@ -71,14 +68,70 @@ TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
 TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
 ENV
 chmod 600 /etc/beaten.env
+
+cat > /etc/default/beaten-setup <<CONF
+DEPLOY_BRANCH=$BRANCH
+DEPLOY_REPO=$REPO_URL
+CONF
+
+cat > /usr/local/bin/beaten-bootstrap <<'BOOT'
+#!/bin/bash
+set -eux
+source /etc/default/beaten-setup
+export DEBIAN_FRONTEND=noninteractive
+APT="apt-get -o DPkg::Lock::Timeout=300"
+
+# swap so the Next.js build fits in a small instance
+if [ ! -f /swapfile ]; then
+  fallocate -l 3G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+fi
+swapon /swapfile 2>/dev/null || true
+grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+\$APT update
+\$APT install -y nginx git curl
+if ! command -v node >/dev/null || [ "\$(node -v | cut -d. -f1)" != "v22" ]; then
+  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  \$APT install -y nodejs
+fi
+
+if [ ! -d /opt/beaten/src/.git ]; then
+  rm -rf /opt/beaten/src
+  git clone --branch "\$DEPLOY_BRANCH" --depth 1 "\$DEPLOY_REPO" /opt/beaten/src
+fi
 bash /opt/beaten/src/deploy/lightsail/install.sh
+systemctl disable beaten-setup.service
+BOOT
+chmod +x /usr/local/bin/beaten-bootstrap
+
+cat > /etc/systemd/system/beaten-setup.service <<'UNIT'
+[Unit]
+Description=Beaten first-time setup (retries until it succeeds)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/beaten-bootstrap
+StandardOutput=append:/var/log/beaten-bootstrap.log
+StandardError=append:/var/log/beaten-bootstrap.log
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable beaten-setup.service
+systemctl start beaten-setup.service --no-block
 USERDATA
 
 echo "==> creating instance"
 aws lightsail create-instances --instance-names "$NAME" \
   --availability-zone "$AZ" --blueprint-id "$BLUEPRINT" --bundle-id "$BUNDLE" \
   --user-data "file://$UD" --tags key=app,value=beaten >/dev/null
-rm -f "$UD"
 
 echo "==> waiting for instance to run"
 for i in $(seq 1 30); do
@@ -99,6 +152,12 @@ aws lightsail attach-static-ip --static-ip-name "$STATIC_IP_NAME" \
   --instance-name "$NAME" >/dev/null
 IP=$(aws lightsail get-static-ip --static-ip-name "$STATIC_IP_NAME" \
   --query 'staticIp.ipAddress' --output text)
+
+if [ "${SKIP_HTTP_POLL:-0}" = "1" ]; then
+  echo ""
+  echo "Instance created. App will be at: http://$IP (allow ~10 min for first build)"
+  exit 0
+fi
 
 echo "==> waiting for the app (first boot installs Node and builds — usually 5-10 min)"
 for i in $(seq 1 60); do
