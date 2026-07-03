@@ -28,9 +28,11 @@ BLUEPRINT=$(aws lightsail get-blueprints \
 if [ -n "${LIGHTSAIL_BUNDLE:-}" ]; then
   BUNDLE="$LIGHTSAIL_BUNDLE"
 else
-  # Cheapest Linux bundle with at least 1 GB RAM (needed for the on-box build).
+  # Cheapest dual-stack Linux bundle with at least 1 GB RAM (needed for the
+  # on-box build). IPv6-only bundles are $2/mo cheaper but can't attach a
+  # static IPv4 and can't reach GitHub (no IPv6 there), so they're excluded.
   BUNDLE=$(aws lightsail get-bundles --query \
-    "sort_by(bundles[?contains(supportedPlatforms, 'LINUX_UNIX') && ramSizeInGb >= \`1.0\`], &price) | [0].bundleId" \
+    "sort_by(bundles[?contains(supportedPlatforms, 'LINUX_UNIX') && ramSizeInGb >= \`1.0\` && !contains(bundleId, 'ipv6')], &price) | [0].bundleId" \
     --output text)
 fi
 PRICE=$(aws lightsail get-bundles \
