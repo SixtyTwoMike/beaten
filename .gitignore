@@ -45,3 +45,6 @@ prisma/*.db
 prisma/*.db-journal
 
 !.env.example
+
+# deploy artifacts
+deploy/out/
