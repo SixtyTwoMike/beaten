@@ -22,30 +22,50 @@ this grant can't create EC2/S3/etc. resources outside it.
 
 ### Deploy
 
+The app is built locally and shipped as a tarball — nothing compiles on the
+instance (a 1 GB instance cannot survive `next build`; the first attempt
+proved it). Three steps:
+
 ```bash
-./deploy/deploy-lightsail.sh
+# 1. Build + package the standalone bundle (once per code change)
+npm run build
+# stage .next/standalone + .next/static + public + a seeded empty SQLite db
+# into a directory and tar it up as beaten-bundle.tar.gz
+# (deploy/build-bundle.sh does the same staging for EB and is easy to adapt)
+
+# 2. Upload to a Lightsail bucket with public read (only needed during deploys)
+aws lightsail create-bucket --bucket-name beaten-deploy-artifacts --bundle-id small_1_0
+aws lightsail update-bucket --bucket-name beaten-deploy-artifacts \
+  --access-rules getObject=public,allowPublicOverrides=false
+# upload with the S3 API using keys from create-bucket-access-key
+aws s3 cp beaten-bundle.tar.gz s3://beaten-deploy-artifacts/
+
+# 3. Create the instance
+BUNDLE_URL=https://beaten-deploy-artifacts.s3.us-east-1.amazonaws.com/beaten-bundle.tar.gz \
+  ./deploy/deploy-lightsail.sh
 ```
 
 Creates instance `beaten-prod` (Ubuntu 24.04, Node 22), opens port 80,
-attaches static IP `beaten-ip` (free while attached), waits for the app,
-and prints `http://<ip>`. First boot takes ~5–10 minutes (installs Node,
-builds the app).
+attaches static IP `beaten-ip` (free while attached). Setup takes ~3 min.
+Delete the bucket after deploying (`aws lightsail delete-bucket
+--bucket-name beaten-deploy-artifacts --force-delete`) — it's only needed
+while an instance is downloading the bundle.
 
-To deploy with live IGDB search enabled from the start:
-
-```bash
-TWITCH_CLIENT_ID=xxx TWITCH_CLIENT_SECRET=yyy IGDB_MOCK=0 ./deploy/deploy-lightsail.sh
-```
+To deploy with live IGDB search enabled from the start, also export
+`TWITCH_CLIENT_ID=xxx TWITCH_CLIENT_SECRET=yyy IGDB_MOCK=0`.
 
 ### Update to latest code
 
-From the Lightsail **browser SSH console** (or any SSH session):
+Rebuild + re-upload the bundle (steps 1–2 above), then from the Lightsail
+**browser SSH console**:
 
 ```bash
-sudo /opt/beaten/src/deploy/lightsail/update.sh
+sudo /usr/local/bin/beaten-install https://beaten-deploy-artifacts.s3.us-east-1.amazonaws.com/beaten-bundle.tar.gz
 ```
 
-(Env changes: edit `/etc/beaten.env`, then `sudo systemctl restart beaten`.)
+The SQLite database lives in `/opt/beaten/data` and is
+never touched by updates. (Env changes: edit `/etc/beaten.env`, then
+`sudo systemctl restart beaten`.)
 
 ### Teardown (stops all charges)
 
