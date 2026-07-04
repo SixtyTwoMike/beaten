@@ -80,8 +80,10 @@ ENV
 chmod 600 /etc/beaten.env
 
 cat > /etc/default/beaten-setup <<CONF
-BUNDLE_URL=$BUNDLE_URL
-INSTALLER_URL=$INSTALLER_URL
+# Values are single-quoted so presigned-URL query separators (ampersands)
+# survive being sourced by the bootstrap script.
+BUNDLE_URL='$BUNDLE_URL'
+INSTALLER_URL='$INSTALLER_URL'
 CONF
 
 cat > /usr/local/bin/beaten-bootstrap <<'BOOT'
