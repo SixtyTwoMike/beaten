@@ -146,8 +146,11 @@ export default async function GamePage({
                         </span>
                       )}
                       <span className="text-sm text-fog">
-                        {log.startedAt && `${formatDate(log.startedAt)} – `}
-                        {formatDate(log.finishedAt)}
+                        {log.finishedAt
+                          ? `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`
+                          : log.startedAt
+                            ? `Playing since ${formatDate(log.startedAt)}`
+                            : "Currently playing"}
                       </span>
                       {platform && (
                         <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs text-fog">
@@ -164,7 +167,9 @@ export default async function GamePage({
                             startedAt: log.startedAt
                               ? toDateInput(log.startedAt)
                               : null,
-                            finishedAt: toDateInput(log.finishedAt),
+                            finishedAt: log.finishedAt
+                              ? toDateInput(log.finishedAt)
+                              : null,
                             isReplay: log.isReplay,
                             rating: log.rating,
                             reviewText: log.reviewText,

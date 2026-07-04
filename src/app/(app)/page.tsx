@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { formatDate, ratingToStars } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import { Poster } from "@/components/Poster";
 import { Stars } from "@/components/Stars";
@@ -10,10 +10,10 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
-  const [beatenGames, masteredGames, logsThisYear, recentLogs, ratingAgg] =
+  const [beatenGames, masteredGames, logsThisYear, playingLogs, recentLogs] =
     await Promise.all([
       prisma.playLog.findMany({
-        where: { userId: user.id },
+        where: { userId: user.id, finishedAt: { not: null } },
         select: { gameId: true },
         distinct: ["gameId"],
       }),
@@ -26,27 +26,30 @@ export default async function DashboardPage() {
         where: { userId: user.id, finishedAt: { gte: yearStart } },
       }),
       prisma.playLog.findMany({
-        where: { userId: user.id },
+        where: { userId: user.id, status: "PLAYING" },
+        orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
+        include: { game: true },
+      }),
+      prisma.playLog.findMany({
+        where: { userId: user.id, finishedAt: { not: null } },
         orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
         take: 8,
         include: { game: true },
       }),
-      prisma.playLog.aggregate({
-        where: { userId: user.id, rating: { not: null } },
-        _avg: { rating: true },
-      }),
     ]);
 
-  const avgRating = ratingAgg._avg.rating;
+  // One "now playing" entry per game (most-recent first from the query order).
+  const playingByGame = new Map<string, (typeof playingLogs)[number]>();
+  for (const log of playingLogs) {
+    if (!playingByGame.has(log.gameId)) playingByGame.set(log.gameId, log);
+  }
+  const currentlyPlaying = [...playingByGame.values()];
 
   const stats = [
+    { label: "Now playing", value: currentlyPlaying.length },
     { label: "Games beaten", value: beatenGames.length },
     { label: "Mastered", value: masteredGames.length },
     { label: `Finished in ${yearStart.getUTCFullYear()}`, value: logsThisYear },
-    {
-      label: "Average rating",
-      value: avgRating ? `★ ${ratingToStars(Math.round(avgRating))}` : "—",
-    },
   ];
 
   return (
@@ -57,7 +60,7 @@ export default async function DashboardPage() {
             Welcome back, {user.name ?? "player"}
           </h1>
           <p className="mt-1 text-sm text-fog">
-            Your victory log of games beaten and mastered.
+            Your log of games playing, beaten, and mastered.
           </p>
         </div>
         <Link
@@ -81,6 +84,37 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {currentlyPlaying.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-lg font-semibold">Currently playing</h2>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+            {currentlyPlaying.map((log) => (
+              <Link
+                key={log.id}
+                href={`/games/${log.game.igdbId}`}
+                className="group"
+              >
+                <Poster
+                  name={log.game.name}
+                  coverUrl={log.game.coverUrl}
+                  className="ring-1 ring-sky/40 transition group-hover:opacity-80"
+                />
+                <div className="mt-1.5 space-y-1">
+                  <StatusBadge status={log.status} />
+                  {log.startedAt && (
+                    <p className="text-xs text-fog">
+                      Since {formatDate(log.startedAt)}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-10">
         <div className="flex items-baseline justify-between">

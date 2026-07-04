@@ -21,7 +21,7 @@ export type ExistingLog = {
   status: string;
   platformId: number | null;
   startedAt: string | null; // YYYY-MM-DD
-  finishedAt: string; // YYYY-MM-DD
+  finishedAt: string | null; // YYYY-MM-DD; null while status is PLAYING
   isReplay: boolean;
   rating: number | null;
   reviewText: string | null;

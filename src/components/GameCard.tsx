@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ModalGame, PlatformOption, ShelfOption } from "@/lib/types";
+import type { PlayStatus } from "@/lib/status";
 import { LogGameModal } from "./LogGameModal";
 import { Poster } from "./Poster";
 
@@ -18,9 +19,7 @@ export function GameCard({
   shelves: ShelfOption[];
   loggedIgdbIds?: number[];
 }) {
-  const [modalStatus, setModalStatus] = useState<"BEATEN" | "MASTERED" | null>(
-    null
-  );
+  const [modalStatus, setModalStatus] = useState<PlayStatus | null>(null);
   const logged = loggedIgdbIds.includes(game.igdbId);
 
   return (
@@ -46,18 +45,25 @@ export function GameCard({
         {game.releaseYear && (
           <p className="mt-0.5 text-xs text-fog">{game.releaseYear}</p>
         )}
-        <div className="mt-auto flex gap-1.5 pt-2.5">
+        <div className="mt-auto flex gap-1 pt-2.5">
+          <button
+            onClick={() => setModalStatus("PLAYING")}
+            className="flex-1 rounded-md bg-sky/15 px-1.5 py-1.5 text-xs font-semibold text-sky hover:bg-sky hover:text-canvas transition"
+          >
+            Playing
+          </button>
           <button
             onClick={() => setModalStatus("BEATEN")}
-            className="flex-1 rounded-md bg-mint/15 px-2 py-1.5 text-xs font-semibold text-mint hover:bg-mint hover:text-canvas transition"
+            className="flex-1 rounded-md bg-mint/15 px-1.5 py-1.5 text-xs font-semibold text-mint hover:bg-mint hover:text-canvas transition"
           >
             Beaten
           </button>
           <button
             onClick={() => setModalStatus("MASTERED")}
-            className="flex-1 rounded-md bg-gold/15 px-2 py-1.5 text-xs font-semibold text-gold hover:bg-gold hover:text-canvas transition"
+            title="Mastered / 100%"
+            className="flex-1 rounded-md bg-gold/15 px-1.5 py-1.5 text-xs font-semibold text-gold hover:bg-gold hover:text-canvas transition"
           >
-            Mastered
+            100%
           </button>
         </div>
       </div>

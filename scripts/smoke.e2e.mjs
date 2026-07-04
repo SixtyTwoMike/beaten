@@ -24,8 +24,24 @@ try {
   await page.waitForURL("**/login");
   check("unauthenticated / redirects to /login", page.url().includes("/login"));
 
-  // 2. Register
+  // 2. Register — first assert the Apple/keychain autofill attributes
   await page.goto(`${BASE}/register`);
+  check(
+    "register email has autocomplete=username",
+    (await page.getAttribute("#register-email", "autocomplete")) === "username"
+  );
+  check(
+    "register password has autocomplete=new-password",
+    (await page.getAttribute("#register-password", "autocomplete")) === "new-password"
+  );
+  check(
+    "register password exposes passwordrules",
+    (await page.getAttribute("#register-password", "passwordrules"))?.includes("minlength")
+  );
+  check(
+    "register password has a name attribute",
+    Boolean(await page.getAttribute("#register-password", "name"))
+  );
   await page.fill('input[placeholder="Display name"]', "Smoke Tester");
   await page.fill('input[placeholder="Email"]', email);
   await page.fill('input[placeholder="Password (8+ characters)"]', password);
@@ -67,8 +83,9 @@ try {
   await page.fill('input[type="search"]', "metroid");
   await page.waitForSelector("text=Super Metroid");
   const smCard = page.locator("div.group", { hasText: "Super Metroid" }).first();
-  await smCard.getByRole("button", { name: "Mastered", exact: true }).click();
+  await smCard.getByRole("button", { name: "100%", exact: true }).click();
   await page.waitForSelector("text=Add to your played log");
+  // switch status to Mastered inside the modal (card button opens it on MASTERED already)
   await page.getByRole("button", { name: "Replay" }).click();
   await page.getByRole("radio", { name: "5 stars", exact: true }).click();
   await page.getByRole("button", { name: "Save log" }).click();
@@ -118,15 +135,51 @@ try {
   await page.waitForSelector("text=Backlog Someday");
   check("second shelf created", await page.getByText("Backlog Someday").isVisible());
 
-  // 10. Game detail page
+  // 10. Game detail page + "currently playing" flow
   await page.goto(`${BASE}/search`);
   await page.fill('input[type="search"]', "hades");
   await page.waitForSelector("text=Hades");
   await page.click('a:has-text("Hades")');
   await page.waitForSelector("text=I've beaten this");
-  check("game detail shows log buttons", true);
+  check("game detail shows beaten button", true);
+  check("game detail shows playing button", await page.getByText("I'm playing this").isVisible());
   check("game detail shows external links stub", await page.getByText("RetroAchievements").isVisible());
   await page.screenshot({ path: `${shots}/07-game-detail.png` });
+
+  // 10a. Mark Hades as currently playing (no finish date)
+  await page.getByRole("button", { name: "I'm playing this" }).click();
+  await page.waitForSelector("text=Add to your played log");
+  check("playing modal hides the finish-date field", (await page.locator("#log-finished").count()) === 0);
+  await page.fill("#log-started", "2026-06-15");
+  await page.getByRole("button", { name: "Save log" }).click();
+  await page.waitForSelector("text=Add to your played log", { state: "detached" });
+
+  // 10b. Dashboard "Currently playing" section shows Hades
+  await page.goto(`${BASE}/`);
+  await page.waitForSelector("text=Currently playing");
+  check("dashboard currently-playing shows Hades", (await page.getByRole("img", { name: "Cover of Hades" }).count()) > 0);
+  check("dashboard stat 'Now playing' present", await page.getByText("Now playing").isVisible());
+  await page.screenshot({ path: `${shots}/08-currently-playing.png` });
+
+  // 10c. Diary Playing filter shows it as "Playing since"
+  await page.goto(`${BASE}/log`);
+  await page.selectOption('select[name="status"]', "PLAYING");
+  await page.click('button:has-text("Filter")');
+  await page.waitForSelector("text=Playing since");
+  const playingEntry = page.locator("li", { hasText: "Hades" }).first();
+  check("diary Playing filter shows Hades", await playingEntry.isVisible());
+
+  // 10d. Completing it: edit Hades → Beaten with a finish date, leaves currently-playing
+  await playingEntry.getByRole("button", { name: "Edit" }).click();
+  await page.waitForSelector("text=Edit log entry");
+  await page.getByRole("button", { name: "✓ Beaten", exact: true }).click();
+  await page.fill("#log-finished", "2026-07-02");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.waitForSelector("text=Edit log entry", { state: "detached" });
+  await page.goto(`${BASE}/`);
+  await page.waitForSelector("text=Recently finished");
+  const stillPlaying = await page.getByText("Currently playing").isVisible().catch(() => false);
+  check("completed game left the currently-playing section", !stillPlaying);
 
   // 11. Delete a log from diary
   await page.goto(`${BASE}/log`);

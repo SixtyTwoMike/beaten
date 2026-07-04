@@ -47,11 +47,12 @@ model PlayLog {
   id         String    @id @default(cuid())
   userId     String
   gameId     String
-  // "BEATEN" | "MASTERED" (SQLite has no enums; validated in app code)
+  // "PLAYING" | "BEATEN" | "MASTERED" (SQLite has no enums; validated in app code)
   status     String
   platformId Int?
   startedAt  DateTime?
-  finishedAt DateTime
+  // null while a game is still being played (status PLAYING)
+  finishedAt DateTime?
   isReplay   Boolean   @default(false)
   // 1-10 = half-star steps of a 5-star scale (7 = 3.5 stars)
   rating     Int?
@@ -62,6 +63,7 @@ model PlayLog {
   game       Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@index([userId, finishedAt])
+  @@index([userId, status])
 }
 
 model Shelf {

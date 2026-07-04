@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { ensureGame } from "@/lib/games";
 import { requireUserId } from "@/lib/session";
+import { isFinishedStatus, isPlayStatus } from "@/lib/status";
 
 export type SaveLogInput = {
   logId?: string;
@@ -11,7 +12,7 @@ export type SaveLogInput = {
   status: string;
   platformId?: number | null;
   startedAt?: string | null; // YYYY-MM-DD
-  finishedAt: string; // YYYY-MM-DD
+  finishedAt?: string | null; // YYYY-MM-DD; null while status is PLAYING
   isReplay: boolean;
   rating?: number | null; // 1-10 half-star steps
   reviewText?: string | null;
@@ -31,14 +32,18 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
 
-    if (input.status !== "BEATEN" && input.status !== "MASTERED") {
+    if (!isPlayStatus(input.status)) {
       return { ok: false, error: "Invalid status" };
     }
-    const finishedAt = parseDate(input.finishedAt);
-    if (!finishedAt) return { ok: false, error: "A finish date is required" };
     const startedAt = parseDate(input.startedAt);
-    if (startedAt && startedAt > finishedAt) {
-      return { ok: false, error: "Start date must be before the finish date" };
+    // Finished statuses require a finish date; a game still being played has none.
+    let finishedAt: Date | null = null;
+    if (isFinishedStatus(input.status)) {
+      finishedAt = parseDate(input.finishedAt);
+      if (!finishedAt) return { ok: false, error: "A finish date is required" };
+      if (startedAt && startedAt > finishedAt) {
+        return { ok: false, error: "Start date must be before the finish date" };
+      }
     }
     let rating: number | null = null;
     if (input.rating != null && input.rating !== 0) {

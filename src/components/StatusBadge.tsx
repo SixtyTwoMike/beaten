@@ -6,6 +6,13 @@ export function StatusBadge({ status }: { status: string }) {
       </span>
     );
   }
+  if (status === "PLAYING") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-sky/15 px-2 py-0.5 text-xs font-semibold text-sky">
+        ▶ Playing
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-mint/15 px-2 py-0.5 text-xs font-semibold text-mint">
       ✓ Beaten

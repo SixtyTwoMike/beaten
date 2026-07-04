@@ -10,6 +10,7 @@ import type {
   PlatformOption,
   ShelfOption,
 } from "@/lib/types";
+import { isPlayStatus, type PlayStatus } from "@/lib/status";
 import { Poster } from "./Poster";
 import { StarRatingInput } from "./StarRatingInput";
 
@@ -57,13 +58,14 @@ export function LogGameModal({
   platforms: PlatformOption[];
   shelves: ShelfOption[];
   existing?: ExistingLog | null;
-  defaultStatus?: "BEATEN" | "MASTERED";
+  defaultStatus?: PlayStatus;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState<"BEATEN" | "MASTERED">(
-    existing?.status === "MASTERED" ? "MASTERED" : existing ? "BEATEN" : defaultStatus
+  const [status, setStatus] = useState<PlayStatus>(
+    existing && isPlayStatus(existing.status) ? existing.status : defaultStatus
   );
+  const isPlaying = status === "PLAYING";
   const [platformId, setPlatformId] = useState<string>(
     existing?.platformId ? String(existing.platformId) : ""
   );
@@ -116,7 +118,7 @@ export function LogGameModal({
         status,
         platformId: platformId ? Number(platformId) : null,
         startedAt: startedAt || null,
-        finishedAt,
+        finishedAt: isPlaying ? null : finishedAt,
         isReplay: isReplay === "replay",
         rating: rating || null,
         reviewText: reviewText || null,
@@ -168,45 +170,49 @@ export function LogGameModal({
         </div>
 
         <form onSubmit={submit} className="space-y-4 p-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <span className={labelClass}>Status</span>
-              <Segmented
-                value={status}
-                onChange={setStatus}
-                options={[
-                  {
-                    value: "BEATEN",
-                    label: "Beaten",
-                    activeClass: "bg-mint text-canvas",
-                  },
-                  {
-                    value: "MASTERED",
-                    label: "Mastered ★",
-                    activeClass: "bg-gold text-canvas",
-                  },
-                ]}
-              />
-            </div>
-            <div>
-              <span className={labelClass}>Play</span>
-              <Segmented
-                value={isReplay}
-                onChange={setIsReplay}
-                options={[
-                  {
-                    value: "first",
-                    label: "First time",
-                    activeClass: "bg-card-2 text-white",
-                  },
-                  {
-                    value: "replay",
-                    label: "Replay",
-                    activeClass: "bg-card-2 text-white",
-                  },
-                ]}
-              />
-            </div>
+          <div>
+            <span className={labelClass}>Status</span>
+            <Segmented
+              value={status}
+              onChange={setStatus}
+              options={[
+                {
+                  value: "PLAYING",
+                  label: "▶ Playing",
+                  activeClass: "bg-sky text-canvas",
+                },
+                {
+                  value: "BEATEN",
+                  label: "✓ Beaten",
+                  activeClass: "bg-mint text-canvas",
+                },
+                {
+                  value: "MASTERED",
+                  label: "★ Mastered",
+                  activeClass: "bg-gold text-canvas",
+                },
+              ]}
+            />
+          </div>
+
+          <div>
+            <span className={labelClass}>Play</span>
+            <Segmented
+              value={isReplay}
+              onChange={setIsReplay}
+              options={[
+                {
+                  value: "first",
+                  label: "First time",
+                  activeClass: "bg-card-2 text-white",
+                },
+                {
+                  value: "replay",
+                  label: "Replay",
+                  activeClass: "bg-card-2 text-white",
+                },
+              ]}
+            />
           </div>
 
           <div>
@@ -242,30 +248,33 @@ export function LogGameModal({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass} htmlFor="log-started">
-                Started <span className="normal-case text-fog/60">(optional)</span>
+                {isPlaying ? "Playing since" : "Started"}{" "}
+                <span className="normal-case text-fog/60">(optional)</span>
               </label>
               <input
                 id="log-started"
                 type="date"
                 value={startedAt}
-                max={finishedAt || undefined}
+                max={isPlaying ? undefined : finishedAt || undefined}
                 onChange={(e) => setStartedAt(e.target.value)}
                 className={fieldClass}
               />
             </div>
-            <div>
-              <label className={labelClass} htmlFor="log-finished">
-                Finished
-              </label>
-              <input
-                id="log-finished"
-                type="date"
-                required
-                value={finishedAt}
-                onChange={(e) => setFinishedAt(e.target.value)}
-                className={fieldClass}
-              />
-            </div>
+            {!isPlaying && (
+              <div>
+                <label className={labelClass} htmlFor="log-finished">
+                  Finished
+                </label>
+                <input
+                  id="log-finished"
+                  type="date"
+                  required
+                  value={finishedAt}
+                  onChange={(e) => setFinishedAt(e.target.value)}
+                  className={fieldClass}
+                />
+              </div>
+            )}
           </div>
 
           <div>

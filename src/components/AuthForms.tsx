@@ -66,7 +66,13 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         <input
           type="email"
           required
-          autoComplete="email"
+          name="email"
+          id="login-email"
+          autoComplete="username"
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -75,6 +81,8 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
         <input
           type="password"
           required
+          name="password"
+          id="login-password"
           autoComplete="current-password"
           placeholder="Password"
           value={password}
@@ -142,6 +150,8 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
         <input
           type="text"
           required
+          name="name"
+          id="register-name"
           autoComplete="name"
           placeholder="Display name"
           value={name}
@@ -151,7 +161,13 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
         <input
           type="email"
           required
-          autoComplete="email"
+          name="email"
+          id="register-email"
+          autoComplete="username"
+          inputMode="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -162,7 +178,10 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             type="password"
             required
             minLength={8}
+            name="new-password"
+            id="register-password"
             autoComplete="new-password"
+            passwordrules="minlength: 8;"
             placeholder="Password (8+ characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

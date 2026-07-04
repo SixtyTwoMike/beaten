@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { formatDate, toDateInput } from "@/lib/format";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
+import { isPlayStatus } from "@/lib/status";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
 import { Stars } from "@/components/Stars";
@@ -20,7 +21,7 @@ export default async function LogPage({
   const params = await searchParams;
 
   const where: Prisma.PlayLogWhereInput = { userId: user.id };
-  if (params.status === "BEATEN" || params.status === "MASTERED") {
+  if (params.status && isPlayStatus(params.status)) {
     where.status = params.status;
   }
   const platformFilter = params.platform ? Number(params.platform) : null;
@@ -33,14 +34,13 @@ export default async function LogPage({
     };
   }
 
-  const [logs, allLogsForYears, platforms, shelves] = await Promise.all([
+  const [rawLogs, allFinished, platforms, shelves] = await Promise.all([
     prisma.playLog.findMany({
       where,
-      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
       include: { game: true },
     }),
     prisma.playLog.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, finishedAt: { not: null } },
       select: { finishedAt: true },
     }),
     getPlatforms(),
@@ -51,8 +51,25 @@ export default async function LogPage({
     }),
   ]);
 
+  // Currently-playing entries (null finishedAt) sort to the top by start date;
+  // finished entries follow, most-recently-finished first. A single Prisma
+  // orderBy can't express this cleanly with nullable finishedAt.
+  const logs = [...rawLogs].sort((a, b) => {
+    const af = a.finishedAt?.getTime();
+    const bf = b.finishedAt?.getTime();
+    if (af == null && bf == null) {
+      return (
+        (b.startedAt ?? b.createdAt).getTime() -
+        (a.startedAt ?? a.createdAt).getTime()
+      );
+    }
+    if (af == null) return -1;
+    if (bf == null) return 1;
+    return bf - af || b.createdAt.getTime() - a.createdAt.getTime();
+  });
+
   const years = [
-    ...new Set(allLogsForYears.map((l) => l.finishedAt.getUTCFullYear())),
+    ...new Set(allFinished.map((l) => l.finishedAt!.getUTCFullYear())),
   ].sort((a, b) => b - a);
 
   const platformOptions = platforms.map((p) => ({
@@ -72,6 +89,7 @@ export default async function LogPage({
         <form method="GET" className="flex flex-wrap items-center gap-2">
           <select name="status" defaultValue={params.status ?? ""} className={selectClass}>
             <option value="">Any status</option>
+            <option value="PLAYING">Playing</option>
             <option value="BEATEN">Beaten</option>
             <option value="MASTERED">Mastered</option>
           </select>
@@ -154,8 +172,11 @@ export default async function LogPage({
                     )}
                   </div>
                   <p className="mt-1 text-sm text-fog">
-                    {log.startedAt && `${formatDate(log.startedAt)} – `}
-                    {formatDate(log.finishedAt)}
+                    {log.finishedAt
+                      ? `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`
+                      : log.startedAt
+                        ? `Playing since ${formatDate(log.startedAt)}`
+                        : "Currently playing"}
                     {platform && (
                       <span className="ml-2 rounded bg-card-2 px-1.5 py-0.5 text-xs">
                         {platform.abbreviation ?? platform.name}
@@ -187,7 +208,7 @@ export default async function LogPage({
                       status: log.status,
                       platformId: log.platformId,
                       startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
-                      finishedAt: toDateInput(log.finishedAt),
+                      finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
                       isReplay: log.isReplay,
                       rating: log.rating,
                       reviewText: log.reviewText,
