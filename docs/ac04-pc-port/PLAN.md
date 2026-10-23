@@ -12,12 +12,65 @@ plan for when you're at your PC.
   (Apache-2.0, beta v2.2.3, 64 commits, last commit 2026-10-21). Mission 01 has
   been played start to finish. Audio, save/load, widescreen, up to 8x internal
   resolution, controller rebinding, Lua and native mods all work. It's Windows only.
-- **Its code is already mostly portable.** It uses SDL3 + Vulkan + GCC + CMake, and
+- **Chosen route: run its Windows build under Proton.** See "Chosen route" below
+  and `ac4-proton-setup.py`, which installs it natively so you can skip the .NET installer.
+- **(Shelved) Its code is already mostly portable.** It uses SDL3 + Vulkan + GCC + CMake, and
   almost every `#ifdef _WIN32` already has a POSIX `#else`. A native Linux build
   looks like **days of work, not months** (see the gap list below). Running the
   Windows build through Proton is a possible quick start, but nobody has tested it.
 - **A matching decompilation** (rebuilding the C source byte for byte) would take
   years. Treat it as an optional long-term layer on top of the recomp, not step one.
+
+## Chosen route: the Windows build under Proton (Bazzite / SteamOS)
+
+Decision (2026-10-23): use the compatibility layers already in Bazzite and
+SteamOS rather than writing a native Linux port. Here is what I found when I
+checked the upstream build against Wine/Proton:
+
+| Piece | Under Proton | Notes |
+|---|---|---|
+| `runtime/ac4.exe` (the game) | **Likely fine** | Plain Win64 C built with MinGW GCC, with no CPU tuning flags (`-O2` only), so it runs on a Steam Deck's Zen 2 CPU. Uses SDL3, which works well under Wine, and **Vulkan 1.3, which Proton passes straight to the Linux driver** (no DXVK translation). The waitable timer it uses for 59.94 Hz has a `nanosleep` fallback in case Wine lacks the high-resolution flag. |
+| `Setup.exe` (installer) | **Fragile** | .NET Framework 4.8 WinForms, plus a COM `WScript.Shell` call for the desktop shortcut. Wine-Mono might cope, or it might not. → **Bypassed by `ac4-proton-setup.py`** (below). |
+| `Ace Combat 04.exe` (launcher) | Probably OK, not needed | .NET WinForms. All it does is start `runtime\ac4.exe` with fixed arguments and send the output to `last-play.log`. → The Steam shortcut can start `ac4.exe` directly with the same arguments. |
+| Steam overlay | **Known crash risk** | Upstream lists the Steam overlay among the things that crash the Vulkan startup. Turn it off for this shortcut if launch fails. |
+| Controller | Should work | Steam Input presents a virtual Xbox pad, which SDL inside Wine reads. The game maps buttons by position (bottom = Cross). |
+| Mods (`.dll`) and Lua mods | Should work | They're Windows DLLs inside Wine, so `LoadLibrary` just works. |
+| HD texture script (`MAKE_HD_TEXTURES.bat`) | Skip, or run natively | It needs Windows Python + Real-ESRGAN. The Linux builds of both work just as well, run directly against the game folder. |
+
+### `ac4-proton-setup.py`: a native replacement for Setup.exe
+
+This file is in this folder. Bazzite and SteamOS already have Python 3, and the
+script needs nothing else installed. It does exactly what `InstallerCore.cs`
+does:
+
+1. Checks that the release `Setup.exe` matches `SHA256SUMS.txt` (optional).
+2. Pulls the game payload (a zip stored as a .NET resource) out of `Setup.exe`.
+3. Checks your ISO is the US disc and that `SLUS_201.52` matches the upstream
+   SHA256, then rebuilds `runtime/ps2_image.bin` from it.
+4. Symlinks the ISO in as `game.iso` (or copies it with `--copy-iso`) and creates `saves/`.
+5. Prints the Steam shortcut settings: target `ac4.exe`, launch options with
+   `Z:\` paths and `PS2_SHADER_DIR`/`PS2_SAVE_DIR`, and which Proton to force.
+
+```bash
+python3 ac4-proton-setup.py --setup Ace-Combat-04-PC-Port-2.2.3-beta-Setup.exe \
+    --sums SHA256SUMS.txt --iso ~/Games/ac04-usa.iso --dest ~/Games/AC04
+```
+
+So far it has only been tested on synthetic data (a fake ISO and a fake
+Setup.exe with an embedded zip): it installs correctly, and it rejects a
+wrong-hash executable and a non-empty folder. **It has not been run against the
+real release or the real disc yet.** That's the first job at the PC.
+
+### Proton test checklist (at the PC)
+- [ ] Rip the US disc to an uncompressed ISO and run the setup script.
+- [ ] Add the Steam shortcut and force Proton Experimental. Boot → title → Mission 01.
+- [ ] If it fails, try in this order: overlay off → `PROTON_LOG=1` → GE-Proton →
+      run upstream `Setup.exe` under Proton as a comparison.
+- [ ] Game Mode (gamescope): fullscreen, frame pacing at 60 Hz. On a 90 Hz Deck
+      OLED, set the refresh rate to 60.
+- [ ] Save in-game, quit, relaunch, load.
+- [ ] Report anything Proton-specific upstream (a "works on Proton" note in their
+      README helps everyone).
 
 ## What exists (prior art)
 
@@ -47,7 +100,9 @@ I found no AC04 *matching decomp* project (splat/decomp.me style) anywhere.
   time, testing each against the original. The recomp's override/hook system
   already supports this.
 
-## Linux porting gaps found in PresidentRaptor's code
+## (Shelved) Native Linux port: gaps found in PresidentRaptor's code
+
+Kept for reference in case Proton turns out to have problems that can't be fixed.
 
 I cloned commit `322ad0e` and read through it. These are the only Windows-only
 pieces I found:
