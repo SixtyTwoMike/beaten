@@ -14,6 +14,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 // Public profile — deliberately outside the (app) route group so it needs no
 // sign-in. Only select public fields: never the email or password hash.
 
+// Most-recent finishes shown in the grid; the heading still shows the total.
+const PROFILE_GRID_LIMIT = 48;
+
 type Params = { params: Promise<{ username: string }> };
 
 async function findProfile(raw: string) {
@@ -68,6 +71,7 @@ export default async function ProfilePage({ params }: Params) {
   const currentlyPlaying = [...playingByGame.values()];
   const finished = logs.filter((l) => l.finishedAt);
   const reviews = finished.filter((l) => l.reviewText).slice(0, 10);
+  const finishedShown = finished.slice(0, PROFILE_GRID_LIMIT);
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
   const stats = [
@@ -205,7 +209,7 @@ export default async function ProfilePage({ params }: Params) {
             <p className="mt-2 text-sm text-fog">Nothing logged yet.</p>
           ) : (
             <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-6 lg:grid-cols-8">
-              {finished.map((log) => (
+              {finishedShown.map((log) => (
                 <GameLink key={log.id} igdbId={log.game.igdbId}>
                   <Poster
                     name={log.game.name}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { ensureGame } from "@/lib/games";
 import { requireUserId } from "@/lib/session";
+import { MAX_SHELF_DESCRIPTION, MAX_SHELF_NAME, isIgdbId } from "@/lib/limits";
 import type { ActionResult } from "./logs";
 
 export async function createShelf(
@@ -14,8 +15,14 @@ export async function createShelf(
     const userId = await requireUserId();
     const trimmed = name.trim();
     if (!trimmed) return { ok: false, error: "Shelf name is required" };
-    if (trimmed.length > 60) {
-      return { ok: false, error: "Shelf name must be 60 characters or fewer" };
+    if (trimmed.length > MAX_SHELF_NAME) {
+      return { ok: false, error: `Shelf name must be ${MAX_SHELF_NAME} characters or fewer` };
+    }
+    if ((description?.trim().length ?? 0) > MAX_SHELF_DESCRIPTION) {
+      return {
+        ok: false,
+        error: `Description must be ${MAX_SHELF_DESCRIPTION} characters or fewer`,
+      };
     }
     const existing = await prisma.shelf.findUnique({
       where: { userId_name: { userId, name: trimmed } },
@@ -54,6 +61,7 @@ export async function addGameToShelf(
 ): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
+    if (!isIgdbId(igdbId)) return { ok: false, error: "Invalid game" };
     const shelf = await prisma.shelf.findUnique({ where: { id: shelfId } });
     if (!shelf || shelf.userId !== userId) {
       return { ok: false, error: "Shelf not found" };

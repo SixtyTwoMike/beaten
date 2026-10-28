@@ -53,7 +53,6 @@ echo "    blueprint: $BLUEPRINT"
 echo "    bundle:    $BUNDLE — \$$PRICE/month flat"
 echo "    artifact:  $BUNDLE_URL"
 
-AUTH_SECRET=$(openssl rand -base64 32)
 mkdir -p deploy/out
 UD=deploy/out/user-data.sh
 
@@ -66,18 +65,23 @@ cat > "$UD" <<USERDATA
 set -eu
 exec > /var/log/beaten-userdata.log 2>&1
 
+# AUTH_SECRET is generated here on the instance (not embedded in user-data,
+# which is readable from instance metadata) and the env file is private
+# from the moment it's created.
+umask 077
 cat > /etc/beaten.env <<ENV
 NODE_ENV=production
 PORT=3000
 HOSTNAME=127.0.0.1
 DATABASE_URL=file:/opt/beaten/data/beaten.db
-AUTH_SECRET=$AUTH_SECRET
+AUTH_SECRET=\$(openssl rand -base64 32)
 AUTH_TRUST_HOST=true
 IGDB_MOCK=${IGDB_MOCK:-1}
 TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
 TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
 ENV
 chmod 600 /etc/beaten.env
+umask 022
 
 cat > /etc/default/beaten-setup <<CONF
 # Values are single-quoted so presigned-URL query separators (ampersands)

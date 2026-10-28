@@ -153,6 +153,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           required
           name="name"
           id="register-name"
+          maxLength={50}
           autoComplete="name"
           placeholder="Display name"
           value={name}
@@ -199,10 +200,11 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             type="password"
             required
             minLength={8}
+            maxLength={72}
             name="new-password"
             id="register-password"
             autoComplete="new-password"
-            passwordrules="minlength: 8;"
+            passwordrules="minlength: 8; maxlength: 72;"
             placeholder="Password (8+ characters)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

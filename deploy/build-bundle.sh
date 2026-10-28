@@ -18,7 +18,7 @@ npm run build
 
 echo "==> staging bundle"
 cp -r .next/standalone/. "$STAGE/"
-rm -f "$STAGE/.env"
+rm -f "$STAGE"/.env*
 mkdir -p "$STAGE/.next/static"
 cp -r .next/static/. "$STAGE/.next/static/"
 cp -r public "$STAGE/public"

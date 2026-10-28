@@ -4,6 +4,13 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
 
+// Compared against when the email is unknown, so a failed sign-in takes the
+// same bcrypt time whether or not the account exists.
+const DUMMY_HASH = "$2b$12$bcZWFlt4lprVdx1DlBLZL.VPJAXEI.1FjI1.hT0Acr7FBLUp1Qmhu";
+
+// Sessions expire after 14 days instead of Auth.js's 30-day default.
+const SESSION_MAX_AGE = 14 * 24 * 60 * 60;
+
 const providers: NextAuthConfig["providers"] = [
   Credentials({
     name: "Email and password",
@@ -16,11 +23,12 @@ const providers: NextAuthConfig["providers"] = [
         .trim()
         .toLowerCase();
       const password = String(credentials?.password ?? "");
-      if (!email || !password) return null;
+      if (!email || !password || email.length > 254 || password.length > 128) {
+        return null;
+      }
       const user = await prisma.user.findUnique({ where: { email } });
-      if (!user?.passwordHash) return null;
-      const valid = await bcrypt.compare(password, user.passwordHash);
-      if (!valid) return null;
+      const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+      if (!user?.passwordHash || !valid) return null;
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },
   }),
@@ -40,10 +48,22 @@ if (googleEnabled) {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE },
   pages: { signIn: "/login" },
   providers,
   callbacks: {
+    async signIn({ account, profile }) {
+      if (account?.provider !== "google") return true;
+      // Only trust addresses Google has verified, and never attach a Google
+      // login to an existing password account: whoever registered that
+      // address with a password (possibly not its owner) would keep access.
+      if (profile?.email_verified !== true || !profile.email) return false;
+      const existing = await prisma.user.findUnique({
+        where: { email: profile.email.toLowerCase() },
+        select: { passwordHash: true },
+      });
+      return !existing?.passwordHash;
+    },
     async jwt({ token, user, account }) {
       // Runs with `user` defined only on sign-in.
       if (user) {
@@ -61,7 +81,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } else {
           token.uid = user.id;
         }
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.uid as string },
+          select: { tokenVersion: true },
+        });
+        token.tv = fresh?.tokenVersion ?? 0;
+        return token;
       }
+      // Every later request: reject sessions for deleted users or ones
+      // revoked by "sign out everywhere".
+      if (!token.uid) return null;
+      const current = await prisma.user.findUnique({
+        where: { id: token.uid as string },
+        select: { tokenVersion: true },
+      });
+      if (!current || current.tokenVersion !== token.tv) return null;
       return token;
     },
     async session({ session, token }) {

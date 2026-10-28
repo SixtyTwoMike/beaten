@@ -212,6 +212,50 @@ try {
   await page.screenshot({ path: `${shots}/profile-public.png`, fullPage: true });
   const missing = await page.goto(`${BASE}/u/no_such_user_xyz`);
   check("unknown profile is a 404", missing?.status() === 404);
+
+  // 15. "Sign out everywhere" revokes sessions on other devices too
+  async function signInIn(ctxPage) {
+    await ctxPage.goto(`${BASE}/login`);
+    await ctxPage.fill("#login-email", email);
+    await ctxPage.fill("#login-password", password);
+    await ctxPage.getByRole("button", { name: "Sign in" }).click();
+    await ctxPage.waitForSelector("text=Welcome back");
+  }
+  const otherContext = await browser.newContext();
+  const other = await otherContext.newPage();
+  await signInIn(page);
+  await signInIn(other);
+  await page.goto(`${BASE}/settings`);
+  await page.getByRole("button", { name: "Sign out everywhere" }).click();
+  await page.waitForURL("**/login**");
+  await other.goto(`${BASE}/`);
+  await other.waitForURL("**/login**");
+  check("sign out everywhere revokes other sessions", other.url().includes("/login"));
+  await otherContext.close();
+
+  // 16. Wrong password costs the same for unknown emails (no enumeration)
+  async function timeLogin(loginEmail) {
+    // The CSRF token is only accepted alongside its cookie; without it Auth.js
+    // rejects the request before authorize() runs and nothing is measured.
+    const csrfRes = await fetch(`${BASE}/api/auth/csrf`);
+    const csrf = await csrfRes.json();
+    const cookie = csrfRes.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+    const t0 = performance.now();
+    const res = await fetch(`${BASE}/api/auth/callback/credentials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookie },
+      body: new URLSearchParams({ email: loginEmail, password: "wrong-password", csrfToken: csrf.csrfToken }),
+      redirect: "manual",
+    });
+    const elapsed = performance.now() - t0;
+    if (!res.headers.get("location")?.includes("error=CredentialsSignin")) {
+      throw new Error(`login probe was not a credentials rejection: ${res.headers.get("location")}`);
+    }
+    return elapsed;
+  }
+  const known = await timeLogin(email);
+  const unknown = await timeLogin(`nobody-${Date.now()}@example.com`);
+  check(`login timing similar for unknown email (${known.toFixed(0)}ms vs ${unknown.toFixed(0)}ms)`, known > 100 && unknown > known * 0.5);
 } catch (e) {
   failures++;
   console.error("FAIL (exception):", e.message);

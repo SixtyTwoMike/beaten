@@ -289,6 +289,7 @@ export function LogGameModal({
             <textarea
               id="log-review"
               rows={4}
+              maxLength={5000}
               placeholder="What did you think?"
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
@@ -316,6 +317,7 @@ export function LogGameModal({
                 ))}
                 <input
                   type="text"
+                  maxLength={60}
                   placeholder="+ New shelf name"
                   value={newShelfName}
                   onChange={(e) => setNewShelfName(e.target.value)}

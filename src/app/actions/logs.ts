@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { ensureGame } from "@/lib/games";
 import { requireUserId } from "@/lib/session";
+import {
+  MAX_REVIEW,
+  MAX_SHELF_NAME,
+  MAX_SHELVES_PER_LOG,
+  isIgdbId,
+} from "@/lib/limits";
 import { isFinishedStatus, isPlayStatus } from "@/lib/status";
 
 export type SaveLogInput = {
@@ -32,6 +38,7 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
 
+    if (!isIgdbId(input.igdbId)) return { ok: false, error: "Invalid game" };
     if (!isPlayStatus(input.status)) {
       return { ok: false, error: "Invalid status" };
     }
@@ -53,6 +60,16 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
       }
     }
     const reviewText = input.reviewText?.trim() || null;
+    if (reviewText && reviewText.length > MAX_REVIEW) {
+      return { ok: false, error: `Reviews must be ${MAX_REVIEW} characters or fewer` };
+    }
+    const newShelfName = input.newShelfName?.trim();
+    if (newShelfName && newShelfName.length > MAX_SHELF_NAME) {
+      return { ok: false, error: `Shelf name must be ${MAX_SHELF_NAME} characters or fewer` };
+    }
+    if ((input.shelfIds?.length ?? 0) > MAX_SHELVES_PER_LOG) {
+      return { ok: false, error: "Too many shelves" };
+    }
     const platformId = input.platformId ?? null;
 
     const game = await ensureGame(input.igdbId);
@@ -83,7 +100,6 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
 
     // Optional shelf additions
     const shelfIds = [...(input.shelfIds ?? [])];
-    const newShelfName = input.newShelfName?.trim();
     if (newShelfName) {
       const shelf = await prisma.shelf.upsert({
         where: { userId_name: { userId, name: newShelfName } },

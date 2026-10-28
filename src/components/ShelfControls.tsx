@@ -49,6 +49,7 @@ export function ShelfCreateForm() {
       </div>
       <input
         type="text"
+        maxLength={500}
         placeholder="Description (optional)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
