@@ -518,18 +518,27 @@ try {
   await addConsole("Game Boy Advance", "2001", null);
   await addConsole("Nintendo Switch", "2017", null);
   await addConsole("Xbox Series X", "2021", null);
+  await addConsole("ZX Spectrum +2", "1988", null);
   await page.waitForTimeout(1000);
   const stops = page.locator("ol > li");
   check("chronicle orders consoles by when you got them",
-    (await stops.nth(0).textContent()).includes("Game Boy Advance") && (await stops.nth(1).textContent()).includes("PlayStation 2"));
-  check("chronicle works out ages from the birth year", await stops.nth(0).getByText("Age 11").isVisible());
+    (await stops.nth(1).textContent()).includes("Game Boy Advance") && (await stops.nth(2).textContent()).includes("PlayStation 2"));
+  check("chronicle works out ages from the birth year", await stops.nth(1).getByText("Age 11").isVisible());
   check("first home console and first handheld get badges",
-    await stops.nth(1).getByText("First console").isVisible() && await stops.nth(0).getByText("First handheld").isVisible());
+    await stops.nth(2).getByText("First console").isVisible() && await stops.nth(1).getByText("First handheld").isVisible());
   check("console photos are shown", (await page.locator('ol img[src^="/consoles/"]').count()) >= 3);
-  check("favourite games appear on the map", (await stops.nth(1).locator('[title*="Zelda"]').count()) === 1);
+  check("favourite games appear on the map", (await stops.nth(2).locator('[title*="Zelda"]').count()) === 1);
   check("Xbox Series X is its own console with its own photo",
     (await page.locator('ol img[src="/consoles/169-series-x.webp"]').count()) === 1 &&
-      (await stops.nth(3).textContent()).includes("Xbox Series X"));
+      (await stops.nth(4).textContent()).includes("Xbox Series X"));
+  check("computers are in the list, by model, with a first-computer badge",
+    (await page.locator('ol img[src="/consoles/26-plus2.webp"]').count()) === 1 &&
+      (await stops.nth(0).getByText("First computer").isVisible()));
+  await page.getByRole("button", { name: "+ Add a console" }).click();
+  check("adding a console opens a dialog with the button always in view",
+    await page.getByRole("dialog").isVisible() &&
+      await page.getByRole("button", { name: "Add to timeline" }).evaluate((el) => el.getBoundingClientRect().bottom <= innerHeight));
+  await page.keyboard.press("Escape");
   check("chronicle editor has a story button", await page.getByRole("button", { name: "Make Instagram story" }).isVisible());
 
   // 13. Sign out returns to login
@@ -607,7 +616,7 @@ try {
   const storyPng = await story.body();
   check("chronicle story page is a 1080x1920 PNG",
     story.headers()["content-type"] === "image/png" && storyPng.readUInt32BE(16) === 1080 && storyPng.readUInt32BE(20) === 1920);
-  check("four consoles make two story pages; past the end is a 404",
+  check("five consoles make two story pages; past the end is a 404",
     (await page.request.get(`${BASE}/${username}/chronicles/story?page=2`)).status() === 200 &&
       (await page.request.get(`${BASE}/${username}/chronicles/story?page=3`)).status() === 404);
 
@@ -761,7 +770,7 @@ try {
   check("JSON export includes profile and logs", exported.profile.email === email && exported.logs.length >= 2);
   check("JSON export includes social links", exported.profile.instagram === "smoke.tester");
   check("JSON export includes the console chronicle",
-    exported.consoleChronicle?.birthYear === 1990 && exported.consoleChronicle.consoles.length === 4);
+    exported.consoleChronicle?.birthYear === 1990 && exported.consoleChronicle.consoles.length === 5);
   check(
     "JSON export includes reviews and shelves",
     exported.logs.some((l) => l.review?.includes("Masterpiece")) &&

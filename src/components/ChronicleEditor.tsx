@@ -113,7 +113,7 @@ function GamePicker({
 
   return (
     <div className="space-y-3">
-      <ul className="grid grid-cols-3 gap-2">
+      <ul className="grid max-w-[15rem] grid-cols-3 gap-2">
         {[0, 1, 2].map((i) =>
           picked[i] ? (
             <li key={picked[i].igdbId} className="relative">
@@ -137,7 +137,7 @@ function GamePicker({
       {!full && fromDiary.length > 0 && (
         <div>
           <p className="mb-1.5 text-xs text-fog">From your diary</p>
-          <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6">{fromDiary.slice(0, 6).map((g) => tile(g, () => add(g), `Add ${g.name}`))}</ul>
+          <ul className="grid grid-cols-5 gap-2 sm:grid-cols-6">{fromDiary.slice(0, 6).map((g) => tile(g, () => add(g), `Add ${g.name}`))}</ul>
         </div>
       )}
       {!full && (
@@ -158,7 +158,7 @@ function GamePicker({
           {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
           {results && results.length === 0 && <p className="mt-1 text-xs text-fog">No games found.</p>}
           {results && results.length > 0 && (
-            <ul className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
+            <ul className="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-6">
               {results.filter((g) => !picked.some((p) => p.igdbId === g.igdbId)).map((g) => tile(g, () => add(g), `Add ${g.name}`))}
             </ul>
           )}
@@ -218,61 +218,99 @@ function EntryForm({
     });
   }
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Focus in on open, back out on close; Escape closes; the page behind
+  // doesn't scroll.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLElement>("input")?.focus();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = overflow;
+      previous?.focus();
+    };
+  }, []);
+
+  const title = stop ? `Edit ${stop.platformName}` : "Add a console";
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-xl border border-mint/30 bg-card p-4">
-      <h3 className="font-semibold">{stop ? `Edit ${stop.platformName}` : "Add a console"}</h3>
-      <div>
-        <label className={label} htmlFor="chronicle-console">Console</label>
-        <ConsolePicker id="chronicle-console" options={consoles} value={choice} onChange={setChoice} className={`${field} min-w-0`} />
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onDone()}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onKeyDown={(e) => e.key === "Escape" && onDone()}
+        className="flex max-h-[92dvh] w-full flex-col rounded-t-2xl border border-edge bg-card shadow-2xl sm:max-h-[88vh] sm:max-w-lg sm:rounded-2xl"
+      >
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center justify-between border-b border-edge px-4 py-3">
+            <h3 className="font-semibold">{title}</h3>
+            <button type="button" onClick={onDone} aria-label="Close" className="rounded-md p-1.5 text-fog hover:bg-card-2 hover:text-white">
+              ✕
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            <div>
+              <label className={label} htmlFor="chronicle-console">Console or computer</label>
+              <ConsolePicker id="chronicle-console" options={consoles} value={choice} onChange={setChoice} className={`${field} min-w-0`} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="min-w-0">
+                <span className={label}>When you got it</span>
+                <PartialDateField id="chronicle-got" required value={gotAt} onChange={setGotAt} fieldClass={field} />
+              </div>
+              <div className="min-w-0">
+                <label className={label} htmlFor="chronicle-age">
+                  Your age then <span className="normal-case text-fog/85">(optional)</span>
+                </label>
+                <input
+                  id="chronicle-age"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={120}
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder={autoAge != null && autoAge >= 0 ? `About ${autoAge}` : "e.g. 9"}
+                  className={field}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={label} htmlFor="chronicle-model">
+                  Model <span className="normal-case text-fog/85">(optional)</span>
+                </label>
+                <input id="chronicle-model" value={model} maxLength={MAX_MODEL} onChange={(e) => setModel(e.target.value)} placeholder="Slim, Lite, special edition…" className={field} />
+              </div>
+              <div>
+                <label className={label} htmlFor="chronicle-note">
+                  Note <span className="normal-case text-fog/85">(optional)</span>
+                </label>
+                <input id="chronicle-note" value={note} maxLength={MAX_NOTE} onChange={(e) => setNote(e.target.value)} placeholder="Christmas 1998, from Gran" className={field} />
+              </div>
+            </div>
+            <div>
+              <span className={label}>Top 3 games on it</span>
+              <GamePicker platformId={platformId ? Number(platformId) : null} picked={games} onChange={setGames} suggestions={suggestions} />
+            </div>
+          </div>
+          <div className="border-t border-edge px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {error && <p role="alert" className="mb-2 text-sm text-red-400">{error}</p>}
+            <div className="flex gap-2">
+              <button type="submit" disabled={pending || !platformId} className={`${primary} flex-1 sm:flex-none`}>
+                {pending ? "Saving…" : stop ? "Save changes" : "Add to timeline"}
+              </button>
+              <button type="button" onClick={onDone} className={quiet}>Cancel</button>
+            </div>
+          </div>
+        </form>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="min-w-0">
-          <span className={label}>When you got it</span>
-          <PartialDateField id="chronicle-got" required value={gotAt} onChange={setGotAt} fieldClass={field} />
-        </div>
-        <div className="min-w-0">
-          <label className={label} htmlFor="chronicle-age">
-            Your age then <span className="normal-case text-fog/85">(optional)</span>
-          </label>
-          <input
-            id="chronicle-age"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={120}
-            value={age}
-            onChange={(e) => setAge(e.target.value)}
-            placeholder={autoAge != null && autoAge >= 0 ? `About ${autoAge}` : "e.g. 9"}
-            className={field}
-          />
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className={label} htmlFor="chronicle-model">
-            Model <span className="normal-case text-fog/85">(optional)</span>
-          </label>
-          <input id="chronicle-model" value={model} maxLength={MAX_MODEL} onChange={(e) => setModel(e.target.value)} placeholder="Slim, Lite, special edition…" className={field} />
-        </div>
-        <div>
-          <label className={label} htmlFor="chronicle-note">
-            Note <span className="normal-case text-fog/85">(optional)</span>
-          </label>
-          <input id="chronicle-note" value={note} maxLength={MAX_NOTE} onChange={(e) => setNote(e.target.value)} placeholder="Christmas 1998, from Gran" className={field} />
-        </div>
-      </div>
-      <div>
-        <span className={label}>Top 3 games on it</span>
-        <GamePicker platformId={platformId ? Number(platformId) : null} picked={games} onChange={setGames} suggestions={suggestions} />
-      </div>
-      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
-      <div className="flex gap-2">
-        <button type="submit" disabled={pending || !platformId} className={primary}>
-          {pending ? "Saving…" : stop ? "Save changes" : "Add to timeline"}
-        </button>
-        <button type="button" onClick={onDone} className={quiet}>Cancel</button>
-      </div>
-    </form>
+    </div>
   );
 }
 
@@ -369,7 +407,7 @@ export function ChronicleEditor({
     background: view.background,
     path: view.path,
   });
-  const [editing, setEditing] = useState<string | "new" | null>(view.stops.length === 0 ? "new" : null);
+  const [editing, setEditing] = useState<string | "new" | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | string>("idle");
   const [, startTransition] = useTransition();
   const first = useRef(true);

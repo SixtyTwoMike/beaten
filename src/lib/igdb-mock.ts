@@ -27,6 +27,8 @@ export const mockPlatforms: IgdbPlatform[] = [
   { id: 37, name: "Nintendo 3DS", abbreviation: "3DS", generation: 8, category: 5 },
   { id: 23, name: "Dreamcast", abbreviation: "DC", generation: 6, category: 1 },
   { id: 29, name: "Sega Mega Drive/Genesis", abbreviation: "Genesis", generation: 4, category: 1 },
+  { id: 26, name: "ZX Spectrum", abbreviation: "ZXS", generation: null, category: 6 },
+  { id: 15, name: "Commodore C64/128/MAX", abbreviation: "C64", generation: null, category: 6 },
 ];
 
 export const mockGames: IgdbGame[] = [

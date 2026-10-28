@@ -125,6 +125,15 @@
     "licenseUrl": null,
     "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Game-Boy-Advance-Purple-FL.png"
   },
+  "27": {
+    "file": "File:Sony HitBit HB-10P (Transparent Background).png",
+    "width": 640,
+    "height": 346,
+    "artist": "Sony_hitbit_10p.jpg: Doppelgangland derivative work: User:Ubcule",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sony_HitBit_HB-10P_(Transparent_Background).png"
+  },
   "29": {
     "file": "File:Sega-Mega-Drive-EU-Mk1-wController-FL.png",
     "width": 640,
@@ -287,6 +296,15 @@
     "licenseUrl": null,
     "source": "https://commons.wikimedia.org/wiki/File:Atari-Jaguar-Bare-HL.png"
   },
+  "63": {
+    "file": "File:Atari 1040STf.jpg",
+    "width": 640,
+    "height": 418,
+    "artist": "© Bill Bertram, 2006",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:Atari_1040STf.jpg"
+  },
   "64": {
     "file": "File:Sega-Master-System-Console-FL.png",
     "width": 640,
@@ -295,6 +313,15 @@
     "license": "Public domain",
     "licenseUrl": null,
     "source": "https://commons.wikimedia.org/wiki/File:Sega-Master-System-Console-FL.png"
+  },
+  "65": {
+    "file": "File:Atari-800XL.jpg",
+    "width": 640,
+    "height": 315,
+    "artist": "Evan-Amos",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Atari-800XL.jpg"
   },
   "66": {
     "file": "File:Atari-5200-Console-Set.png",
@@ -322,6 +349,33 @@
     "license": "Public domain",
     "licenseUrl": null,
     "source": "https://commons.wikimedia.org/wiki/File:ColecoVision-Console-FL.jpg"
+  },
+  "69": {
+    "file": "File:BBC Micro Front Restored.jpg",
+    "width": 640,
+    "height": 431,
+    "artist": "BBC_Micro.jpeg: Stuart Brady derivative work: Ubcule (talk)",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:BBC_Micro_Front_Restored.jpg"
+  },
+  "71": {
+    "file": "File:Commodore-VIC-20-FL.png",
+    "width": 640,
+    "height": 330,
+    "artist": "OliverGalvin",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Commodore-VIC-20-FL.png"
+  },
+  "75": {
+    "file": "File:Apple IIe.jpg",
+    "width": 640,
+    "height": 435,
+    "artist": "Bilby",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Apple_IIe.jpg"
   },
   "78": {
     "file": "File:Sega-CD-Model2-Set.png",
@@ -395,6 +449,15 @@
     "licenseUrl": null,
     "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-wJoyCons-BlRd-Standing-FL.png"
   },
+  "134": {
+    "file": "File:Acorn Electron 4x3.jpg",
+    "width": 640,
+    "height": 328,
+    "artist": "Bilby",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Acorn_Electron_4x3.jpg"
+  },
   "137": {
     "file": "File:New Nintendo 3DS.png",
     "width": 640,
@@ -431,6 +494,15 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "source": "https://commons.wikimedia.org/wiki/File:PlayStation_5_and_DualSense_with_transparent_background.png"
   },
+  "373": {
+    "file": "File:Sinclair-ZX81.png",
+    "width": 640,
+    "height": 458,
+    "artist": "Evan-Amos",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Sinclair-ZX81.png"
+  },
   "508": {
     "file": "File:Nintendo Switch 2 in Handheld Mode.jpg",
     "width": 640,
@@ -457,5 +529,123 @@
     "license": "CC BY 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
     "source": "https://commons.wikimedia.org/wiki/File:Xbox_Series_S_with_controller_(transparent_background).png"
+  },
+  "26-48k": {
+    "file": "File:ZXSpectrum48k.jpg",
+    "width": 640,
+    "height": 437,
+    "artist": "Bill Bertram",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:ZXSpectrum48k.jpg"
+  },
+  "26-plus": {
+    "file": "File:ZX Spectrum+.jpg",
+    "white": 200,
+    "width": 640,
+    "height": 296,
+    "artist": "",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:ZX_Spectrum%2B.jpg"
+  },
+  "26-128": {
+    "file": "File:ZX Spectrum128K.jpg",
+    "width": 640,
+    "height": 355,
+    "artist": "Bill Bertram",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:ZX_Spectrum128K.jpg"
+  },
+  "26-plus2": {
+    "file": "File:ZX Spectrum Plus2 (retouched).jpg",
+    "width": 640,
+    "height": 212,
+    "artist": "No machine-readable author provided. StuartBrady assumed (based on copyright claims).",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:ZX_Spectrum_Plus2_(retouched).jpg"
+  },
+  "26-plus3": {
+    "file": "File:ZX Spectrum Plus3.jpeg",
+    "width": 640,
+    "height": 201,
+    "artist": "Frode Tennebø",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:ZX_Spectrum_Plus3.jpeg"
+  },
+  "15-c64": {
+    "file": "File:Commodore-64-Computer-FL.png",
+    "width": 640,
+    "height": 325,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Commodore-64-Computer-FL.png"
+  },
+  "15-c64c": {
+    "file": "File:C64c system.jpg",
+    "width": 640,
+    "height": 452,
+    "artist": "Bill Bertram",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:C64c_system.jpg"
+  },
+  "15-c128": {
+    "file": "File:Commodore-128.png",
+    "width": 640,
+    "height": 300,
+    "artist": "Evan-Amos",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Commodore-128.png"
+  },
+  "16-a500": {
+    "file": "File:Amiga500 system.jpg",
+    "width": 640,
+    "height": 458,
+    "artist": "Bill Bertram",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:Amiga500_system.jpg"
+  },
+  "16-a600": {
+    "file": "File:Amiga 600.jpg",
+    "width": 640,
+    "height": 437,
+    "artist": "Alexander Jones",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Amiga_600.jpg"
+  },
+  "16-a1200": {
+    "file": "File:Amiga 1200 with mouse, drives.jpg",
+    "width": 640,
+    "height": 188,
+    "artist": "No machine-readable author provided. Boffy b assumed (based on copyright claims).",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "source": "https://commons.wikimedia.org/wiki/File:Amiga_1200_with_mouse,_drives.jpg"
+  },
+  "25-464": {
+    "file": "File:Amstrad CPC464.jpg",
+    "width": 640,
+    "height": 387,
+    "artist": "Bill Bertram",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:Amstrad_CPC464.jpg"
+  },
+  "25-6128": {
+    "file": "File:Amstrad CPC 6128.png",
+    "width": 640,
+    "height": 475,
+    "artist": "Josefpm",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Amstrad_CPC_6128.png"
   }
 }

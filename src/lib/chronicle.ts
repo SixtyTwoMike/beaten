@@ -27,12 +27,19 @@ export const STORY_PER_PAGE = 3;
 // popularity for platforms).
 export const POPULAR_CONSOLES = [
   8, 20, 130, 33, 7, 48, 5, 37, 12, 9, 24, 38, 18, 19, 167, 49, 169, 4, 29, 21, 11, 22, 41, 46, 508, 59, 64,
-  35, 32, 23, 6,
+  35, 32, 23, 6, 15, 26, 16, 25,
 ];
 
-// IGDB platform types offered: consoles, handhelds, plus PC.
-const CONSOLE_TYPES = new Set([1, 5]);
+// IGDB platform types offered: consoles, handhelds and home computers,
+// plus Windows, Mac and DOS PCs (filed as operating systems).
+const CONSOLE_TYPES = new Set([1, 5, 6]);
 const HANDHELD_TYPE = 5;
+const COMPUTER_TYPE = 6;
+const PCS = new Set([6, 14, 13]);
+// Mainframes, lab machines and chips IGDB files as computers.
+const NOT_HOME_COMPUTERS = new Set([85, 95, 96, 97, 101, 102, 104, 105, 106, 107, 108, 109, 110, 140, 141, 409]);
+// Known computers, for a platform list synced before IGDB types were stored.
+const COMPUTERS = new Set([6, 14, 13, 15, 16, 25, 26, 27, 53, 63, 65, 69, 71, 75, 115, 116, 134, 154, 373, 406, 126, 129]);
 // IGDB files the Switches as home consoles; they're handhelds too.
 const HYBRIDS = new Set([130, 508]);
 // Known handhelds, for a platform list synced before IGDB types were stored.
@@ -72,13 +79,29 @@ const ALIASES: Record<number, string> = {
   38: "psp",
   46: "vita psv",
   6: "pc windows computer",
+  14: "macintosh apple",
+  26: "spectrum speccy sinclair zx",
+  373: "sinclair zx81",
+  15: "c64 commodore 64 128 c128 cbm",
+  71: "vic20 vic 20 commodore",
+  16: "amiga commodore a500 a600 a1200",
+  25: "cpc amstrad schneider 464 6128",
+  69: "bbc micro beeb acorn",
+  134: "electron acorn",
+  65: "atari 800 800xl 130xe 8-bit",
+  63: "atari st ste 520st 1040st",
+  75: "apple ii apple 2 iie",
 };
 
 export async function consoleOptions(): Promise<ConsoleOption[]> {
   const platforms = await getPlatforms();
   const popular = new Set(POPULAR_CONSOLES);
   return platforms
-    .filter((p) => CONSOLE_TYPES.has(p.category ?? -1) || p.id === 6 || popular.has(p.id) || HANDHELDS.has(p.id))
+    .filter(
+      (p) =>
+        (CONSOLE_TYPES.has(p.category ?? -1) || PCS.has(p.id) || popular.has(p.id) || HANDHELDS.has(p.id) || COMPUTERS.has(p.id)) &&
+        !NOT_HOME_COMPUTERS.has(p.id)
+    )
     .flatMap((p): ConsoleOption[] => {
       const at = POPULAR_CONSOLES.indexOf(p.id);
       const base = { platformId: p.id, popular: at >= 0, rank: at >= 0 ? at : POPULAR_CONSOLES.length };
@@ -103,10 +126,11 @@ export function isPath(v: unknown): v is ChroniclePath {
   return typeof v === "string" && v in CHRONICLE_PATHS;
 }
 
-export type ChronicleBadge = "FIRST_CONSOLE" | "FIRST_HANDHELD";
+export type ChronicleBadge = "FIRST_CONSOLE" | "FIRST_HANDHELD" | "FIRST_COMPUTER";
 export const BADGE_LABELS: Record<ChronicleBadge, string> = {
   FIRST_CONSOLE: "First console",
   FIRST_HANDHELD: "First handheld",
+  FIRST_COMPUTER: "First computer",
 };
 
 export type ChronicleStop = {
@@ -159,11 +183,13 @@ export async function loadChronicle(user: { id: string; name: string | null; use
 
   let firstConsole = false;
   let firstHandheld = false;
+  let firstComputer = false;
   const stops: ChronicleStop[] = (chronicle?.entries ?? []).map((e) => {
     const platform = byId.get(e.platformId);
     const pureHandheld = platform?.category === HANDHELD_TYPE || HANDHELDS.has(e.platformId);
     const handheld = pureHandheld || HYBRIDS.has(e.platformId);
-    const homeConsole = !pureHandheld;
+    const computer = platform?.category === COMPUTER_TYPE || COMPUTERS.has(e.platformId);
+    const homeConsole = !pureHandheld && !computer;
     const badges: ChronicleBadge[] = [];
     if (homeConsole && !firstConsole) {
       firstConsole = true;
@@ -172,6 +198,10 @@ export async function loadChronicle(user: { id: string; name: string | null; use
     if (handheld && !firstHandheld) {
       firstHandheld = true;
       badges.push("FIRST_HANDHELD");
+    }
+    if (computer && !firstComputer) {
+      firstComputer = true;
+      badges.push("FIRST_COMPUTER");
     }
     const year = e.gotAt.getUTCFullYear();
     const precision = e.gotPrecision ?? "DAY";

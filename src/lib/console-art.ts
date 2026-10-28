@@ -14,6 +14,27 @@ export const CONSOLE_VARIANTS: Record<number, { key: string; name: string }[]> =
     { key: "series-x", name: "Xbox Series X" },
     { key: "series-s", name: "Xbox Series S" },
   ],
+  26: [
+    { key: "48k", name: "ZX Spectrum 16K/48K" },
+    { key: "plus", name: "ZX Spectrum+" },
+    { key: "128", name: "ZX Spectrum 128" },
+    { key: "plus2", name: "ZX Spectrum +2" },
+    { key: "plus3", name: "ZX Spectrum +3" },
+  ],
+  15: [
+    { key: "c64", name: "Commodore 64" },
+    { key: "c64c", name: "Commodore 64C" },
+    { key: "c128", name: "Commodore 128" },
+  ],
+  16: [
+    { key: "a500", name: "Amiga 500" },
+    { key: "a600", name: "Amiga 600" },
+    { key: "a1200", name: "Amiga 1200" },
+  ],
+  25: [
+    { key: "464", name: "Amstrad CPC 464" },
+    { key: "6128", name: "Amstrad CPC 6128" },
+  ],
 };
 
 export function variantOf(platformId: number, key: string | null | undefined) {

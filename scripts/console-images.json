@@ -50,5 +50,29 @@
   "67": "File:Mattel-Intellivision-Console-BL.jpg",
   "68": "File:ColecoVision-Console-FL.jpg",
   "169-series-x": "File:Xbox Series X mit Controller (transparent background).png",
-  "169-series-s": "File:Xbox Series S with controller (transparent background).png"
+  "169-series-s": "File:Xbox Series S with controller (transparent background).png",
+  "26-48k": "File:ZXSpectrum48k.jpg",
+  "26-plus": {
+    "file": "File:ZX Spectrum+.jpg",
+    "white": 200
+  },
+  "26-128": "File:ZX Spectrum128K.jpg",
+  "26-plus2": "File:ZX Spectrum Plus2 (retouched).jpg",
+  "26-plus3": "File:ZX Spectrum Plus3.jpeg",
+  "373": "File:Sinclair-ZX81.png",
+  "15-c64": "File:Commodore-64-Computer-FL.png",
+  "15-c64c": "File:C64c system.jpg",
+  "15-c128": "File:Commodore-128.png",
+  "71": "File:Commodore-VIC-20-FL.png",
+  "16-a500": "File:Amiga500 system.jpg",
+  "16-a600": "File:Amiga 600.jpg",
+  "16-a1200": "File:Amiga 1200 with mouse, drives.jpg",
+  "25-464": "File:Amstrad CPC464.jpg",
+  "25-6128": "File:Amstrad CPC 6128.png",
+  "69": "File:BBC Micro Front Restored.jpg",
+  "134": "File:Acorn Electron 4x3.jpg",
+  "65": "File:Atari-800XL.jpg",
+  "63": "File:Atari 1040STf.jpg",
+  "75": "File:Apple IIe.jpg",
+  "27": "File:Sony HitBit HB-10P (Transparent Background).png"
 }

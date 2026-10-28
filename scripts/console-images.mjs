@@ -50,12 +50,12 @@ async function commonsInfo(title) {
 // Studio shots on white: flood-fill near-white pixels connected to the
 // edge to transparent (so white parts *inside* a console survive), then
 // soften the cut edge by one pixel.
-async function cutOut(input) {
+async function cutOut(input, whiteFrom = 236) {
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width: w, height: h } = info;
   const alreadyCut = [0, w - 1, (h - 1) * w, h * w - 1].every((i) => data[i * 4 + 3] < 16);
   if (alreadyCut) return sharp(input).ensureAlpha();
-  const white = (i) => data[i * 4] > 236 && data[i * 4 + 1] > 236 && data[i * 4 + 2] > 236;
+  const white = (i) => data[i * 4] > whiteFrom && data[i * 4 + 1] > whiteFrom && data[i * 4 + 2] > whiteFrom;
   const seen = new Uint8Array(w * h);
   const stack = [];
   for (let x = 0; x < w; x++) stack.push(x, (h - 1) * w + x);
@@ -81,11 +81,15 @@ async function cutOut(input) {
 }
 
 const index = {};
-for (const [id, title] of Object.entries(manifest)) {
+// An entry is a Commons file name, or { file, white } where `white` lowers
+// the brightness that counts as background (for photos with grey shadows).
+for (const [id, entry] of Object.entries(manifest)) {
   if (id.startsWith("_")) continue;
+  const title = typeof entry === "string" ? entry : entry.file;
+  const whiteFrom = typeof entry === "string" ? undefined : entry.white;
   const file = new URL(`${id}.webp`, OUT_DIR);
   const have = await access(file).then(() => true, () => false);
-  if (have && !force && existing[id]?.file === title) {
+  if (have && !force && existing[id]?.file === title && existing[id]?.white === whiteFrom) {
     index[id] = existing[id];
     continue;
   }
@@ -93,7 +97,7 @@ for (const [id, title] of Object.entries(manifest)) {
     const info = await commonsInfo(title);
     const res = await fetch(info.url, { headers: { "User-Agent": UA } });
     if (!res.ok) throw new Error(`download ${res.status}`);
-    const cut = await cutOut(Buffer.from(await res.arrayBuffer()));
+    const cut = await cutOut(Buffer.from(await res.arrayBuffer()), whiteFrom);
     const trimmed = await cut.png().toBuffer().then((b) => sharp(b).trim({ threshold: 1 }).toBuffer());
     const out = await sharp(trimmed)
       .resize(SIZE, SIZE, { fit: "inside", withoutEnlargement: true })
@@ -103,6 +107,7 @@ for (const [id, title] of Object.entries(manifest)) {
     await sharp(out.data).resize(PNG_SIZE, PNG_SIZE, { fit: "inside" }).png({ compressionLevel: 9, palette: true }).toFile(new URL(`${id}.png`, OUT_DIR).pathname);
     index[id] = {
       file: title,
+      ...(whiteFrom !== undefined && { white: whiteFrom }),
       width: out.info.width,
       height: out.info.height,
       artist: info.artist,

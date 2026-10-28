@@ -4,7 +4,9 @@
 import { useId, useMemo, useRef, useState } from "react";
 import type { ConsoleOption } from "@/lib/chronicle";
 
-// Type-to-search console picker (the full IGDB list is hundreds long).
+// Type-to-search console picker (the full IGDB list is hundreds long). The
+// list opens in the flow rather than floating, so it can't be clipped by
+// the scrolling dialog it sits in.
 // Empty: the popular consoles, best-sellers first. Typing matches name, abbreviation and other
 // names ("genesis", "ps2", "snes"), whole-word matches first.
 
@@ -84,7 +86,7 @@ export function ConsolePicker({
           aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
           autoComplete="off"
           spellCheck={false}
-          placeholder="Search consoles…"
+          placeholder="Search consoles & computers…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -119,7 +121,7 @@ export function ConsolePicker({
           id={listId}
           ref={listRef}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-edge bg-card-2 py-1 shadow-xl"
+          className="mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-edge bg-card-2 py-1 shadow-xl"
         >
           {matches.length === 0 ? (
             <li className="px-3 py-2 text-sm text-fog">No consoles match “{query}”</li>
