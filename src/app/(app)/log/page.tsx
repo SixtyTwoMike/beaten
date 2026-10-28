@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { logDates, toDateInput, toPartialInput } from "@/lib/format";
+import { logDates, toPartialInput } from "@/lib/format";
 import { MAX_YEAR, MIN_YEAR, isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";

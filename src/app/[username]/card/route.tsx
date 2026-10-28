@@ -1,7 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- ImageResponse (satori) markup, not the DOM */
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ImageResponse } from "next/og";
+import { loadFonts } from "@/lib/og-fonts";
 import { prisma } from "@/lib/db";
 import { formatPartialDate } from "@/lib/format";
 import { normalizeUsername } from "@/lib/username";
@@ -43,26 +42,6 @@ function remember(key: string, png: ArrayBuffer) {
 
 const pngResponse = (png: ArrayBuffer) =>
   new Response(png, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=600" } });
-
-type Font = { name: string; data: Buffer; weight: 400 | 600 | 700; style: "normal" };
-let fonts: Promise<Font[]> | null = null;
-
-function loadFonts(): Promise<Font[]> {
-  const dir = path.join(process.cwd(), "src/assets/fonts");
-  fonts ??= Promise.all(
-    ([
-      ["Geist-Regular.ttf", 400],
-      ["Geist-SemiBold.ttf", 600],
-      ["Geist-Bold.ttf", 700],
-    ] as const).map(async ([file, weight]) => ({
-      name: "Geist",
-      data: await readFile(path.join(dir, file)),
-      weight,
-      style: "normal" as const,
-    }))
-  );
-  return fonts;
-}
 
 function Stars({ rating, size, color }: { rating: number; size: number; color: string }) {
   const pct = Math.max(0, Math.min(100, rating * 10));

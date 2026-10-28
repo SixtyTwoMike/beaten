@@ -45,6 +45,7 @@ model User {
   authTokens   AuthToken[]
   raAccount    RaAccount?
   raAwards     RaAward[]
+  chronicle    Chronicle?
 }
 
 // Single-use emailed tokens (password reset, email verification). Only a
@@ -80,6 +81,7 @@ model Game {
   playLogs    PlayLog[]
   shelfItems  ShelfItem[]
   avatarOf    User[]
+  chronicleGames ChronicleGame[]
 }
 
 // Synced from IGDB /platforms; drives platform dropdowns.
@@ -220,4 +222,52 @@ model ReservedUsername {
   heldForUserId String?
   expiresAt     DateTime?
   createdAt     DateTime  @default(now())
+}
+
+// Console Chronicles: the consoles someone has owned, in order, as a
+// zig-zag timeline (Extras). One per user; public whenever the profile is.
+model Chronicle {
+  userId     String           @id
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String?
+  // Optional; only used to work out "age when I got it" for each console.
+  birthYear  Int?
+  showAges   Boolean          @default(true)
+  // Look, from fixed choices (lib/chronicle.ts).
+  accent     String           @default("mint")
+  background String           @default("glow")
+  path       String           @default("dotted")
+  updatedAt  DateTime         @updatedAt
+  entries    ChronicleEntry[]
+}
+
+model ChronicleEntry {
+  id           String          @id @default(cuid())
+  userId       String
+  chronicle    Chronicle       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  platformId   Int // IGDB platform id
+  // Free-text model ("Slim", "Lite", "Launch edition"), optional.
+  model        String?
+  // When they got it; at least the year. Precision as on PlayLog dates.
+  gotAt        DateTime
+  gotPrecision String?
+  // Typed age, overriding the one worked out from the birth year.
+  age          Int?
+  note         String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  games        ChronicleGame[]
+
+  @@index([userId, gotAt])
+}
+
+// Up to three favourite games per console, in order.
+model ChronicleGame {
+  entryId  String
+  entry    ChronicleEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  position Int // 1-3
+  gameId   String
+  game     Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, position])
 }

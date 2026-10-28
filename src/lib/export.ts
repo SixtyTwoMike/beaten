@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { ratingToStars, toDateInput, toPartialInput } from "./format";
+import { ratingToStars, toPartialInput } from "./format";
 import { getPlatforms } from "./platforms";
 
 // Everything a user has put into Beaten, for the "Download your data"
@@ -7,7 +7,7 @@ import { getPlatforms } from "./platforms";
 // are deliberately left out.
 
 export async function buildExport(userId: string) {
-  const [user, logs, shelves, platforms] = await Promise.all([
+  const [user, logs, shelves, platforms, chronicle] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
@@ -32,6 +32,15 @@ export async function buildExport(userId: string) {
       include: { items: { orderBy: { addedAt: "asc" }, include: { game: true } } },
     }),
     getPlatforms(),
+    prisma.chronicle.findUnique({
+      where: { userId },
+      include: {
+        entries: {
+          orderBy: [{ gotAt: "asc" }, { createdAt: "asc" }],
+          include: { games: { orderBy: { position: "asc" }, include: { game: true } } },
+        },
+      },
+    }),
   ]);
   const platformName = new Map(platforms.map((p) => [p.id, p.name]));
 
@@ -91,6 +100,20 @@ export async function buildExport(userId: string) {
         addedAt: item.addedAt.toISOString(),
       })),
     })),
+    consoleChronicle: chronicle && {
+      title: chronicle.title,
+      birthYear: chronicle.birthYear,
+      showAges: chronicle.showAges,
+      consoles: chronicle.entries.map((e) => ({
+        platform: platformName.get(e.platformId) ?? null,
+        platformId: e.platformId,
+        model: e.model,
+        gotAt: toPartialInput(e.gotAt, e.gotPrecision),
+        age: e.age,
+        note: e.note,
+        topGames: e.games.map((g) => ({ igdbId: g.game.igdbId, name: g.game.name })),
+      })),
+    },
   };
 }
 

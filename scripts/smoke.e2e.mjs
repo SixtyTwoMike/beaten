@@ -486,6 +486,39 @@ try {
   check("game page links the RA set",
     await page.getByRole("link", { name: "Super Metroid on RetroAchievements" }).waitFor({ timeout: 10000 }).then(() => true, () => false));
 
+  // 12f. Console chronicles (Extras): consoles with dates, ages, badges
+  // and favourite games, drawn as a zig-zag map
+  await page.goto(`${BASE}/extras`);
+  await page.getByRole("link", { name: /Console chronicles/ }).click();
+  await page.waitForURL("**/extras/chronicles");
+  await page.fill("#chronicle-birth", "1990");
+  async function addConsole(platform, year, gameQuery) {
+    if (!(await page.locator("#chronicle-console").count())) await page.getByRole("button", { name: "+ Add a console" }).click();
+    await page.selectOption("#chronicle-console", { label: platform });
+    await page.locator('[aria-label="How exact"]').first().getByRole("button", { name: "Year" }).click();
+    await page.selectOption("#chronicle-got", year);
+    if (gameQuery) {
+      await page.fill('input[aria-label="Search for a game"]', gameQuery);
+      await page.getByRole("button", { name: "Search", exact: true }).click();
+      await page.locator('button[title^="Add "]:not([disabled])').first().click();
+    }
+    await page.getByRole("button", { name: "Add to timeline" }).click();
+    await page.waitForSelector("#chronicle-console", { state: "detached" });
+  }
+  await addConsole("PlayStation 2", "2002", "zelda");
+  await addConsole("Game Boy Advance", "2001", null);
+  await addConsole("Nintendo Switch", "2017", null);
+  await page.waitForTimeout(1000);
+  const stops = page.locator("ol > li");
+  check("chronicle orders consoles by when you got them",
+    (await stops.nth(0).textContent()).includes("Game Boy Advance") && (await stops.nth(1).textContent()).includes("PlayStation 2"));
+  check("chronicle works out ages from the birth year", await stops.nth(0).getByText("Age 11").isVisible());
+  check("first home console and first handheld get badges",
+    await stops.nth(1).getByText("First console").isVisible() && await stops.nth(0).getByText("First handheld").isVisible());
+  check("console photos are shown", (await page.locator('ol img[src^="/consoles/"]').count()) >= 3);
+  check("favourite games appear on the map", (await stops.nth(1).locator('[title*="Zelda"]').count()) === 1);
+  check("chronicle editor has a story button", await page.getByRole("button", { name: "Make Instagram story" }).isVisible());
+
   // 13. Sign out returns to login
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.waitForURL("**/login**");
@@ -553,6 +586,16 @@ try {
     (await reg.inputValue("#register-username")) === reserved && (await reg.getByText("is saved for you").isVisible()));
   check("invite link lets that person sign up with it", await tryRegister(reserved, inviteCode));
   await regContext.close();
+
+  // 14a3. The chronicle is public, with paginated story images
+  const chron = await page.goto(`${BASE}/${username}/chronicles`);
+  check("console chronicle is public", chron?.status() === 200 && (await page.getByText("Game Boy Advance").first().isVisible()));
+  const story = await page.request.get(`${BASE}/${username}/chronicles/story?page=1`);
+  const storyPng = await story.body();
+  check("chronicle story page is a 1080x1920 PNG",
+    story.headers()["content-type"] === "image/png" && storyPng.readUInt32BE(16) === 1080 && storyPng.readUInt32BE(20) === 1920);
+  check("story pages past the end are a 404",
+    (await page.request.get(`${BASE}/${username}/chronicles/story?page=2`)).status() === 404);
 
   // 14b. Support and privacy pages are public and linked from sign-in
   await page.goto(`${BASE}/login`);
@@ -703,6 +746,8 @@ try {
   );
   check("JSON export includes profile and logs", exported.profile.email === email && exported.logs.length >= 2);
   check("JSON export includes social links", exported.profile.instagram === "smoke.tester");
+  check("JSON export includes the console chronicle",
+    exported.consoleChronicle?.birthYear === 1990 && exported.consoleChronicle.consoles.length === 3);
   check(
     "JSON export includes reviews and shelves",
     exported.logs.some((l) => l.review?.includes("Masterpiece")) &&

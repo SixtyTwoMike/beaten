@@ -6,7 +6,8 @@
 // Reads scripts/console-images.json (IGDB platform id -> Commons file),
 // downloads a 1200px rendition of each, turns a plain white studio
 // background transparent, trims and resizes it, and writes
-// public/consoles/<id>.webp plus src/lib/console-images.json with each
+// public/consoles/<id>.webp (pages) and <id>.png (smaller, for the story
+// images, whose renderer doesn't read WebP), plus src/lib/console-images.json with each
 // photo's size and attribution (shown on /credits). Consoles not listed use
 // their IGDB logo instead.
 
@@ -18,6 +19,7 @@ const OUT_DIR = new URL("public/consoles/", root);
 const INDEX = new URL("src/lib/console-images.json", root);
 const UA = "BeatenConsoleImages/1.0 (https://beaten.games)";
 const SIZE = 640; // longest side of the stored image
+const PNG_SIZE = 420;
 const force = process.argv.includes("--force");
 
 const manifest = JSON.parse(await readFile(new URL("scripts/console-images.json", root), "utf8"));
@@ -98,6 +100,7 @@ for (const [id, title] of Object.entries(manifest)) {
       .webp({ quality: 86, alphaQuality: 90 })
       .toBuffer({ resolveWithObject: true });
     await writeFile(file, out.data);
+    await sharp(out.data).resize(PNG_SIZE, PNG_SIZE, { fit: "inside" }).png({ compressionLevel: 9, palette: true }).toFile(new URL(`${id}.png`, OUT_DIR).pathname);
     index[id] = {
       file: title,
       width: out.info.width,
@@ -113,6 +116,14 @@ for (const [id, title] of Object.entries(manifest)) {
     if (existing[id]) index[id] = existing[id];
   }
   await new Promise((r) => setTimeout(r, 250));
+}
+
+// PNG copies for any image made before they were.
+for (const id of Object.keys(index)) {
+  const png = new URL(`${id}.png`, OUT_DIR);
+  if (!(await access(png).then(() => true, () => false))) {
+    await sharp(new URL(`${id}.webp`, OUT_DIR).pathname).resize(PNG_SIZE, PNG_SIZE, { fit: "inside" }).png({ compressionLevel: 9, palette: true }).toFile(png.pathname);
+  }
 }
 
 await writeFile(INDEX, JSON.stringify(index, null, 2) + "\n");

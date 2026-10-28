@@ -48,6 +48,13 @@ export default function PrivacyPage() {
             dates, ratings, reviews and shelves.
           </li>
           <li>
+            <strong className="text-white">Console chronicles:</strong> the consoles
+            you add, when you got them, your notes and favourite games, and, if you
+            give it, the year you were born. The birth year is used only to work out
+            how old you were for each console and is never shown; you can turn ages
+            off or clear it at any time.
+          </li>
+          <li>
             <strong className="text-white">Security records:</strong> one-time
             links we email you (stored only as hashes, and they expire), and a
             counter that lets us sign you out everywhere.
@@ -60,8 +67,10 @@ export default function PrivacyPage() {
           Once you choose a username, your profile at{" "}
           <span className="text-white">beaten.games/your-username</span> shows your display
           name, username, profile picture, join date, the games you&apos;ve logged
-          with their ratings and reviews, and your shelves. Anyone can see it
-          without signing in. Your email address is never shown.
+          with their ratings and reviews, and your shelves. Your console
+          chronicle, if you make one, is public too, at{" "}
+          <span className="text-white">beaten.games/your-username/chronicles</span>.
+          Anyone can see these without signing in. Your email address is never shown.
         </p>
       </Section>
 

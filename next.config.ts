@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   // trace doesn't see readFile paths, so bundle them explicitly.
   outputFileTracingIncludes: {
     "/*/card": ["./src/assets/fonts/**/*"],
+    "/*/chronicles/story": ["./src/assets/fonts/**/*"],
   },
   // Lets password managers jump straight to the change-password form
   // (https://w3c.github.io/webappsec-change-password-url/).

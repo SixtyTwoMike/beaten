@@ -13,6 +13,7 @@ const links = [
   { href: "/log", label: "Diary" },
   { href: "/shelves", label: "Shelves" },
   { href: "/share", label: "Share" },
+  { href: "/extras", label: "Extras" },
 ];
 
 export function Nav({
@@ -31,7 +32,7 @@ export function Nav({
     <header className="sticky top-0 z-40 border-b border-edge bg-canvas/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <Logo href="/" />
-        <nav className="order-last flex w-full items-center gap-1 overflow-x-auto text-sm lg:order-none lg:w-auto">
+        <nav className="order-last flex w-full items-center gap-0 overflow-x-auto text-[13px] min-[380px]:text-sm sm:gap-1 lg:order-none lg:w-auto">
           {links.map((l) => {
             const active =
               l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
@@ -39,7 +40,7 @@ export function Nav({
               <Link
                 key={l.href}
                 href={l.href}
-                className={`rounded-md px-3 py-1.5 transition ${
+                className={`shrink-0 rounded-md px-2 py-1.5 transition sm:px-3 ${
                   active
                     ? "bg-card-2 text-white"
                     : "text-fog hover:bg-card hover:text-white"

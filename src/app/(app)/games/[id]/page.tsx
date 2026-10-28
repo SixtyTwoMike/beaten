@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { logDates, toDateInput, toPartialInput } from "@/lib/format";
+import { logDates, toPartialInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
