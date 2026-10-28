@@ -17,12 +17,32 @@ import { STAR_PATH } from "@/components/Stars";
 import { FINISHED_STATUSES } from "@/lib/status";
 
 // Public share card: a PNG of someone's last four finished (or played) games. Uses only
-// what their public profile already shows. Cached for 10 minutes (nginx
-// caches it too), since rendering is the most expensive thing the box does.
+// what their public profile already shows. Rendering takes seconds on the
+// server, so finished cards are kept in memory until the person's diary or
+// profile changes (and nginx caches each URL for 10 minutes on top).
 
 const CARD_GAMES = 4;
 const CANVAS = "#0e1216";
 const FOG = "#8fa0b0";
+
+// Rendered PNGs by options + a fingerprint of everything drawn on them, so
+// an edit to the diary or profile makes a new key. Oldest dropped first.
+const CACHE_BYTES = 48 * 1024 * 1024;
+const rendered = new Map<string, ArrayBuffer>();
+let renderedBytes = 0;
+
+function remember(key: string, png: ArrayBuffer) {
+  rendered.set(key, png);
+  renderedBytes += png.byteLength;
+  for (const [k, v] of rendered) {
+    if (renderedBytes <= CACHE_BYTES) break;
+    rendered.delete(k);
+    renderedBytes -= v.byteLength;
+  }
+}
+
+const pngResponse = (png: ArrayBuffer) =>
+  new Response(png, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=600" } });
 
 type Font = { name: string; data: Buffer; weight: 400 | 600 | 700; style: "normal" };
 let fonts: Promise<Font[]> | null = null;
@@ -117,6 +137,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     select: { id: true, username: true, name: true, image: true, ...AVATAR_SELECT },
   });
   if (!user?.username) return new Response("Not found", { status: 404 });
+
+  // Count + latest edit catch adds, edits and deletes; the year is in the
+  // "this year" stat.
+  const diary = await prisma.playLog.aggregate({
+    where: { userId: user.id },
+    _max: { updatedAt: true },
+    _count: true,
+  });
+  const cacheKey = JSON.stringify([
+    user,
+    opts,
+    diary._count,
+    diary._max.updatedAt?.getTime() ?? 0,
+    new Date().getUTCFullYear(),
+  ]);
+  const hit = rendered.get(cacheKey);
+  if (hit) {
+    // Re-insert so it counts as recently used.
+    rendered.delete(cacheKey);
+    rendered.set(cacheKey, hit);
+    return pngResponse(hit);
+  }
 
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
   const played = opts.source === "played";
@@ -308,7 +350,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     </div>
   );
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     (
       <div
         style={{
@@ -400,8 +442,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
       width,
       height,
       fonts: await loadFonts(),
-      headers: { "Cache-Control": "public, max-age=600" },
     }
   );
+  const png = await image.arrayBuffer();
+  remember(cacheKey, png);
+  return pngResponse(png);
 
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CARD_ACCENTS,
   CARD_FORMATS,
@@ -23,24 +23,62 @@ const TOGGLES = [
 ] as const;
 
 // Builds a share-card URL from fixed options and previews the PNG. The
-// preview URL is debounced so dragging through options doesn't render a
-// card per click.
+// preview URL is debounced so clicking through options doesn't render a
+// card per click. A card takes seconds to render the first time, so the
+// last one stays up until the new one arrives, and once it has, the other
+// sizes with the same options are rendered in the background (the server
+// keeps them) so switching size is instant.
 export function ShareCardBuilder({ username }: { username: string }) {
   const [opts, setOpts] = useState<CardOptions>(DEFAULT_CARD);
-  const path = `/${username}/card${cardQuery(opts)}`;
-  const [preview, setPreview] = useState(path);
-  const [loading, setLoading] = useState(true);
+  const pathFor = (o: CardOptions) => `/${username}/card${cardQuery(o)}`;
+  const path = pathFor(opts);
+  const [previewOpts, setPreviewOpts] = useState(opts);
+  const preview = pathFor(previewOpts);
+  const [shown, setShown] = useState<string | null>(null);
+  const loading = shown !== preview;
   const [copied, setCopied] = useState(false);
+  const warmed = useRef(new Set<string>());
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      setPreview((prev) => {
-        if (prev !== path) setLoading(true);
-        return path;
-      });
-    }, 400);
+    const t = setTimeout(() => setPreviewOpts(opts), 400);
     return () => clearTimeout(t);
-  }, [path]);
+  }, [opts]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = img.onerror = () => setShown(preview);
+    img.src = preview;
+    return () => {
+      img.onload = img.onerror = null;
+    };
+  }, [preview]);
+
+  // One at a time, so the server isn't asked for three renders at once.
+  useEffect(() => {
+    if (loading) return;
+    warmed.current.add(preview);
+    const others = (Object.keys(CARD_FORMATS) as CardFormat[])
+      .map((format) => pathFor({ ...previewOpts, format }))
+      .filter((p) => !warmed.current.has(p));
+    let cancelled = false;
+    let img: HTMLImageElement | null = null;
+    const next = () => {
+      const url = others.shift();
+      if (cancelled || !url) return;
+      warmed.current.add(url);
+      img = new Image();
+      img.onload = img.onerror = next;
+      img.src = url;
+    };
+    const t = setTimeout(next, 1500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      if (img) img.onload = img.onerror = null;
+    };
+    // pathFor only depends on username and the options already listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, preview, previewOpts]);
 
   const set = <K extends keyof CardOptions>(k: K, v: CardOptions[K]) => {
     setCopied(false);
@@ -72,14 +110,22 @@ export function ShareCardBuilder({ username }: { username: string }) {
         className="relative mx-auto w-full overflow-hidden rounded-lg border border-edge bg-canvas"
         style={{ aspectRatio: `${width} / ${height}`, maxWidth: opts.format === "story" ? 360 : undefined }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={preview}
-          src={preview}
-          alt="Preview of your share card"
-          onLoad={() => setLoading(false)}
-          className={`h-full w-full object-contain transition-opacity ${loading ? "opacity-50" : ""}`}
-        />
+        {shown && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={shown}
+            alt="Preview of your share card"
+            className={`h-full w-full object-contain transition-opacity ${loading ? "opacity-40" : ""}`}
+          />
+        )}
+        {loading && (
+          <div role="status" className="absolute inset-0 flex items-center justify-center">
+            <span className="flex items-center gap-2 rounded-full bg-canvas/85 px-3 py-1.5 text-xs text-fog">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-fog/40 border-t-mint" aria-hidden />
+              Rendering…
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-5">
