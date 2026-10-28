@@ -49,10 +49,17 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 page.setDefaultTimeout(15000);
 
 try {
-  // 1. Unauthenticated access redirects to /login
+  // 1. Signed out, / is the landing page; app pages redirect to /login
   await page.goto(`${BASE}/`);
+  check("landing page headline", await page.getByRole("heading", { level: 1, name: /Every game/ }).isVisible());
+  check("landing page has sign in and register",
+    (await page.getByRole("link", { name: "Sign in" }).isVisible()) &&
+    (await page.getByRole("link", { name: "Create account" }).isVisible()));
+  check("landing coverflow shows covers", (await page.locator('[aria-hidden="true"] [role="img"], [aria-hidden="true"] img').count()) >= 7);
+  await page.screenshot({ path: `${shots}/landing.png` });
+  await page.goto(`${BASE}/log`);
   await page.waitForURL("**/login");
-  check("unauthenticated / redirects to /login", page.url().includes("/login"));
+  check("unauthenticated app page redirects to /login", page.url().includes("/login"));
 
   // 2. Register — first assert the Apple/keychain autofill attributes
   await page.goto(`${BASE}/register`);
@@ -322,7 +329,7 @@ try {
   await page.goto(`${BASE}/settings`);
   await page.getByRole("button", { name: "Sign out everywhere" }).click();
   await page.waitForURL("**/login**");
-  await other.goto(`${BASE}/`);
+  await other.goto(`${BASE}/log`);
   await other.waitForURL("**/login**");
   check("sign out everywhere revokes other sessions", other.url().includes("/login"));
   await otherContext.close();

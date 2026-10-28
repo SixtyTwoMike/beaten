@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
-import { requireUser } from "@/lib/session";
+import type { SessionUser } from "@/lib/session";
 import { Poster } from "@/components/Poster";
 import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
 
-export default async function DashboardPage() {
-  const user = await requireUser();
+// Signed-in home page (rendered by src/app/page.tsx).
+export async function Dashboard({ user }: { user: SessionUser }) {
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
   const [profile, beatenGames, masteredGames, logsThisYear, playingLogs, recentLogs] =

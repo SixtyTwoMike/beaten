@@ -117,7 +117,7 @@ export default async function ProfilePage({ params }: Params) {
     <>
       <header className="border-b border-edge bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-          <Logo href={viewerSignedIn ? "/" : "/login"} />
+          <Logo href="/" />
           <div className="ml-auto flex items-center gap-2 text-sm">
             {viewerSignedIn ? (
               <Link

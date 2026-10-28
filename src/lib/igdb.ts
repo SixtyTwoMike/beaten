@@ -163,3 +163,32 @@ export async function fetchPlatforms(): Promise<IgdbPlatform[]> {
     category: p.category ?? null,
   }));
 }
+
+// Popular games released in the past year, for the landing page showcase.
+// Cached in memory for 12 hours; an IGDB failure yields an empty list.
+const SHOWCASE_TTL_MS = 12 * 60 * 60 * 1000;
+let showcaseCache: { games: IgdbGame[]; expiresAt: number } | null = null;
+
+export async function recentPopularGames(limit = 12): Promise<IgdbGame[]> {
+  if (mockEnabled()) return mockSearch("").slice(0, limit);
+  if (!igdbConfigured()) return [];
+  if (showcaseCache && showcaseCache.expiresAt > Date.now()) {
+    return showcaseCache.games.slice(0, limit);
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const yearAgo = now - 365 * 24 * 60 * 60;
+  try {
+    const raw = await igdbQuery<RawGame>(
+      "games",
+      `${GAME_FIELDS} where first_release_date > ${yearAgo} & first_release_date < ${now}` +
+        ` & cover != null & version_parent = null & total_rating_count > 3;` +
+        ` sort total_rating_count desc; limit 24;`
+    );
+    const games = raw.map(toIgdbGame).filter((g) => g.coverUrl);
+    showcaseCache = { games, expiresAt: Date.now() + SHOWCASE_TTL_MS };
+    return games.slice(0, limit);
+  } catch (e) {
+    console.error("recentPopularGames failed:", e);
+    return [];
+  }
+}

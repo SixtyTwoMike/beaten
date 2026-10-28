@@ -13,7 +13,7 @@ export default async function InfoLayout({
     <>
       <header className="border-b border-edge bg-canvas/90 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3">
-          <Logo href={signedIn ? "/" : "/login"} />
+          <Logo href="/" />
           <Link
             href={signedIn ? "/" : "/login"}
             className="ml-auto text-sm text-fog hover:text-white"
