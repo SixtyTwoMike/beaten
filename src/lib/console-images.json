@@ -1,0 +1,443 @@
+{
+  "4": {
+    "file": "File:Nintendo-64-Console-FL.png",
+    "width": 640,
+    "height": 403,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-64-Console-FL.png"
+  },
+  "5": {
+    "file": "File:Wii-Console.png",
+    "width": 582,
+    "height": 640,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Wii-Console.png"
+  },
+  "7": {
+    "file": "File:PSX-Console-wController.png",
+    "width": 640,
+    "height": 283,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:PSX-Console-wController.png"
+  },
+  "8": {
+    "file": "File:Sony-PlayStation-2-30001-wController-L.png",
+    "width": 640,
+    "height": 247,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sony-PlayStation-2-30001-wController-L.png"
+  },
+  "9": {
+    "file": "File:Sony-PlayStation-3-CECHA01-wController-L.png",
+    "width": 640,
+    "height": 256,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sony-PlayStation-3-CECHA01-wController-L.png"
+  },
+  "11": {
+    "file": "File:Xbox-console.jpg",
+    "width": 640,
+    "height": 282,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Xbox-console.jpg"
+  },
+  "12": {
+    "file": "File:Xbox-360-Pro-wController.jpg",
+    "width": 422,
+    "height": 640,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Xbox-360-Pro-wController.jpg"
+  },
+  "18": {
+    "file": "File:Nintendo-Entertainment-System-NES-Console-FL.jpg",
+    "width": 640,
+    "height": 436,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Entertainment-System-NES-Console-FL.jpg"
+  },
+  "19": {
+    "file": "File:Nintendo-Super-NES-Console-FL.jpg",
+    "width": 640,
+    "height": 445,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Super-NES-Console-FL.jpg"
+  },
+  "20": {
+    "file": "File:Nintendo-DS-Fat-Blue.jpg",
+    "width": 640,
+    "height": 581,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-DS-Fat-Blue.jpg"
+  },
+  "21": {
+    "file": "File:Nintendo-GameCube-Console-FL.jpg",
+    "width": 640,
+    "height": 623,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-GameCube-Console-FL.jpg"
+  },
+  "22": {
+    "file": "File:Nintendo-Game-Boy-Color-FL.png",
+    "width": 463,
+    "height": 640,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Game-Boy-Color-FL.png"
+  },
+  "23": {
+    "file": "File:Sega-Dreamcast-Console-FL.png",
+    "width": 640,
+    "height": 447,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sega-Dreamcast-Console-FL.png"
+  },
+  "24": {
+    "file": "File:Nintendo-Game-Boy-Advance-Purple-FL.png",
+    "width": 640,
+    "height": 417,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Game-Boy-Advance-Purple-FL.png"
+  },
+  "29": {
+    "file": "File:Sega-Mega-Drive-EU-Mk1-wController-FL.png",
+    "width": 640,
+    "height": 267,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sega-Mega-Drive-EU-Mk1-wController-FL.png"
+  },
+  "30": {
+    "file": "File:Sega-Genesis-Model2-32X.png",
+    "width": 640,
+    "height": 505,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sega-Genesis-Model2-32X.png"
+  },
+  "32": {
+    "file": "File:Sega-Saturn-Console-NA-Mk-I-FL.jpg",
+    "width": 640,
+    "height": 424,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sega-Saturn-Console-NA-Mk-I-FL.jpg"
+  },
+  "33": {
+    "file": "File:Game-Boy-FL.jpg",
+    "width": 526,
+    "height": 640,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Game-Boy-FL.jpg"
+  },
+  "35": {
+    "file": "File:Game-Gear-Handheld.jpg",
+    "width": 640,
+    "height": 387,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Game-Gear-Handheld.jpg"
+  },
+  "37": {
+    "file": "File:Nintendo-3DS-AquaOpen.png",
+    "width": 640,
+    "height": 580,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-3DS-AquaOpen.png"
+  },
+  "38": {
+    "file": "File:PSP-2000-trans.png",
+    "width": 640,
+    "height": 348,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:PSP-2000-trans.png"
+  },
+  "41": {
+    "file": "File:Nintendo-Wii-U-Console-FL.jpg",
+    "width": 640,
+    "height": 406,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Wii-U-Console-FL.jpg"
+  },
+  "46": {
+    "file": "File:PlayStation-Vita-1101-FL.png",
+    "width": 640,
+    "height": 370,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:PlayStation-Vita-1101-FL.png"
+  },
+  "48": {
+    "file": "File:Sony-PlayStation-4-PS4-Console-FL.png",
+    "width": 640,
+    "height": 435,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sony-PlayStation-4-PS4-Console-FL.png"
+  },
+  "49": {
+    "file": "File:Microsoft-Xbox-One-Console-Set-wKinect.jpg",
+    "width": 640,
+    "height": 403,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Microsoft-Xbox-One-Console-Set-wKinect.jpg"
+  },
+  "50": {
+    "file": "File:3DO-FZ-10-Console-FL.png",
+    "width": 640,
+    "height": 329,
+    "artist": "Evan-Amos",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:3DO-FZ-10-Console-FL.png"
+  },
+  "57": {
+    "file": "File:WonderSwan-Black-Left.png",
+    "width": 640,
+    "height": 453,
+    "artist": "Evan-Amos",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:WonderSwan-Black-Left.png"
+  },
+  "58": {
+    "file": "File:Nintendo-Super-Famicom-Console-FL.png",
+    "width": 640,
+    "height": 434,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Super-Famicom-Console-FL.png"
+  },
+  "59": {
+    "file": "File:Atari-2600-Wood-4Sw-Set.png",
+    "width": 640,
+    "height": 358,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Atari-2600-Wood-4Sw-Set.png"
+  },
+  "60": {
+    "file": "File:Atari-7800-Console-FL.jpg",
+    "width": 640,
+    "height": 395,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Atari-7800-Console-FL.jpg"
+  },
+  "61": {
+    "file": "File:Atari-Lynx-I-Handheld.png",
+    "width": 640,
+    "height": 368,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Atari-Lynx-I-Handheld.png"
+  },
+  "62": {
+    "file": "File:Atari-Jaguar-Bare-HL.png",
+    "width": 640,
+    "height": 436,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Atari-Jaguar-Bare-HL.png"
+  },
+  "64": {
+    "file": "File:Sega-Master-System-Console-FL.png",
+    "width": 640,
+    "height": 312,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sega-Master-System-Console-FL.png"
+  },
+  "66": {
+    "file": "File:Atari-5200-Console-Set.png",
+    "width": 640,
+    "height": 378,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Atari-5200-Console-Set.png"
+  },
+  "67": {
+    "file": "File:Mattel-Intellivision-Console-BL.jpg",
+    "width": 640,
+    "height": 326,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Mattel-Intellivision-Console-BL.jpg"
+  },
+  "68": {
+    "file": "File:ColecoVision-Console-FL.jpg",
+    "width": 640,
+    "height": 337,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:ColecoVision-Console-FL.jpg"
+  },
+  "78": {
+    "file": "File:Sega-CD-Model2-Set.png",
+    "width": 640,
+    "height": 363,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sega-CD-Model2-Set.png"
+  },
+  "80": {
+    "file": "File:Neo-Geo-AES-FL.png",
+    "width": 640,
+    "height": 378,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Neo-Geo-AES-FL.png"
+  },
+  "86": {
+    "file": "File:NEC-PC-Engine-Console-FL.png",
+    "width": 640,
+    "height": 393,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:NEC-PC-Engine-Console-FL.png"
+  },
+  "87": {
+    "file": "File:Virtual-Boy-Set.png",
+    "width": 498,
+    "height": 640,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Virtual-Boy-Set.png"
+  },
+  "99": {
+    "file": "File:Nintendo-Famicom-Console-Set-FL.png",
+    "width": 640,
+    "height": 290,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Famicom-Console-Set-FL.png"
+  },
+  "119": {
+    "file": "File:Neo-Geo-Pocket-Anthra-Left.png",
+    "width": 640,
+    "height": 454,
+    "artist": "Evan-Amos",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Neo-Geo-Pocket-Anthra-Left.png"
+  },
+  "120": {
+    "file": "File:Neo-Geo-Pocket-Color-Blue-Left.png",
+    "width": 640,
+    "height": 462,
+    "artist": "Evan-Amos",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:Neo-Geo-Pocket-Color-Blue-Left.png"
+  },
+  "130": {
+    "file": "File:Nintendo-Switch-wJoyCons-BlRd-Standing-FL.png",
+    "width": 640,
+    "height": 345,
+    "artist": "Evan-Amos, modified by Gunnar.offel",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-Switch-wJoyCons-BlRd-Standing-FL.png"
+  },
+  "137": {
+    "file": "File:New Nintendo 3DS.png",
+    "width": 640,
+    "height": 628,
+    "artist": "Philip Terry Graham",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "source": "https://commons.wikimedia.org/wiki/File:New_Nintendo_3DS.png"
+  },
+  "159": {
+    "file": "File:Nintendo-DSi-Bl-Open.png",
+    "width": 640,
+    "height": 524,
+    "artist": "Evan-Amos",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo-DSi-Bl-Open.png"
+  },
+  "165": {
+    "file": "File:Sony-PlayStation-4-PSVR-Headset-Mk1-BL.jpg",
+    "width": 640,
+    "height": 509,
+    "artist": "Evan-Amos",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "source": "https://commons.wikimedia.org/wiki/File:Sony-PlayStation-4-PSVR-Headset-Mk1-BL.jpg"
+  },
+  "167": {
+    "file": "File:PlayStation 5 and DualSense with transparent background.png",
+    "width": 238,
+    "height": 640,
+    "artist": "Soberian (this retouched file)Osh33m (original photograph)",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:PlayStation_5_and_DualSense_with_transparent_background.png"
+  },
+  "508": {
+    "file": "File:Nintendo Switch 2 in Handheld Mode.jpg",
+    "width": 640,
+    "height": 264,
+    "artist": "Crisco 1492",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Nintendo_Switch_2_in_Handheld_Mode.jpg"
+  }
+}

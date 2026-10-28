@@ -10,7 +10,7 @@
 // top-level route must be added here before it ships.
 const ROUTE_NAMES = `
   about account accounts activity admin administrator api app apps assets auth
-  beaten blog blocked card cards changelog claim community contact cookies
+  beaten blog blocked card cards changelog chronicles consoles credits extras claim community contact cookies
   dashboard delete diary discover docs download edit email explore export faq
   favicon feed feeds follow followers following forgot_password friends game
   games guide help home import imports index info invite invites jobs join

@@ -89,6 +89,9 @@ model Platform {
   abbreviation String?
   generation   Int?
   category     Int?
+  // IGDB platform logo; Console Chronicles falls back to it when there's no
+  // photo of the console (public/consoles).
+  logoImageId  String?
 }
 
 model PlayLog {

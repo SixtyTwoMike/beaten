@@ -20,6 +20,10 @@ export function SiteFooter() {
         ·{" "}
         <Link href="/privacy" className="text-fog hover:text-white hover:underline">
           Privacy
+        </Link>{" "}
+        ·{" "}
+        <Link href="/credits" className="text-fog hover:text-white hover:underline">
+          Credits
         </Link>
       </p>
       <p className="mt-2">

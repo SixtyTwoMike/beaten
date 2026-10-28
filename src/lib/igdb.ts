@@ -25,6 +25,7 @@ export type IgdbPlatform = {
   abbreviation: string | null;
   generation: number | null;
   category: number | null;
+  logoImageId?: string | null;
 };
 
 const mockEnabled = () => process.env.IGDB_MOCK === "1";
@@ -227,12 +228,13 @@ export async function fetchPlatforms(): Promise<IgdbPlatform[]> {
     abbreviation?: string;
     generation?: number;
     platform_type?: number;
+    platform_logo?: { image_id?: string };
   };
   // IGDB replaced platform "category" with "platform_type" (same ids); it's
   // stored in the existing category column.
   const raw = await igdbQuery<RawPlatform>(
     "platforms",
-    "fields name,abbreviation,generation,platform_type; limit 500; sort name asc;"
+    "fields name,abbreviation,generation,platform_type,platform_logo.image_id; limit 500; sort name asc;"
   );
   return raw.map((p) => ({
     id: p.id,
@@ -240,6 +242,7 @@ export async function fetchPlatforms(): Promise<IgdbPlatform[]> {
     abbreviation: p.abbreviation ?? null,
     generation: p.generation ?? null,
     category: p.platform_type ?? null,
+    logoImageId: p.platform_logo?.image_id ?? null,
   }));
 }
 
