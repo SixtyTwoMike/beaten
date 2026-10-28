@@ -10,6 +10,10 @@ let password = `Smoke!${Date.now()}x`;
 const username = `smoke_${Date.now().toString(36)}`;
 const shots = process.env.SMOKE_SHOTS_DIR || "/tmp";
 
+// 1×1 PNG, standing in for IGDB art in mock mode.
+const PIXEL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
 const OUTBOX = new URL("../.dev-outbox/outbox.jsonl", import.meta.url);
 
 async function outbox() {
@@ -140,7 +144,7 @@ try {
   await page.fill("#login-password", password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(BASE + "/");
-  check("register lands on dashboard", await page.getByText("Welcome back, Smoke Tester").isVisible());
+  check("register lands on dashboard", await page.getByRole("heading", { name: "Welcome back, Smoke Tester" }).isVisible());
   await page.screenshot({ path: `${shots}/01-dashboard-empty.png` });
 
   // 3. Search (mock catalog) with platform filter
@@ -288,8 +292,44 @@ try {
     (await page.locator(`header a[href="/u/${username}"]`).count()) === 1
   );
 
+  // 12b. Social links: pasted URLs are normalised; junk is rejected
+  await page.goto(`${BASE}/settings`);
+  await page.fill("#social-instagram", "https://www.instagram.com/Smoke.Tester/?hl=en");
+  await page.fill("#social-bluesky", "not a handle!");
+  await page.getByRole("button", { name: "Save links" }).click();
+  await page.getByText("doesn't look like a Bluesky handle").waitFor();
+  check("invalid Bluesky handle rejected", true);
+  await page.fill("#social-bluesky", "@smoketester");
+  await page.getByRole("button", { name: "Save links" }).click();
+  await page.getByText("Saved.").first().waitFor();
+  await page.reload();
+  check("Instagram URL normalised to a handle", (await page.inputValue("#social-instagram")) === "smoke.tester");
+  check("bare Bluesky name gets bsky.social", (await page.inputValue("#social-bluesky")) === "smoketester.bsky.social");
+
+  // 12c. Profile picture from a finished game. Mock games have no art, so
+  // give BotW a tiny inline cover first.
+  {
+    const { PrismaClient } = await import("@prisma/client");
+    const db = new PrismaClient();
+    await db.game.updateMany({ where: { name: { contains: "Breath of the Wild" } }, data: { coverUrl: PIXEL } });
+    await db.$disconnect();
+  }
+  await page.goto(`${BASE}/settings`);
+  await page.getByRole("button", { name: /Breath of the Wild/ }).click();
+  await page.getByRole("button", { name: "Save picture" }).click();
+  await page.getByText("Saved.").first().waitFor();
+  check("avatar saved", true);
+  const navAvatar = page.locator(`header a[href="/u/${username}"] img[src^="data:image/png"]`);
+  check("nav shows the game avatar", await navAvatar.waitFor({ timeout: 5000 }).then(() => true, () => false));
+  await page.screenshot({ path: `${shots}/smoke-settings-profile.png`, fullPage: true });
+
+  // 12d. Share card builder previews a PNG
+  await page.locator("#share").scrollIntoViewIfNeeded();
+  check("share card builder shows a preview",
+    await page.locator('#share img[alt="Preview of your share card"]').evaluate((img) => img.complete && img.naturalWidth === 1080));
+
   // 13. Sign out returns to login
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.waitForURL("**/login**");
   check("sign out redirects to login", true);
 
@@ -301,6 +341,26 @@ try {
   check("public profile hides email", !(await page.content()).includes(email));
   check("public profile offers sign up", await page.getByRole("link", { name: "Join Beaten" }).isVisible());
   await page.screenshot({ path: `${shots}/profile-public.png`, fullPage: true });
+  check("public profile links Instagram",
+    (await page.locator('a[href="https://www.instagram.com/smoke.tester/"]').count()) === 1);
+  check("public profile links Bluesky",
+    (await page.locator('a[href="https://bsky.app/profile/smoketester.bsky.social"]').count()) === 1);
+  check("public profile shows the game avatar", (await page.locator('main img[src^="data:image/png"]').count()) >= 1);
+  const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
+  check("public profile has a share card og:image", Boolean(ogImage?.endsWith(`/u/${username}/card?format=wide`)));
+
+  // 14a. Share cards render signed out at each size; options are whitelisted
+  for (const [format, w, h] of [["square", 1080, 1080], ["story", 1080, 1920], ["wide", 1200, 630]]) {
+    const res = await page.request.get(`${BASE}/u/${username}/card?format=${format}&accent=gold&bg=plain&stats=0`);
+    const png = await res.body();
+    check(`share card ${format} is a ${w}x${h} PNG`,
+      res.headers()["content-type"] === "image/png" && png.readUInt32BE(16) === w && png.readUInt32BE(20) === h);
+  }
+  const bogus = await page.request.get(`${BASE}/u/${username}/card?format=<script>&heading=pwned`);
+  check("share card ignores unknown options", bogus.ok() && (await bogus.body()).readUInt32BE(16) === 1080);
+  check("share card for unknown user is a 404",
+    (await page.request.get(`${BASE}/u/no_such_user_xyz/card`)).status() === 404);
+
   const missing = await page.goto(`${BASE}/u/no_such_user_xyz`);
   check("unknown profile is a 404", missing?.status() === 404);
 
@@ -431,6 +491,7 @@ try {
     jsonRes.headers()["content-disposition"]?.startsWith("attachment")
   );
   check("JSON export includes profile and logs", exported.profile.email === email && exported.logs.length >= 2);
+  check("JSON export includes social links", exported.profile.instagram === "smoke.tester");
   check(
     "JSON export includes reviews and shelves",
     exported.logs.some((l) => l.review?.includes("Masterpiece")) &&

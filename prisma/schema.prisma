@@ -22,6 +22,17 @@ model User {
   // Null until the address is confirmed (verification link, password reset,
   // or Google). Password accounts can't sign in until it's set.
   emailVerifiedAt DateTime?
+  // Social handles shown on the public profile (normalised, no "@").
+  instagram    String?
+  bluesky      String?
+  // Profile picture: a crop of a game the user has finished. Source is
+  // "cover" or "artwork"; x/y are the focal point in % and zoom is 1–3.
+  avatarGameId String?
+  avatarGame   Game?     @relation(fields: [avatarGameId], references: [id], onDelete: SetNull)
+  avatarSource String?
+  avatarX      Float     @default(50)
+  avatarY      Float     @default(50)
+  avatarZoom   Float     @default(1)
   createdAt    DateTime  @default(now())
   playLogs     PlayLog[]
   shelves      Shelf[]
@@ -60,6 +71,7 @@ model Game {
   createdAt   DateTime    @default(now())
   playLogs    PlayLog[]
   shelfItems  ShelfItem[]
+  avatarOf    User[]
 }
 
 // Synced from IGDB /platforms; drives platform dropdowns.

@@ -104,6 +104,23 @@ location ~ ^/(register|login|forgot-password|reset-password|verify-email)$ {
     proxy_pass http://127.0.0.1:3000;
 }
 
+# Share-card PNGs are the most expensive thing the app renders. Cache them
+# (the URL fully determines the image; no cookies are involved) and rate
+# limit misses-and-hits alike so query-string variations can't pin the CPU.
+location ~ ^/u/[^/]+/card$ {
+    limit_req zone=cardrate burst=20 nodelay;
+    proxy_cache cardcache;
+    proxy_cache_valid 200 10m;
+    proxy_cache_valid 404 1m;
+    proxy_cache_lock on;
+    proxy_cache_use_stale updating error timeout;
+    proxy_ignore_headers Set-Cookie;
+    proxy_hide_header Set-Cookie;
+    add_header X-Cache-Status $upstream_cache_status always;
+    include snippets/beaten-proxy.conf;
+    proxy_pass http://127.0.0.1:3000;
+}
+
 location / {
     include snippets/beaten-proxy.conf;
     proxy_pass http://127.0.0.1:3000;
@@ -134,6 +151,8 @@ map $request_method $auth_post_key {
     default "";
 }
 limit_req_zone $auth_post_key zone=register:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=cardrate:10m rate=30r/m;
+proxy_cache_path /var/cache/nginx/beaten-cards levels=1:2 keys_zone=cardcache:10m max_size=200m inactive=1h use_temp_path=off;
 limit_req_status 429;
 
 NGINX

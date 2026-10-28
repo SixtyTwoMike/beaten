@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { isAvatarSource } from "@/lib/avatar";
+import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
+import { ShareCardBuilder } from "@/components/ShareCardBuilder";
 import { SignOutEverywhereButton } from "@/components/SignOutEverywhereButton";
+import { SocialLinksForm } from "@/components/SocialLinksForm";
 import { UsernameForm } from "@/components/UsernameForm";
 
 export const metadata = { title: "Settings — Beaten" };
@@ -26,10 +30,51 @@ function Section({
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const profile = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { username: true, email: true, passwordHash: true },
-  });
+  const [profile, finishedLogs] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        username: true,
+        name: true,
+        email: true,
+        passwordHash: true,
+        instagram: true,
+        bluesky: true,
+        avatarGameId: true,
+        avatarSource: true,
+        avatarX: true,
+        avatarY: true,
+        avatarZoom: true,
+      },
+    }),
+    // Avatar candidates: finished games with some art, latest finish first.
+    prisma.playLog.findMany({
+      where: { userId: user.id, finishedAt: { not: null } },
+      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
+      select: { game: { select: { id: true, name: true, coverUrl: true, artworkUrl: true } } },
+    }),
+  ]);
+
+  const avatarGames = new Map<string, AvatarGame>();
+  for (const { game } of finishedLogs) {
+    if (avatarGames.has(game.id) || (!game.coverUrl && !game.artworkUrl)) continue;
+    avatarGames.set(game.id, {
+      gameId: game.id,
+      name: game.name,
+      coverUrl: game.coverUrl,
+      artworkUrl: game.artworkUrl,
+    });
+  }
+  const currentAvatar =
+    profile?.avatarGameId && isAvatarSource(profile.avatarSource)
+      ? {
+          gameId: profile.avatarGameId,
+          source: profile.avatarSource,
+          x: profile.avatarX,
+          y: profile.avatarY,
+          zoom: profile.avatarZoom,
+        }
+      : null;
 
   return (
     <div className="max-w-lg">
@@ -43,6 +88,44 @@ export default async function SettingsPage() {
         <div className="mt-4">
           <UsernameForm current={profile?.username ?? null} />
         </div>
+      </Section>
+
+      <Section title="Profile picture">
+        <p className="mt-1 text-sm text-fog">
+          Use the cover or artwork of any game you&apos;ve finished.
+        </p>
+        <div className="mt-4">
+          <AvatarPicker
+            games={[...avatarGames.values()]}
+            current={currentAvatar}
+            displayName={profile?.name || profile?.username || user.email || "Player"}
+          />
+        </div>
+      </Section>
+
+      <Section title="Social links">
+        <p className="mt-1 text-sm text-fog">Shown on your public profile.</p>
+        <div className="mt-4">
+          <SocialLinksForm instagram={profile?.instagram ?? null} bluesky={profile?.bluesky ?? null} />
+        </div>
+      </Section>
+
+      <Section id="share" title="Share card">
+        {profile?.username ? (
+          <>
+            <p className="mt-1 text-sm text-fog">
+              An image of your last four finished games, for Instagram, Bluesky
+              or anywhere else.
+            </p>
+            <div className="mt-4">
+              <ShareCardBuilder username={profile.username} />
+            </div>
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-fog">
+            Pick a username above to make a share card.
+          </p>
+        )}
       </Section>
 
       <Section id="password" title="Password">

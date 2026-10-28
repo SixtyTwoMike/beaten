@@ -1,4 +1,4 @@
-const STAR_PATH =
+export const STAR_PATH =
   "M12 2l2.92 6.26 6.87.83-5.07 4.71 1.33 6.79L12 17.27l-6.05 3.32 1.33-6.79-5.07-4.71 6.87-.83L12 2z";
 
 export function StarIcon({ className = "" }: { className?: string }) {

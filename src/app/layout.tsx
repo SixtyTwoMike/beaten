@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { appUrl } from "@/lib/email";
 
 export const metadata: Metadata = {
+  // Absolute base for OG images (share cards) and other relative metadata URLs.
+  metadataBase: new URL(appUrl()),
   title: "Beaten — track the games you've conquered",
   description:
     "A Letterboxd-style log for the games you've beaten and mastered.",

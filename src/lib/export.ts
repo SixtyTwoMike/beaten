@@ -10,7 +10,15 @@ export async function buildExport(userId: string) {
   const [user, logs, shelves, platforms] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { email: true, username: true, name: true, createdAt: true, emailVerifiedAt: true },
+      select: {
+        email: true,
+        username: true,
+        name: true,
+        createdAt: true,
+        emailVerifiedAt: true,
+        instagram: true,
+        bluesky: true,
+      },
     }),
     prisma.playLog.findMany({
       where: { userId },
@@ -43,6 +51,8 @@ export async function buildExport(userId: string) {
       displayName: user.name,
       memberSince: user.createdAt.toISOString(),
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+      instagram: user.instagram,
+      bluesky: user.bluesky,
     },
     logs: logs.map((log) => ({
       game: {

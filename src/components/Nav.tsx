@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import type { Avatar as AvatarCrop } from "@/lib/avatar";
+import { Avatar } from "./Avatar";
 import { Logo } from "./Logo";
 
 const links = [
@@ -15,9 +17,13 @@ const links = [
 export function Nav({
   userName,
   username,
+  avatar,
+  image,
 }: {
   userName: string;
   username: string | null;
+  avatar: AvatarCrop | null;
+  image: string | null;
 }) {
   const pathname = usePathname();
   return (
@@ -46,10 +52,11 @@ export function Nav({
         <div className="ml-auto flex items-center gap-3 text-sm">
           <Link
             href={username ? `/u/${username}` : "/settings"}
-            className="hidden text-fog hover:text-white sm:inline"
+            className="flex items-center gap-2 text-fog hover:text-white"
             title={username ? "Your public profile" : "Set up your public profile"}
           >
-            {userName}
+            <Avatar avatar={avatar} image={image} name={userName} size={28} />
+            <span className="hidden sm:inline">{userName}</span>
           </Link>
           <Link
             href="/settings"

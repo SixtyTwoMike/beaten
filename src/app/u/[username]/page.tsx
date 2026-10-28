@@ -5,6 +5,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { normalizeUsername } from "@/lib/username";
+import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
+import { blueskyUrl, instagramUrl } from "@/lib/social";
+import { Avatar } from "@/components/Avatar";
 import { Backdrop } from "@/components/Backdrop";
 import { Logo } from "@/components/Logo";
 import { Poster } from "@/components/Poster";
@@ -23,7 +26,16 @@ type Params = { params: Promise<{ username: string }> };
 async function findProfile(raw: string) {
   return prisma.user.findUnique({
     where: { username: normalizeUsername(decodeURIComponent(raw)) },
-    select: { id: true, username: true, name: true, image: true, createdAt: true },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      image: true,
+      createdAt: true,
+      instagram: true,
+      bluesky: true,
+      ...AVATAR_SELECT,
+    },
   });
 }
 
@@ -32,9 +44,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const user = await findProfile(username);
   if (!user) return { title: "Profile not found — Beaten" };
   const display = user.name || `@${user.username}`;
+  const title = `${display} (@${user.username}) — Beaten`;
+  const description = `Games ${display} is playing, has beaten, and mastered.`;
+  const card = { url: `/u/${user.username}/card?format=wide`, width: 1200, height: 630 };
   return {
-    title: `${display} (@${user.username}) — Beaten`,
-    description: `Games ${display} is playing, has beaten, and mastered.`,
+    title,
+    description,
+    openGraph: { title, description, type: "profile", images: [card] },
+    twitter: { card: "summary_large_image", title, description, images: [card.url] },
   };
 }
 
@@ -147,31 +164,52 @@ export default async function ProfilePage({ params }: Params) {
         <Backdrop artworkUrl={bannerArt} />
 
         <div className={`flex items-center gap-5 ${bannerArt ? "pt-28 sm:pt-44" : ""}`}>
-          {user.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.image}
-              alt=""
-              className="h-20 w-20 rounded-full object-cover ring-2 ring-white/15"
-            />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-card-2 text-3xl font-bold text-fog ring-2 ring-white/15">
-              {display.replace(/^@/, "").charAt(0).toUpperCase()}
-            </div>
-          )}
+          <Avatar
+            avatar={resolveAvatar(user)}
+            image={user.image}
+            name={display}
+            size={80}
+            className="ring-2 ring-white/15"
+          />
           <div className="min-w-0">
             <h1 className="truncate text-3xl font-bold drop-shadow">{display}</h1>
             <p className="text-sm text-fog">
               @{user.username} · Member since {formatDate(user.createdAt)}
             </p>
+            {(user.instagram || user.bluesky) && (
+              <p className="mt-1 flex flex-wrap gap-x-4 text-sm">
+                {user.instagram && (
+                  <a
+                    href={instagramUrl(user.instagram)}
+                    rel="me noopener noreferrer"
+                    target="_blank"
+                    className="text-fog hover:text-white"
+                  >
+                    Instagram @{user.instagram}
+                  </a>
+                )}
+                {user.bluesky && (
+                  <a
+                    href={blueskyUrl(user.bluesky)}
+                    rel="me noopener noreferrer"
+                    target="_blank"
+                    className="text-fog hover:text-white"
+                  >
+                    Bluesky @{user.bluesky}
+                  </a>
+                )}
+              </p>
+            )}
           </div>
           {isOwner && (
-            <Link
-              href="/settings"
-              className="ml-auto self-start text-sm text-mint hover:underline"
-            >
-              Edit
-            </Link>
+            <div className="ml-auto flex gap-4 self-start text-sm">
+              <Link href="/settings#share" className="text-mint hover:underline">
+                Share card
+              </Link>
+              <Link href="/settings" className="text-mint hover:underline">
+                Edit
+              </Link>
+            </div>
           )}
         </div>
 
