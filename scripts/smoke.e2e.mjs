@@ -494,7 +494,8 @@ try {
   await page.fill("#chronicle-birth", "1990");
   async function addConsole(platform, year, gameQuery) {
     if (!(await page.locator("#chronicle-console").count())) await page.getByRole("button", { name: "+ Add a console" }).click();
-    await page.selectOption("#chronicle-console", { label: platform });
+    await page.fill("#chronicle-console", platform);
+    await page.getByRole("option", { name: platform, exact: true }).click();
     await page.locator('[aria-label="How exact"]').first().getByRole("button", { name: "Year" }).click();
     await page.selectOption("#chronicle-got", year);
     if (gameQuery) {
@@ -505,6 +506,14 @@ try {
     await page.getByRole("button", { name: "Add to timeline" }).click();
     await page.waitForSelector("#chronicle-console", { state: "detached" });
   }
+  // The console picker searches by other names too, popular ones first
+  if (!(await page.locator("#chronicle-console").count())) await page.getByRole("button", { name: "+ Add a console" }).click();
+  await page.fill("#chronicle-console", "ps2");
+  check("console search finds PlayStation 2 by 'ps2'",
+    (await page.getByRole("option").first().textContent()).trim() === "PlayStation 2");
+  await page.fill("#chronicle-console", "genesis");
+  check("console search finds the Mega Drive by 'genesis'",
+    (await page.getByRole("option").first().textContent()).includes("Mega Drive"));
   await addConsole("PlayStation 2", "2002", "zelda");
   await addConsole("Game Boy Advance", "2001", null);
   await addConsole("Nintendo Switch", "2017", null);

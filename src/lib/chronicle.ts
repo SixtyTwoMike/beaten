@@ -38,19 +38,59 @@ const HYBRIDS = new Set([130, 508]);
 // Known handhelds, for a platform list synced before IGDB types were stored.
 const HANDHELDS = new Set([33, 22, 24, 20, 159, 37, 137, 38, 46, 35, 61, 119, 120, 57]);
 
-// `value` is "<platformId>" or "<platformId>:<variant>".
-export type ConsoleOption = { value: string; platformId: number; variant: string | null; name: string; popular: boolean };
+// `value` is "<platformId>" or "<platformId>:<variant>". `search` holds
+// extra words it can be found by (abbreviation, other regions' names).
+export type ConsoleOption = {
+  value: string;
+  platformId: number;
+  variant: string | null;
+  name: string;
+  search: string;
+  thumb: string | null;
+  popular: boolean;
+  rank: number; // position in POPULAR_CONSOLES (best-sellers first)
+};
+
+// Names people search by that IGDB's name or abbreviation don't cover.
+const ALIASES: Record<number, string> = {
+  7: "ps1 psx psone playstation 1",
+  29: "genesis mega drive megadrive",
+  19: "snes super nes super nintendo",
+  58: "sfc",
+  18: "nes famicom",
+  99: "famicom nes",
+  86: "pc engine turbografx tg16",
+  64: "sms mark iii",
+  78: "mega cd mega-cd",
+  130: "switch ns",
+  508: "switch 2 ns2",
+  33: "gb dmg",
+  22: "gbc",
+  24: "gba",
+  20: "nds ds lite",
+  37: "3ds 2ds",
+  38: "psp",
+  46: "vita psv",
+  6: "pc windows computer",
+};
 
 export async function consoleOptions(): Promise<ConsoleOption[]> {
   const platforms = await getPlatforms();
   const popular = new Set(POPULAR_CONSOLES);
   return platforms
     .filter((p) => CONSOLE_TYPES.has(p.category ?? -1) || p.id === 6 || popular.has(p.id) || HANDHELDS.has(p.id))
-    .flatMap((p): ConsoleOption[] =>
-      CONSOLE_VARIANTS[p.id]
-        ? CONSOLE_VARIANTS[p.id].map((v) => ({ value: `${p.id}:${v.key}`, platformId: p.id, variant: v.key, name: v.name, popular: popular.has(p.id) }))
-        : [{ value: String(p.id), platformId: p.id, variant: null, name: p.name, popular: popular.has(p.id) }]
-    );
+    .flatMap((p): ConsoleOption[] => {
+      const at = POPULAR_CONSOLES.indexOf(p.id);
+      const base = { platformId: p.id, popular: at >= 0, rank: at >= 0 ? at : POPULAR_CONSOLES.length };
+      const words = [p.abbreviation, ALIASES[p.id]].filter(Boolean).join(" ");
+      const thumb = (variant: string | null) => {
+        const art = consoleArt(p.id, null, variant);
+        return art?.kind === "photo" ? art.src : null;
+      };
+      return CONSOLE_VARIANTS[p.id]
+        ? CONSOLE_VARIANTS[p.id].map((v) => ({ ...base, value: `${p.id}:${v.key}`, variant: v.key, name: v.name, search: words, thumb: thumb(v.key) }))
+        : [{ ...base, value: String(p.id), variant: null, name: p.name, search: words, thumb: thumb(null) }];
+    });
 }
 
 export function isAccent(v: unknown): v is CardAccent {

@@ -21,6 +21,7 @@ import {
 import { safeAction } from "@/lib/safe-action";
 import { CARD_ACCENTS, type CardAccent } from "@/lib/share-card";
 import { ChronicleMap } from "./ChronicleMap";
+import { ConsolePicker } from "./ConsolePicker";
 import { PartialDateField } from "./PartialDateField";
 import { Poster } from "./Poster";
 
@@ -193,7 +194,6 @@ function EntryForm({
   const [games, setGames] = useState<SuggestedGame[]>(stop?.games ?? []);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const popular = consoles.filter((c) => c.popular).sort((a, b) => a.name.localeCompare(b.name));
   const autoAge = birthYear && gotAt ? Number(gotAt.slice(0, 4)) - birthYear : null;
 
   function submit(e: React.FormEvent) {
@@ -223,19 +223,7 @@ function EntryForm({
       <h3 className="font-semibold">{stop ? `Edit ${stop.platformName}` : "Add a console"}</h3>
       <div>
         <label className={label} htmlFor="chronicle-console">Console</label>
-        <select id="chronicle-console" required value={choice} onChange={(e) => setChoice(e.target.value)} className={`${field} min-w-0`}>
-          <option value="">Choose…</option>
-          <optgroup label="Popular">
-            {popular.map((c) => (
-              <option key={c.value} value={c.value}>{c.name}</option>
-            ))}
-          </optgroup>
-          <optgroup label="Everything else">
-            {consoles.filter((c) => !c.popular).map((c) => (
-              <option key={c.value} value={c.value}>{c.name}</option>
-            ))}
-          </optgroup>
-        </select>
+        <ConsolePicker id="chronicle-console" options={consoles} value={choice} onChange={setChoice} className={`${field} min-w-0`} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="min-w-0">
