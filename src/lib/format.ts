@@ -23,3 +23,17 @@ export function todayDateInput(): string {
 export function ratingToStars(rating: number): string {
   return (rating / 2).toFixed(rating % 2 === 0 ? 0 : 1);
 }
+
+// One-line dates for a log entry: "Jan 2, 2026 – Feb 3, 2026", "Playing
+// since …", or "Finished, date unknown" for games beaten long ago.
+export function logDates(log: {
+  status: string;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+}): string {
+  if (log.finishedAt) {
+    return `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`;
+  }
+  if (log.status !== "PLAYING") return "Finished, date unknown";
+  return log.startedAt ? `Playing since ${formatDate(log.startedAt)}` : "Currently playing";
+}

@@ -218,6 +218,27 @@ try {
   check("status filter hides beaten-only game", !(await page.getByText("Breath of the Wild").isVisible().catch(() => false)));
   await page.screenshot({ path: `${shots}/05-diary-filtered.png` });
 
+  // 7b. A game beaten long ago, date forgotten: its own diary section,
+  // counted as beaten but not for any year
+  await page.goto(`${BASE}/search`);
+  await page.fill('input[type="search"]', "chrono");
+  await page.waitForSelector("text=Chrono Trigger");
+  await page.locator("div.group", { hasText: "Chrono Trigger" }).first()
+    .getByRole("button", { name: "Beaten", exact: true }).click();
+  await page.waitForSelector("text=Add to your played log");
+  await page.check("#log-date-unknown");
+  check("unknown date hides the date fields", (await page.locator("#log-finished").count()) === 0);
+  await page.getByRole("button", { name: "Save log" }).click();
+  await page.waitForSelector("text=Add to your played log", { state: "detached" });
+  await page.goto(`${BASE}/log`);
+  const whileAgo = page.locator("section", { has: page.getByRole("heading", { name: /Finished a while ago/ }) });
+  check("diary lists undated finishes separately",
+    await whileAgo.locator("li", { hasText: "Chrono Trigger" }).getByText("Finished, date unknown").isVisible());
+  await page.goto(`${BASE}/`);
+  check("undated finish counts as beaten", (await page.locator("div", { hasText: /^3Games beaten$/ }).count()) > 0);
+  check("undated finish isn't counted for this year",
+    (await page.locator("div", { hasText: new RegExp(`^2Finished in ${new Date().getUTCFullYear()}$`) }).count()) > 0);
+
   // 8. Edit a log (change rating)
   await page.goto(`${BASE}/log`);
   const entry = page.locator("li", { hasText: "Breath of the Wild" }).first();

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { MAX_ZOOM, MIN_ZOOM, clamp, isAvatarSource } from "@/lib/avatar";
 import { normalizeBluesky, normalizeInstagram } from "@/lib/social";
+import { FINISHED_STATUSES } from "@/lib/status";
 import type { ActionResult } from "./logs";
 
 export async function updateSocialLinks(input: {
@@ -45,7 +46,7 @@ export async function setAvatar(input: {
       return { ok: false, error: "Invalid crop" };
     }
     const finished = await prisma.playLog.findFirst({
-      where: { userId, gameId: String(input.gameId), finishedAt: { not: null } },
+      where: { userId, gameId: String(input.gameId), status: { in: FINISHED_STATUSES } },
       include: { game: { select: { coverUrl: true, artworkUrl: true } } },
     });
     if (!finished) return { ok: false, error: "Pick a game you've finished" };

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { normalizeUsername } from "@/lib/username";
+import { isFinishedStatus } from "@/lib/status";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
 import { blueskyUrl, instagramUrl } from "@/lib/social";
 import { Avatar } from "@/components/Avatar";
@@ -87,7 +88,8 @@ export default async function ProfilePage({ params }: Params) {
     }
   }
   const currentlyPlaying = [...playingByGame.values()];
-  const finished = logs.filter((l) => l.finishedAt);
+  // Dated finishes first (newest first), then ones finished on an unknown date.
+  const finished = logs.filter((l) => isFinishedStatus(l.status));
   const reviews = finished.filter((l) => l.reviewText).slice(0, 10);
   const finishedShown = finished.slice(0, PROFILE_GRID_LIMIT);
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
@@ -103,7 +105,7 @@ export default async function ProfilePage({ params }: Params) {
     },
     {
       label: `Finished in ${yearStart.getUTCFullYear()}`,
-      value: finished.filter((l) => l.finishedAt! >= yearStart).length,
+      value: finished.filter((l) => l.finishedAt && l.finishedAt >= yearStart).length,
     },
   ];
 

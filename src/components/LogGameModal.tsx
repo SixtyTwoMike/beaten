@@ -10,7 +10,7 @@ import type {
   PlatformOption,
   ShelfOption,
 } from "@/lib/types";
-import { isPlayStatus, type PlayStatus } from "@/lib/status";
+import { isFinishedStatus, isPlayStatus, type PlayStatus } from "@/lib/status";
 import { Poster } from "./Poster";
 import { StarRatingInput } from "./StarRatingInput";
 import { safeAction } from "@/lib/safe-action";
@@ -74,6 +74,10 @@ export function LogGameModal({
   const [startedAt, setStartedAt] = useState(existing?.startedAt ?? "");
   const [finishedAt, setFinishedAt] = useState(
     existing?.finishedAt ?? todayDateInput()
+  );
+  // A finished entry saved without a date was "finished, date unknown".
+  const [dateUnknown, setDateUnknown] = useState(
+    Boolean(existing && isFinishedStatus(existing.status) && !existing.finishedAt)
   );
   const [isReplay, setIsReplay] = useState<"first" | "replay">(
     existing?.isReplay ? "replay" : "first"
@@ -149,8 +153,9 @@ export function LogGameModal({
         igdbId: game.igdbId,
         status,
         platformId: platformId ? Number(platformId) : null,
-        startedAt: startedAt || null,
-        finishedAt: isPlaying ? null : finishedAt,
+        startedAt: !isPlaying && dateUnknown ? null : startedAt || null,
+        finishedAt: isPlaying || dateUnknown ? null : finishedAt,
+        finishedDateUnknown: !isPlaying && dateUnknown,
         isReplay: isReplay === "replay",
         rating: rating || null,
         reviewText: reviewText || null,
@@ -283,37 +288,51 @@ export function LogGameModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass} htmlFor="log-started">
-                {isPlaying ? "Playing since" : "Started"}{" "}
-                <span className="normal-case text-fog/85">(optional)</span>
-              </label>
-              <input
-                id="log-started"
-                type="date"
-                value={startedAt}
-                max={isPlaying ? undefined : finishedAt || undefined}
-                onChange={(e) => setStartedAt(e.target.value)}
-                className={fieldClass}
-              />
-            </div>
-            {!isPlaying && (
+          {(isPlaying || !dateUnknown) && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelClass} htmlFor="log-finished">
-                  Finished
+                <label className={labelClass} htmlFor="log-started">
+                  {isPlaying ? "Playing since" : "Started"}{" "}
+                  <span className="normal-case text-fog/85">(optional)</span>
                 </label>
                 <input
-                  id="log-finished"
+                  id="log-started"
                   type="date"
-                  required
-                  value={finishedAt}
-                  onChange={(e) => setFinishedAt(e.target.value)}
+                  value={startedAt}
+                  max={isPlaying ? undefined : finishedAt || undefined}
+                  onChange={(e) => setStartedAt(e.target.value)}
                   className={fieldClass}
                 />
               </div>
-            )}
-          </div>
+              {!isPlaying && (
+                <div>
+                  <label className={labelClass} htmlFor="log-finished">
+                    Finished
+                  </label>
+                  <input
+                    id="log-finished"
+                    type="date"
+                    required
+                    value={finishedAt}
+                    onChange={(e) => setFinishedAt(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          {!isPlaying && (
+            <label className="-mt-1 flex items-center gap-2 text-sm text-fog">
+              <input
+                id="log-date-unknown"
+                type="checkbox"
+                checked={dateUnknown}
+                onChange={(e) => setDateUnknown(e.target.checked)}
+                className="accent-[var(--color-mint)]"
+              />
+              I don&apos;t remember when I finished it
+            </label>
+          )}
 
           <div>
             <span className={labelClass}>Rating</span>

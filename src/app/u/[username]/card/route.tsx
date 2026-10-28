@@ -14,6 +14,7 @@ import {
   type CardOptions,
 } from "@/lib/share-card";
 import { STAR_PATH } from "@/components/Stars";
+import { FINISHED_STATUSES } from "@/lib/status";
 
 // Public share card: a PNG of someone's last four finished (or played) games. Uses only
 // what their public profile already shows. Cached for 10 minutes (nginx
@@ -121,13 +122,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   const played = opts.source === "played";
   const [rawLogs, beatenGames, thisYear] = await Promise.all([
     prisma.playLog.findMany({
-      where: { userId: user.id, ...(played ? {} : { finishedAt: { not: null } }) },
+      // Both lists need a date to say "last": undated finishes are left out.
+      where: {
+        userId: user.id,
+        ...(played
+          ? { OR: [{ status: "PLAYING" }, { finishedAt: { not: null } }] }
+          : { finishedAt: { not: null } }),
+      },
       orderBy: played ? [{ createdAt: "desc" }] : [{ finishedAt: "desc" }, { createdAt: "desc" }],
       take: played ? 60 : 20,
       include: { game: { select: { id: true, name: true, coverUrl: true, artworkUrl: true } } },
     }),
     prisma.playLog.findMany({
-      where: { userId: user.id, finishedAt: { not: null } },
+      where: { userId: user.id, status: { in: FINISHED_STATUSES } },
       select: { gameId: true },
       distinct: ["gameId"],
     }),

@@ -10,9 +10,13 @@ export function isPlayStatus(value: string): value is PlayStatus {
   return (PLAY_STATUSES as string[]).includes(value);
 }
 
-// A finished status has a finish date; PLAYING is in-progress (finishedAt null).
+// Finished statuses usually have a finish date, but it may be unknown (a game
+// beaten years ago): finishedAt is null then too. So "finished" is decided by
+// status, never by finishedAt; PLAYING is in progress (finishedAt null).
+export const FINISHED_STATUSES: PlayStatus[] = ["BEATEN", "MASTERED"];
+
 export function isFinishedStatus(value: string): boolean {
-  return value === "BEATEN" || value === "MASTERED";
+  return (FINISHED_STATUSES as string[]).includes(value);
 }
 
 export const STATUS_LABELS: Record<PlayStatus, string> = {

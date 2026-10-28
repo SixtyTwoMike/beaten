@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import type { SessionUser } from "@/lib/session";
+import { FINISHED_STATUSES } from "@/lib/status";
 import { Poster } from "@/components/Poster";
 import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -17,7 +18,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
         select: { username: true },
       }),
       prisma.playLog.findMany({
-        where: { userId: user.id, finishedAt: { not: null } },
+        where: { userId: user.id, status: { in: FINISHED_STATUSES } },
         select: { gameId: true },
         distinct: ["gameId"],
       }),

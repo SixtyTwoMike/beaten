@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { formatDate, toDateInput } from "@/lib/format";
+import { logDates, toDateInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
@@ -172,11 +172,7 @@ export default async function GamePage({
                         </span>
                       )}
                       <span className="text-sm text-fog">
-                        {log.finishedAt
-                          ? `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`
-                          : log.startedAt
-                            ? `Playing since ${formatDate(log.startedAt)}`
-                            : "Currently playing"}
+                        {logDates(log)}
                       </span>
                       {platform && (
                         <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs text-fog">

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { formatDate, toDateInput } from "@/lib/format";
+import { logDates, toDateInput } from "@/lib/format";
 import { MAX_YEAR, MIN_YEAR, isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
-import { isPlayStatus } from "@/lib/status";
+import { isFinishedStatus, isPlayStatus } from "@/lib/status";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
 import { Stars } from "@/components/Stars";
@@ -56,10 +56,15 @@ export default async function LogPage({
     }),
   ]);
 
+  // Games finished on an unknown date get their own section at the end.
+  const undated = rawLogs
+    .filter((l) => isFinishedStatus(l.status) && !l.finishedAt)
+    .sort((a, b) => a.game.name.localeCompare(b.game.name));
+
   // Currently-playing entries (null finishedAt) sort to the top by start date;
   // finished entries follow, most-recently-finished first. A single Prisma
   // orderBy can't express this cleanly with nullable finishedAt.
-  const logs = [...rawLogs].sort((a, b) => {
+  const logs = rawLogs.filter((l) => !undated.includes(l)).sort((a, b) => {
     const af = a.finishedAt?.getTime();
     const bf = b.finishedAt?.getTime();
     if (af == null && bf == null) {
@@ -86,6 +91,88 @@ export default async function LogPage({
 
   const selectClass =
     "rounded-md border border-edge bg-card px-3 py-2 text-sm outline-none focus:border-mint/60";
+
+  function entry(log: (typeof rawLogs)[number]) {
+    const platform = log.platformId
+      ? platformById.get(log.platformId)
+      : null;
+    return (
+      <li
+        key={log.id}
+        className="flex gap-4 rounded-xl border border-edge bg-card p-4"
+      >
+        <Link
+          href={`/games/${log.game.igdbId}`}
+          className="w-16 shrink-0 sm:w-20"
+        >
+          <Poster name={log.game.name} coverUrl={log.game.coverUrl} />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Link
+              href={`/games/${log.game.igdbId}`}
+              className="font-semibold hover:text-mint"
+            >
+              {log.game.name}
+              {log.game.releaseYear && (
+                <span className="ml-1.5 font-normal text-fog">
+                  {log.game.releaseYear}
+                </span>
+              )}
+            </Link>
+            <StatusBadge status={log.status} />
+            {log.isReplay && (
+              <span className="rounded-full bg-card-2 px-2 py-0.5 text-xs text-fog">
+                ↻ Replay
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-fog">
+            {logDates(log)}
+            {platform && (
+              <span className="ml-2 rounded bg-card-2 px-1.5 py-0.5 text-xs">
+                {platform.abbreviation ?? platform.name}
+              </span>
+            )}
+          </p>
+          {log.rating != null && (
+            <div className="mt-1.5">
+              <Stars rating={log.rating} />
+            </div>
+          )}
+          {log.reviewText && (
+            <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
+              {log.reviewText}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 self-start">
+          <LogEntryActions
+            game={{
+              igdbId: log.game.igdbId,
+              name: log.game.name,
+              releaseYear: log.game.releaseYear,
+              coverUrl: log.game.coverUrl,
+              platformIds: JSON.parse(log.game.platformIds) as number[],
+            }}
+            existing={{
+              logId: log.id,
+              status: log.status,
+              platformId: log.platformId,
+              startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
+              finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
+              isReplay: log.isReplay,
+              rating: log.rating,
+              reviewText: log.reviewText,
+            }}
+            platforms={platformOptions}
+            shelves={shelves}
+          />
+        </div>
+      </li>
+    );
+  }
+
 
   return (
     <div>
@@ -128,7 +215,7 @@ export default async function LogPage({
         </form>
       </div>
 
-      {logs.length === 0 ? (
+      {rawLogs.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-edge bg-card/50 p-10 text-center">
           <p className="text-fog">
             No log entries{Object.keys(params).length ? " match these filters" : " yet"}.
@@ -142,91 +229,22 @@ export default async function LogPage({
         </div>
       ) : (
         <ul className="mt-6 space-y-3">
-          {logs.map((log) => {
-            const platform = log.platformId
-              ? platformById.get(log.platformId)
-              : null;
-            return (
-              <li
-                key={log.id}
-                className="flex gap-4 rounded-xl border border-edge bg-card p-4"
-              >
-                <Link
-                  href={`/games/${log.game.igdbId}`}
-                  className="w-16 shrink-0 sm:w-20"
-                >
-                  <Poster name={log.game.name} coverUrl={log.game.coverUrl} />
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <Link
-                      href={`/games/${log.game.igdbId}`}
-                      className="font-semibold hover:text-mint"
-                    >
-                      {log.game.name}
-                      {log.game.releaseYear && (
-                        <span className="ml-1.5 font-normal text-fog">
-                          {log.game.releaseYear}
-                        </span>
-                      )}
-                    </Link>
-                    <StatusBadge status={log.status} />
-                    {log.isReplay && (
-                      <span className="rounded-full bg-card-2 px-2 py-0.5 text-xs text-fog">
-                        ↻ Replay
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-sm text-fog">
-                    {log.finishedAt
-                      ? `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`
-                      : log.startedAt
-                        ? `Playing since ${formatDate(log.startedAt)}`
-                        : "Currently playing"}
-                    {platform && (
-                      <span className="ml-2 rounded bg-card-2 px-1.5 py-0.5 text-xs">
-                        {platform.abbreviation ?? platform.name}
-                      </span>
-                    )}
-                  </p>
-                  {log.rating != null && (
-                    <div className="mt-1.5">
-                      <Stars rating={log.rating} />
-                    </div>
-                  )}
-                  {log.reviewText && (
-                    <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
-                      {log.reviewText}
-                    </p>
-                  )}
-                </div>
-                <div className="shrink-0 self-start">
-                  <LogEntryActions
-                    game={{
-                      igdbId: log.game.igdbId,
-                      name: log.game.name,
-                      releaseYear: log.game.releaseYear,
-                      coverUrl: log.game.coverUrl,
-                      platformIds: JSON.parse(log.game.platformIds) as number[],
-                    }}
-                    existing={{
-                      logId: log.id,
-                      status: log.status,
-                      platformId: log.platformId,
-                      startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
-                      finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
-                      isReplay: log.isReplay,
-                      rating: log.rating,
-                      reviewText: log.reviewText,
-                    }}
-                    platforms={platformOptions}
-                    shelves={shelves}
-                  />
-                </div>
-              </li>
-            );
-          })}
+          {logs.map(entry)}
         </ul>
+      )}
+
+      {undated.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold">
+            Finished a while ago{" "}
+            <span className="font-normal text-fog">· {undated.length}</span>
+          </h2>
+          <p className="mt-1 text-sm text-fog">
+            Games you&apos;ve beaten but don&apos;t remember when. They count
+            towards your totals, just not any particular year.
+          </p>
+          <ul className="mt-4 space-y-3">{undated.map(entry)}</ul>
+        </section>
       )}
     </div>
   );

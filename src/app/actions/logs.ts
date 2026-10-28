@@ -19,6 +19,7 @@ export type SaveLogInput = {
   platformId?: number | null;
   startedAt?: string | null; // YYYY-MM-DD
   finishedAt?: string | null; // YYYY-MM-DD; null while status is PLAYING
+  finishedDateUnknown?: boolean; // finished, but they don't remember when
   isReplay: boolean;
   rating?: number | null; // 1-10 half-star steps
   reviewText?: string | null;
@@ -44,10 +45,13 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
     if (!isPlayStatus(input.status)) {
       return { ok: false, error: "Invalid status" };
     }
-    const startedAt = parseDate(input.startedAt);
-    // Finished statuses require a finish date; a game still being played has none.
+    const dateUnknown = isFinishedStatus(input.status) && input.finishedDateUnknown === true;
+    // Without a finish date a start date means little; drop it.
+    const startedAt = dateUnknown ? null : parseDate(input.startedAt);
+    // Finished statuses need a finish date unless it's unknown; a game still
+    // being played has none.
     let finishedAt: Date | null = null;
-    if (isFinishedStatus(input.status)) {
+    if (isFinishedStatus(input.status) && !dateUnknown) {
       finishedAt = parseDate(input.finishedAt);
       if (!finishedAt) return { ok: false, error: "A finish date is required" };
       if (startedAt && startedAt > finishedAt) {

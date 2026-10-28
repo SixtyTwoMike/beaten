@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { isAvatarSource } from "@/lib/avatar";
+import { FINISHED_STATUSES } from "@/lib/status";
 import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
@@ -48,7 +49,7 @@ export default async function SettingsPage() {
     }),
     // Avatar candidates: finished games with some art, latest finish first.
     prisma.playLog.findMany({
-      where: { userId: user.id, finishedAt: { not: null } },
+      where: { userId: user.id, status: { in: FINISHED_STATUSES } },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
       select: { game: { select: { id: true, name: true, coverUrl: true, artworkUrl: true } } },
     }),
