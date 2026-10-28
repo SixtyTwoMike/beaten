@@ -22,7 +22,7 @@ cp -r .next/standalone/. "$STAGE/"
 rm -f "$STAGE"/.env* "$STAGE"/prisma/*.db "$STAGE"/prisma/*.db-journal
 mkdir -p "$STAGE/.next/static" "$STAGE/prisma"
 cp -r .next/static/. "$STAGE/.next/static/"
-[ -d public ] && cp -r public "$STAGE/public"
+[ -d public ] && mkdir -p "$STAGE/public" && cp -r public/. "$STAGE/public/"
 cp prisma/schema.prisma "$STAGE/prisma/"
 cp -r prisma/migrations "$STAGE/prisma/"
 git rev-parse --short HEAD > "$STAGE/REVISION" 2>/dev/null || true

@@ -21,7 +21,7 @@ cp -r .next/standalone/. "$STAGE/"
 rm -f "$STAGE"/.env*
 mkdir -p "$STAGE/.next/static"
 cp -r .next/static/. "$STAGE/.next/static/"
-cp -r public "$STAGE/public"
+mkdir -p "$STAGE/public" && cp -r public/. "$STAGE/public/"
 
 echo "==> seed database"
 SEED_DB="$(pwd)/$OUT_DIR/seed-beaten.db"
