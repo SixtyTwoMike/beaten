@@ -96,8 +96,22 @@ location / {
 }
 NGINX
 
+# For an apex domain (beaten.games), www.<domain> is served as a redirect
+# once the certificate covers it.
+WWW_DOMAIN=""
+if [ -n "$BEATEN_DOMAIN" ] && [ "$(tr -cd . <<<"$BEATEN_DOMAIN" | wc -c)" -eq 1 ]; then
+  WWW_DOMAIN="www.$BEATEN_DOMAIN"
+fi
+CERT="/etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem"
+
+cert_covers() {
+  [ -f "$CERT" ] && openssl x509 -in "$CERT" -noout -ext subjectAltName | grep -q "DNS:$1\b"
+}
+
 write_nginx() {
-  local cert="/etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem"
+  local cert="$CERT"
+  local www=""
+  if [ -n "$WWW_DOMAIN" ] && cert_covers "$WWW_DOMAIN"; then www="$WWW_DOMAIN"; fi
   {
     cat <<'NGINX'
 limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
@@ -123,9 +137,9 @@ server {
 
 server {
     listen 80;
-    server_name $BEATEN_DOMAIN;
+    server_name $BEATEN_DOMAIN $www;
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
-    location / { return 301 https://\$host\$request_uri; }
+    location / { return 301 https://$BEATEN_DOMAIN\$request_uri; }
 }
 
 server {
@@ -139,6 +153,20 @@ server {
     include snippets/beaten-app.conf;
 }
 NGINX
+      if [ -n "$www" ]; then
+        cat <<NGINX
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name $www;
+    ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    return 301 https://$BEATEN_DOMAIN\$request_uri;
+}
+NGINX
+      fi
     else
       cat <<'NGINX'
 server {
@@ -158,16 +186,31 @@ NGINX
 
 write_nginx
 
-# Obtain a certificate once DNS for BEATEN_DOMAIN points here; until then this
-# fails harmlessly and the site stays on HTTP. Renewals run from certbot's
-# timer and reload nginx via the deploy hook.
-if [ -n "$BEATEN_DOMAIN" ] && [ ! -f "/etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem" ]; then
-  if certbot certonly --webroot -w /var/www/certbot -d "$BEATEN_DOMAIN" \
-      --non-interactive --agree-tos --register-unsafely-without-email \
-      --deploy-hook "systemctl reload nginx"; then
-    write_nginx
-  else
-    echo "certbot failed (DNS not pointing here yet?) — serving HTTP only"
+# Obtain (or expand) the certificate for names whose DNS already points at
+# this box. Names that don't resolve here are skipped rather than attempted,
+# which keeps failed validations from eating Let's Encrypt's rate limits.
+# Renewals run from certbot's timer and reload nginx via the deploy hook.
+points_here() {
+  [ "$(getent ahostsv4 "$1" | awk 'NR==1{print $1}')" = "$MY_IP" ]
+}
+if [ -n "$BEATEN_DOMAIN" ]; then
+  MY_IP=$(curl -fsS --max-time 10 https://checkip.amazonaws.com || true)
+  names=()
+  if points_here "$BEATEN_DOMAIN"; then
+    names+=(-d "$BEATEN_DOMAIN")
+    if [ -n "$WWW_DOMAIN" ] && points_here "$WWW_DOMAIN"; then names+=(-d "$WWW_DOMAIN"); fi
+  fi
+  want_www=$([ "${#names[@]}" -gt 2 ] && echo 1 || echo 0)
+  if [ "${#names[@]}" -eq 0 ]; then
+    echo "DNS for $BEATEN_DOMAIN doesn't point at $MY_IP yet — serving HTTP only"
+  elif [ ! -f "$CERT" ] || { [ "$want_www" = 1 ] && ! cert_covers "$WWW_DOMAIN"; }; then
+    if certbot certonly --webroot -w /var/www/certbot --cert-name "$BEATEN_DOMAIN" \
+        "${names[@]}" --expand --non-interactive --agree-tos \
+        --register-unsafely-without-email --deploy-hook "systemctl reload nginx"; then
+      write_nginx
+    else
+      echo "certbot failed — serving HTTP only"
+    fi
   fi
 fi
 

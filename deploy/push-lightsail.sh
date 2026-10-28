@@ -4,7 +4,7 @@
 # Also copies TWITCH_CLIENT_ID/SECRET from your local .env into the server's
 # root-only /etc/beaten.env (sent over SSH stdin, never on a command line).
 #
-# Usage: ./deploy/push-lightsail.sh [--no-build]
+# Usage: [BEATEN_DOMAIN=new.host] ./deploy/push-lightsail.sh [--no-build]
 #   Re-run any time to deploy the current checkout. Database migrations are
 #   applied on the server; existing data is kept.
 set -euo pipefail
@@ -57,9 +57,20 @@ env_value() {
 }
 CID=$(env_value TWITCH_CLIENT_ID)
 CSECRET=$(env_value TWITCH_CLIENT_SECRET)
+ENV_UPDATES=""
 if [ -n "$CID" ] && [ -n "$CSECRET" ]; then
   echo "==> setting IGDB credentials"
-  printf 'TWITCH_CLIENT_ID=%s\nTWITCH_CLIENT_SECRET=%s\nIGDB_MOCK=0\n' "$CID" "$CSECRET" |
+  ENV_UPDATES+="TWITCH_CLIENT_ID=$CID"$'\n'"TWITCH_CLIENT_SECRET=$CSECRET"$'\n'"IGDB_MOCK=0"$'\n'
+else
+  echo "==> no TWITCH_CLIENT_ID/SECRET in .env — server keeps its current IGDB setting"
+fi
+# BEATEN_DOMAIN=new.host moves the site (users sign in again on the new origin).
+if [ -n "${BEATEN_DOMAIN:-}" ]; then
+  echo "==> setting domain $BEATEN_DOMAIN"
+  ENV_UPDATES+="BEATEN_DOMAIN=$BEATEN_DOMAIN"$'\n'"AUTH_URL=https://$BEATEN_DOMAIN"$'\n'
+fi
+if [ -n "$ENV_UPDATES" ]; then
+  printf '%s' "$ENV_UPDATES" |
     ssh "${SSH_OPTS[@]}" "$TARGET" 'sudo bash -c '\''
       umask 077
       new=$(cat)
@@ -67,8 +78,6 @@ if [ -n "$CID" ] && [ -n "$CSECRET" ]; then
       { grep -vE "^($keys)=" /etc/beaten.env || true; printf "%s\n" "$new"; } > /etc/beaten.env.new
       mv /etc/beaten.env.new /etc/beaten.env
     '\'''
-else
-  echo "==> no TWITCH_CLIENT_ID/SECRET in .env — server keeps its current IGDB setting"
 fi
 
 echo "==> installing"
@@ -81,5 +90,6 @@ ssh "${SSH_OPTS[@]}" "$TARGET" "sudo install -m 755 ~/beaten-upload/install-from
 DOMAIN=$(ssh "${SSH_OPTS[@]}" "$TARGET" "sudo sed -n 's/^BEATEN_DOMAIN=//p' /etc/beaten.env")
 IP=${TARGET#*@}
 echo "==> checking"
+sleep 5  # give the restarted app a moment
 curl -s -o /dev/null -w "   http://$IP/login -> %{http_code}\n" --max-time 10 "http://$IP/login" -H "Host: $DOMAIN" || true
 curl -s -o /dev/null -w "   https://$DOMAIN/login -> %{http_code}\n" --max-time 10 "https://$DOMAIN/login" || true
