@@ -802,6 +802,89 @@ try {
   check("export requires sign-in", anonRes.status() === 401);
   await anonContext.close();
 
+  // 19a. Following: a second player logs a game with a spoiler review; we
+  // follow them, see it in our feed and on the game page, find them in
+  // search; they see a new-follower badge; blocking undoes it all
+  const friendName = `pal_${Date.now().toString(36)}`;
+  const friendEmail = `${friendName}@example.com`;
+  const friendPassword = `Pal#${Date.now()}x`;
+  const friendContext = await browser.newContext();
+  const friend = await friendContext.newPage();
+  const friendSince = new Date().toISOString();
+  await friend.goto(`${BASE}/register`);
+  await friend.fill("#register-name", "Pal Tester");
+  await friend.fill("#register-username", friendName);
+  await friend.fill("#register-email", friendEmail);
+  await friend.fill("#register-password", friendPassword);
+  await friend.click('button[type="submit"]');
+  await friend.waitForSelector("text=Check your email");
+  await friend.goto(linkIn(await waitForEmail(friendEmail, "Confirm your email", friendSince), "/verify-email"));
+  await friend.getByRole("button", { name: "Confirm my email" }).click();
+  await friend.waitForURL("**/login?verified=1");
+  await friend.fill("#login-email", friendEmail);
+  await friend.fill("#login-password", friendPassword);
+  await friend.getByRole("button", { name: "Sign in" }).click();
+  await friend.waitForSelector("text=Welcome back");
+  await friend.goto(`${BASE}/games/900011`);
+  await friend.getByRole("button", { name: "✓ I've beaten this" }).click();
+  await friend.waitForSelector("text=Add to your played log");
+  await friend.getByRole("radio", { name: "4 stars" }).click();
+  await friend.fill("#log-review", "The summit twist got me.");
+  await friend.check("#log-spoilers");
+  await friend.getByRole("button", { name: "Save log" }).click();
+  await friend.waitForSelector("text=Add to your played log", { state: "detached" });
+
+  await page.goto(`${BASE}/people?q=${friendName.slice(0, 6)}`);
+  check("people search finds another player", (await page.getByRole("link", { name: new RegExp(friendName) }).count()) === 1);
+  await page.goto(`${BASE}/${friendName}`);
+  await page.getByRole("button", { name: "Follow", exact: true }).click();
+  // (Moved away: hovering the button shows "Unfollow".)
+  await page.mouse.move(0, 0);
+  await page.getByRole("button", { name: "Following" }).waitFor();
+  check("following someone updates their follower count", await page.getByText(/^1 followers$/).isVisible().catch(() => false) ||
+    (await page.locator("a", { hasText: "followers" }).first().textContent()).includes("1"));
+  await page.goto(`${BASE}/`);
+  const fromFriends = page.locator("#following-feed");
+  check("dashboard feed shows what people you follow did",
+    await fromFriends.getByText("beat").first().isVisible() && await fromFriends.getByRole("link", { name: "Celeste" }).first().isVisible());
+  check("spoiler reviews are blurred in the feed", await fromFriends.getByText("Contains spoilers · show").isVisible());
+  await fromFriends.getByText("Contains spoilers · show").click();
+  check("tapping shows the spoiler review", await fromFriends.getByText("The summit twist got me.").isVisible());
+  await page.goto(`${BASE}/games/900011`);
+  check("game page shows friends who've played it", await page.getByRole("heading", { name: "Friends who've played this" }).isVisible() &&
+    await page.getByRole("link", { name: "Pal Tester" }).isVisible());
+  const exportedFollows = await (await page.request.get(`${BASE}/api/account/export?format=json`)).json();
+  check("export lists who you follow", exportedFollows.following.some((f) => f.username === friendName));
+
+  await friend.goto(`${BASE}/`);
+  check("new followers show as a badge on your avatar", (await friend.locator(`header a[href="/${friendName}/followers"]`).count()) === 1);
+  await friend.goto(`${BASE}/${friendName}/followers`);
+  check("followers list shows who follows you", await friend.getByRole("link", { name: new RegExp(username) }).isVisible());
+  await friend.goto(`${BASE}/`);
+  check("seeing your followers clears the badge", (await friend.locator(`header a[href="/${friendName}/followers"]`).count()) === 0);
+  check("followers lists need sign-in",
+    (await (await browser.newContext()).request.get(`${BASE}/${friendName}/followers`, { maxRedirects: 0 })).status() === 307);
+
+  await page.goto(`${BASE}/${friendName}`);
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("button", { name: `Block @${friendName}` }).click();
+  await page.getByRole("button", { name: "Block", exact: true }).click();
+  await page.getByRole("button", { name: "Unblock" }).waitFor();
+  check("blocking ends the follow", (await page.getByRole("button", { name: "Following" }).count()) === 0);
+  await page.goto(`${BASE}/`);
+  check("blocked people drop out of your feed",
+    (await page.locator("#following-feed").getByRole("link", { name: "Celeste" }).count()) === 0);
+  await friend.goto(`${BASE}/${username}`);
+  await friend.getByRole("button", { name: "Follow", exact: true }).click();
+  check("someone you've blocked can't follow you",
+    await friend.getByText("You can't follow this account").waitFor({ timeout: 8000 }).then(() => true, () => false));
+  await page.goto(`${BASE}/settings`);
+  check("settings lists blocked accounts", await page.locator("#blocked").getByText(`@${friendName}`).first().isVisible());
+  await page.locator("#blocked").getByRole("button", { name: "Unblock" }).click();
+  await page.locator("#blocked").getByText("You haven't blocked anyone.").waitFor();
+  check("unblocking from settings", true);
+  await friendContext.close();
+
   // 19b. Username changes: the first is free, then once per 60 days; the
   // old name is held so nobody else can take it
   const renamed = `${username}_r`;

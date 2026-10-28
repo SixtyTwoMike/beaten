@@ -92,6 +92,7 @@ export function LogGameModal({
   );
   const [rating, setRating] = useState(existing?.rating ?? 0);
   const [reviewText, setReviewText] = useState(existing?.reviewText ?? "");
+  const [spoilers, setSpoilers] = useState(existing?.containsSpoilers ?? false);
   const [selectedShelves, setSelectedShelves] = useState<string[]>([]);
   const [newShelfName, setNewShelfName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -169,6 +170,7 @@ export function LogGameModal({
         isReplay: isReplay === "replay",
         rating: rating || null,
         reviewText: reviewText || null,
+        containsSpoilers: spoilers,
         shelfIds: selectedShelves,
         newShelfName: newShelfName || null,
       }));
@@ -380,6 +382,18 @@ export function LogGameModal({
               onChange={(e) => setReviewText(e.target.value)}
               className={fieldClass}
             />
+            {reviewText.trim() && (
+              <label className="mt-1.5 flex items-center gap-2 text-sm text-fog">
+                <input
+                  id="log-spoilers"
+                  type="checkbox"
+                  checked={spoilers}
+                  onChange={(e) => setSpoilers(e.target.checked)}
+                  className="accent-[var(--color-mint)]"
+                />
+                Contains spoilers
+              </label>
+            )}
           </div>
 
           {!existing && (

@@ -27,4 +27,5 @@ export type ExistingLog = {
   isReplay: boolean;
   rating: number | null;
   reviewText: string | null;
+  containsSpoilers?: boolean;
 };

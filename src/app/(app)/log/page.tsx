@@ -174,6 +174,7 @@ export default async function LogPage({
               isReplay: log.isReplay,
               rating: log.rating,
               reviewText: log.reviewText,
+              containsSpoilers: log.containsSpoilers,
             }}
             platforms={platformOptions}
             shelves={shelves}

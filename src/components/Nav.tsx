@@ -21,11 +21,13 @@ export function Nav({
   username,
   avatar,
   image,
+  newFollowers,
 }: {
   userName: string;
   username: string | null;
   avatar: AvatarCrop | null;
   image: string | null;
+  newFollowers: number;
 }) {
   const pathname = usePathname();
   return (
@@ -53,11 +55,22 @@ export function Nav({
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <Link
-            href={username ? `/${username}` : "/settings"}
-            className="flex items-center gap-2 text-fog hover:text-white"
-            title={username ? "Your public profile" : "Set up your public profile"}
+            href={username ? (newFollowers > 0 ? `/${username}/followers` : `/${username}`) : "/settings"}
+            className="relative flex items-center gap-2 text-fog hover:text-white"
+            title={
+              !username
+                ? "Set up your public profile"
+                : newFollowers > 0
+                  ? `${newFollowers} new follower${newFollowers === 1 ? "" : "s"}`
+                  : "Your public profile"
+            }
           >
             <Avatar avatar={avatar} image={image} name={userName} size={28} />
+            {newFollowers > 0 && (
+              <span className="absolute -left-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-mint px-1 text-[10px] font-bold text-canvas">
+                {newFollowers > 9 ? "9+" : newFollowers}
+              </span>
+            )}
             <span className="hidden sm:inline">{userName}</span>
           </Link>
           <Link

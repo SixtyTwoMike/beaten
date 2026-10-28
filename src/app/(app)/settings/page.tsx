@@ -8,6 +8,7 @@ import { nextUsernameChange } from "@/lib/username";
 import { raConfigured, raProfileUrl } from "@/lib/retroachievements";
 import { RetroAchievementsLink } from "@/components/RetroAchievementsLink";
 import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
+import { BlockedList } from "@/components/BlockedList";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { SignOutEverywhereButton } from "@/components/SignOutEverywhereButton";
@@ -41,6 +42,11 @@ export default async function SettingsPage({
   const { invite: inviteCode } = await searchParams;
   const user = await requireUser();
   const invitedUsername = await usernameForInvite(inviteCode);
+  const blocked = await prisma.block.findMany({
+    where: { blockerId: user.id },
+    orderBy: { createdAt: "desc" },
+    select: { blocked: { select: { username: true, name: true } } },
+  });
   const [profile, finishedLogs, raAccount, raPending] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
@@ -130,6 +136,18 @@ export default async function SettingsPage({
         <p className="mt-1 text-sm text-fog">Shown on your public profile.</p>
         <div className="mt-4">
           <SocialLinksForm instagram={profile?.instagram ?? null} bluesky={profile?.bluesky ?? null} />
+        </div>
+      </Section>
+
+      <Section id="blocked" title="Blocked accounts">
+        <p className="mt-1 text-sm text-fog">
+          Blocked people can&apos;t follow you and you won&apos;t see each other&apos;s activity. They can still see
+          your public profile.
+        </p>
+        <div className="mt-3">
+          <BlockedList
+            people={blocked.flatMap((b) => (b.blocked.username ? [{ username: b.blocked.username, name: b.blocked.name }] : []))}
+          />
         </div>
       </Section>
 

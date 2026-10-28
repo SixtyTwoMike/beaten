@@ -72,6 +72,18 @@ sign-up is free), and a previous name is held for its old owner for 60 days.
 - `check-usernames` lists accounts whose names break the rules, and
   `rename <who> <username>` fixes one (no wait, and the old name isn't held).
 
+## Following, blocking and reports
+
+People follow each other one way, with no approval (like Letterboxd);
+profiles stay public. Blocking ends follows both ways and hides each from the
+other's feed and "friends who've played this", but not public profiles.
+
+"Report @name" on a profile emails support with the profile link. For a
+genuine problem: `./deploy/admin.sh find <who>` to look at the account,
+`rename` for an abusive username, `delete <who>` for a spam or abusive
+account (it removes their follows, activity and reviews with it). Reply to the
+reporter either way.
+
 ## Things to avoid
 
 - Don't paste exports, emails or account details into chats, issues or AI

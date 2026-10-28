@@ -20,6 +20,7 @@ export async function buildExport(userId: string) {
         instagram: true,
         bluesky: true,
         raAccount: { select: { raUsername: true } },
+        following: { orderBy: { createdAt: "asc" }, select: { createdAt: true, followee: { select: { username: true } } } },
       },
     }),
     prisma.playLog.findMany({
@@ -66,6 +67,9 @@ export async function buildExport(userId: string) {
       bluesky: user.bluesky,
       retroAchievements: user.raAccount?.raUsername ?? null,
     },
+    following: user.following
+      .filter((f) => f.followee.username)
+      .map((f) => ({ username: f.followee.username, since: f.createdAt.toISOString() })),
     logs: logs.map((log) => ({
       game: {
         igdbId: log.game.igdbId,

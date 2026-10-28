@@ -15,7 +15,7 @@ const ROUTE_NAMES = `
   favicon feed feeds follow followers following forgot_password friends game
   games guide help home import imports index info invite invites jobs join
   legal list lists log login logout logs me members messages mod moderator
-  moderators news notifications null official password popular press pricing
+  moderators news notifications null official password people popular press pricing
   privacy profile profiles random recent register reset reset_password review
   reviews robots root rss search security settings share shelf shelves signin
   signout signup site sitemap staff stats status steam store support system

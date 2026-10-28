@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { recordLogActivity } from "@/lib/activity";
 import { prisma } from "@/lib/db";
 import { ensureGame } from "@/lib/games";
 import { isIgdbId } from "@/lib/limits";
@@ -201,10 +202,11 @@ export async function importRetroAchievements(
       } else if (logs.length > 0) {
         // Upgrade the latest entry (Playing/Shelved → Beaten, Beaten → Mastered).
         const log = logs[0];
-        await prisma.playLog.update({
+        const upgraded = await prisma.playLog.update({
           where: { id: log.id },
           data: { status: top.kind, finishedAt: log.finishedAt ?? finishedAt, stoppedAt: null, notReturning: false },
         });
+        await recordLogActivity(log, upgraded);
         playLogId = log.id;
         state = "IMPORTED";
         imported++;
@@ -220,6 +222,7 @@ export async function importRetroAchievements(
             platformId: mapped && platformIds.includes(mapped) ? mapped : null,
           },
         });
+        await recordLogActivity(null, log);
         playLogId = log.id;
         state = "IMPORTED";
         imported++;

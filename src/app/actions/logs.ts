@@ -10,6 +10,7 @@ import {
   MAX_SHELVES_PER_LOG,
   isIgdbId,
 } from "@/lib/limits";
+import { recordLogActivity } from "@/lib/activity";
 import { parsePartialDate, periodEnd } from "@/lib/dates";
 import type { DatePrecision } from "@/lib/format";
 import { isFinishedStatus, isPlayStatus } from "@/lib/status";
@@ -27,6 +28,7 @@ export type SaveLogInput = {
   isReplay: boolean;
   rating?: number | null; // 1-10 half-star steps
   reviewText?: string | null;
+  containsSpoilers?: boolean;
   shelfIds?: string[];
   newShelfName?: string | null;
 };
@@ -104,6 +106,7 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
       isReplay: Boolean(input.isReplay),
       rating,
       reviewText,
+      containsSpoilers: Boolean(reviewText) && input.containsSpoilers === true,
     };
 
     if (input.logId) {
@@ -113,11 +116,13 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
       if (!existing || existing.userId !== userId) {
         return { ok: false, error: "Log entry not found" };
       }
-      await prisma.playLog.update({ where: { id: input.logId }, data });
+      const updated = await prisma.playLog.update({ where: { id: input.logId }, data });
+      await recordLogActivity(existing, updated);
     } else {
-      await prisma.playLog.create({
+      const created = await prisma.playLog.create({
         data: { ...data, userId, gameId: game.id },
       });
+      await recordLogActivity(null, created);
     }
 
     // Optional shelf additions

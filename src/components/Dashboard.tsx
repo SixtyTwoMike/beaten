@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { formatPartialDate } from "@/lib/format";
 import type { SessionUser } from "@/lib/session";
 import { FINISHED_STATUSES } from "@/lib/status";
+import { getFeed } from "@/lib/feed";
+import { FeedList } from "@/components/FeedList";
 import { Poster } from "@/components/Poster";
 import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -11,7 +13,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 export async function Dashboard({ user }: { user: SessionUser }) {
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
-  const [profile, beatenGames, masteredGames, logsThisYear, playingLogs, recentLogs] =
+  const [profile, beatenGames, masteredGames, logsThisYear, playingLogs, recentLogs, feed] =
     await Promise.all([
       prisma.user.findUnique({
         where: { id: user.id },
@@ -41,6 +43,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
         take: 8,
         include: { game: true },
       }),
+      getFeed(user.id, "following"),
     ]);
 
   // One "now playing" entry per game (most-recent first from the query order).
@@ -174,6 +177,31 @@ export async function Dashboard({ user }: { user: SessionUser }) {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div id="following-feed" className="mt-10">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">From people you follow</h2>
+          {feed.cards.length > 0 && (
+            <Link href="/activity" className="text-sm text-mint hover:underline">
+              All activity →
+            </Link>
+          )}
+        </div>
+        {feed.cards.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-edge bg-card/50 p-6 text-center text-sm text-fog">
+            {feed.followsAnyone
+              ? "Nothing from the people you follow yet."
+              : "Follow people to see what they're playing, beating and reviewing."}{" "}
+            <Link href="/people" className="text-mint hover:underline">
+              Find people →
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <FeedList cards={feed.cards.slice(0, 6)} />
           </div>
         )}
       </div>

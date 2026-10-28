@@ -1,16 +1,21 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { resolveAvatar } from "@/lib/avatar";
 import { prisma } from "@/lib/db";
+import { PUBLIC_USER_SELECT, followingIds } from "@/lib/follows";
 import { logDates, toPartialInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { raGameUrl } from "@/lib/retroachievements";
 import { requireUser } from "@/lib/session";
+import { Avatar } from "@/components/Avatar";
 import { Backdrop } from "@/components/Backdrop";
 import { GameShelves } from "@/components/GameShelves";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
+import { ReviewText } from "@/components/ReviewText";
 import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -70,6 +75,28 @@ export default async function GamePage({
       distinct: ["raGameId"],
     }),
   ]);
+
+  // People you follow who've logged this game: their latest entry each.
+  const friendIds = cached ? await followingIds(user.id) : [];
+  const friendLogs = friendIds.length
+    ? await prisma.playLog.findMany({
+        where: { gameId: cached!.id, userId: { in: friendIds } },
+        orderBy: [{ updatedAt: "desc" }],
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          rating: true,
+          reviewText: true,
+          containsSpoilers: true,
+          user: { select: PUBLIC_USER_SELECT },
+        },
+      })
+    : [];
+  const friends = friendLogs.filter((l, i) => friendLogs.findIndex((x) => x.userId === l.userId) === i);
+  const friendRatings = friends.filter((f) => f.rating != null).map((f) => f.rating!);
+  const friendAverage =
+    friendRatings.length >= 3 ? friendRatings.reduce((a, b) => a + b, 0) / friendRatings.length : null;
 
   const platformOptions = platforms.map((p) => ({
     id: p.id,
@@ -207,6 +234,7 @@ export default async function GamePage({
                             isReplay: log.isReplay,
                             rating: log.rating,
                             reviewText: log.reviewText,
+                            containsSpoilers: log.containsSpoilers,
                           }}
                           platforms={platformOptions}
                           shelves={shelves}
@@ -229,6 +257,42 @@ export default async function GamePage({
             </ul>
           )}
         </div>
+
+        {friends.length > 0 && (
+          <div className="mt-10">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-semibold">Friends who&apos;ve played this</h2>
+              {friendAverage != null && (
+                <p className="flex items-center gap-2 text-sm text-fog">
+                  Friends&apos; average <Stars rating={Math.round(friendAverage)} />
+                </p>
+              )}
+            </div>
+            <ul className="mt-3 space-y-3">
+              {friends.map((f) => (
+                <li key={f.id} className="flex gap-3 rounded-xl border border-edge bg-card p-3">
+                  <Link href={`/${f.user.username}`} className="shrink-0">
+                    <Avatar avatar={resolveAvatar(f.user)} image={f.user.image} name={f.user.name || f.user.username || "?"} size={32} />
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`/${f.user.username}`} className="text-sm font-semibold text-white hover:text-mint">
+                        {f.user.name || `@${f.user.username}`}
+                      </Link>
+                      <StatusBadge status={f.status} />
+                      {f.rating != null && <Stars rating={f.rating} />}
+                    </div>
+                    {f.reviewText && (
+                      <div className="mt-1.5">
+                        <ReviewText text={f.reviewText} spoilers={f.containsSpoilers} className="text-sm text-fog/90" />
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-10 rounded-xl border border-dashed border-edge p-4">
           <h2 className="text-sm font-semibold text-fog">External links</h2>

@@ -8,7 +8,11 @@ import { normalizeUsername } from "@/lib/username";
 import { isFinishedStatus } from "@/lib/status";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
 import { blueskyUrl, instagramUrl } from "@/lib/social";
+import { canSocialise, followCounts } from "@/lib/follows";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { Avatar } from "@/components/Avatar";
+import { FollowControls } from "@/components/FollowControls";
+import { ReviewText } from "@/components/ReviewText";
 import { Backdrop } from "@/components/Backdrop";
 import { Logo } from "@/components/Logo";
 import { Poster } from "@/components/Poster";
@@ -32,6 +36,7 @@ async function findProfile(raw: string) {
       username: true,
       name: true,
       image: true,
+      emailVerifiedAt: true,
       createdAt: true,
       instagram: true,
       bluesky: true,
@@ -62,8 +67,24 @@ export default async function ProfilePage({ params }: Params) {
   if (!user) notFound();
 
   const session = await auth();
-  const viewerSignedIn = Boolean(session?.user?.id);
-  const isOwner = session?.user?.id === user.id;
+  const viewerId = session?.user?.id ?? null;
+  const viewerSignedIn = Boolean(viewerId);
+  const isOwner = viewerId === user.id;
+
+  const [counts, viewer, relation] = await Promise.all([
+    followCounts(user.id),
+    viewerId && !isOwner
+      ? prisma.user.findUnique({ where: { id: viewerId }, select: { username: true, emailVerifiedAt: true } })
+      : null,
+    viewerId && !isOwner
+      ? Promise.all([
+          prisma.follow.count({ where: { followerId: viewerId, followeeId: user.id } }),
+          prisma.block.count({ where: { blockerId: viewerId, blockedId: user.id } }),
+        ])
+      : null,
+  ]);
+  const canFollow = canSocialise(viewer) && canSocialise(user);
+  const reportHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Report @${user.username}`)}&body=${encodeURIComponent(`Profile: https://beaten.games/${user.username}\n\nWhat's wrong:\n`)}`;
 
   const [logs, shelves] = await Promise.all([
     prisma.playLog.findMany({
@@ -165,7 +186,7 @@ export default async function ProfilePage({ params }: Params) {
       <main className="relative isolate mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <Backdrop artworkUrl={bannerArt} />
 
-        <div className={`flex items-center gap-5 ${bannerArt ? "pt-28 sm:pt-44" : ""}`}>
+        <div className={`flex flex-wrap items-center gap-5 ${bannerArt ? "pt-28 sm:pt-44" : ""}`}>
           <Avatar
             avatar={resolveAvatar(user)}
             image={user.image}
@@ -173,10 +194,23 @@ export default async function ProfilePage({ params }: Params) {
             size={80}
             className="ring-2 ring-white/15"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-3xl font-bold drop-shadow">{display}</h1>
             <p className="text-sm text-fog">
               @{user.username} · Member since {formatDate(user.createdAt)}
+            </p>
+            <p className="mt-1 flex gap-4 text-sm">
+              {(["followers", "following"] as const).map((k) =>
+                viewerSignedIn ? (
+                  <Link key={k} href={`/${user.username}/${k}`} className="whitespace-nowrap text-fog hover:text-white">
+                    <span className="font-semibold text-white">{counts[k]}</span> {k}
+                  </Link>
+                ) : (
+                  <span key={k} className="whitespace-nowrap text-fog">
+                    <span className="font-semibold text-white">{counts[k]}</span> {k}
+                  </span>
+                )
+              )}
             </p>
             {(user.instagram || user.bluesky) && (
               <p className="mt-1 flex flex-wrap gap-x-4 text-sm">
@@ -203,6 +237,16 @@ export default async function ProfilePage({ params }: Params) {
               </p>
             )}
           </div>
+          {canFollow && relation && (
+            <div className="w-full sm:ml-auto sm:w-auto sm:self-start">
+              <FollowControls
+                username={user.username!}
+                following={relation[0] > 0}
+                blocked={relation[1] > 0}
+                reportHref={reportHref}
+              />
+            </div>
+          )}
           {isOwner && (
             <div className="ml-auto flex gap-4 self-start text-sm">
               <Link href="/share" className="text-mint hover:underline">
@@ -286,9 +330,9 @@ export default async function ProfilePage({ params }: Params) {
                       {log.rating != null && <Stars rating={log.rating} />}
                     </div>
                     <p className="mt-0.5 text-xs text-fog">{formatPartialDate(log.finishedAt, log.finishedPrecision)}</p>
-                    <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
-                      {log.reviewText}
-                    </p>
+                    <div className="mt-2">
+                      <ReviewText text={log.reviewText!} spoilers={log.containsSpoilers} className="text-sm text-fog/90" />
+                    </div>
                   </div>
                 </li>
               ))}

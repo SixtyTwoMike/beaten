@@ -34,7 +34,7 @@ export function avatarLayout(size: number, a: Pick<Avatar, "source" | "x" | "y" 
   };
 }
 
-type AvatarFields = {
+export type AvatarFields = {
   avatarSource: string | null;
   avatarX: number;
   avatarY: number;
