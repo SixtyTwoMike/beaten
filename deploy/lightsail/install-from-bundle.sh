@@ -142,7 +142,7 @@ NGINX
 # Unknown hostnames (e.g. scanners hitting the bare IP) get dropped.
 server {
     listen 80 default_server;
-    listen 443 ssl default_server;
+    listen 443 ssl http2 default_server;
     server_name _;
     ssl_reject_handshake on;
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
@@ -157,8 +157,7 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    http2 on;
+    listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates `http2 on;`
     server_name $BEATEN_DOMAIN;
     ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
@@ -171,8 +170,7 @@ NGINX
         cat <<NGINX
 
 server {
-    listen 443 ssl;
-    http2 on;
+    listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates `http2 on;`
     server_name $www;
     ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
