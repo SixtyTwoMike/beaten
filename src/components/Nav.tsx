@@ -31,7 +31,7 @@ export function Nav({
     <header className="sticky top-0 z-40 border-b border-edge bg-canvas/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <Logo href="/" />
-        <nav className="flex items-center gap-1 text-sm">
+        <nav className="order-last -ml-3 flex w-full items-center gap-1 overflow-x-auto text-sm lg:order-none lg:ml-0 lg:w-auto">
           {links.map((l) => {
             const active =
               l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);

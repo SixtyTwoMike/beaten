@@ -90,7 +90,7 @@ export default async function LogPage({
   const platformById = new Map(platforms.map((p) => [p.id, p]));
 
   const selectClass =
-    "min-w-0 max-w-full rounded-md border border-edge bg-card px-3 py-2 text-sm outline-none focus:border-mint/60";
+    "min-w-0 max-w-full sm:max-w-56 rounded-md border border-edge bg-card px-3 py-2 text-sm outline-none focus:border-mint/60";
 
   function entry(log: (typeof rawLogs)[number]) {
     const platform = log.platformId
