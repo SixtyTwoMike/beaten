@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { SignOutEverywhereButton } from "@/components/SignOutEverywhereButton";
 import { UsernameForm } from "@/components/UsernameForm";
 
@@ -48,6 +49,28 @@ export default async function SettingsPage() {
         )}
       </Section>
 
+      <Section title="Your data">
+        <p className="mt-1 text-sm text-fog">
+          Download everything you&apos;ve logged, any time. The JSON file is
+          complete (logs, reviews, shelves, profile); the CSV is your diary as
+          a spreadsheet.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2 text-sm">
+          <a
+            href="/api/account/export?format=json"
+            className="rounded-md border border-edge px-3 py-1.5 hover:border-fog/50 transition"
+          >
+            Download all data (JSON)
+          </a>
+          <a
+            href="/api/account/export?format=csv"
+            className="rounded-md border border-edge px-3 py-1.5 hover:border-fog/50 transition"
+          >
+            Download diary (CSV)
+          </a>
+        </div>
+      </Section>
+
       <Section title="Sessions">
         <p className="mt-1 text-sm text-fog">
           Signed in somewhere you don&apos;t recognise? Sign out on every device,
@@ -55,6 +78,12 @@ export default async function SettingsPage() {
         </p>
         <div className="mt-4">
           <SignOutEverywhereButton />
+        </div>
+      </Section>
+
+      <Section title="Delete account">
+        <div className="mt-3">
+          <DeleteAccountForm hasPassword={Boolean(profile?.passwordHash)} />
         </div>
       </Section>
     </div>

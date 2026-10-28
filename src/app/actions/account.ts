@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import {
+  sendAccountDeletedEmail,
   sendGoogleAccountEmail,
   sendPasswordChangedEmail,
   sendPasswordResetEmail,
@@ -12,6 +13,7 @@ import {
 import { MAX_EMAIL } from "@/lib/limits";
 import { passwordError } from "@/lib/password";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
+import { requireUserId } from "@/lib/session";
 import { consumeToken, issueToken } from "@/lib/tokens";
 import type { ActionResult } from "./logs";
 
@@ -114,4 +116,35 @@ export async function resendVerification(input: string): Promise<ActionResult> {
     if (token) await sendVerifyEmail(user, token);
   });
   return { ok: true };
+}
+
+// Permanently deletes the signed-in account; logs, shelves and tokens go with
+// it via ON DELETE CASCADE. Password accounts must re-enter their password;
+// Google accounts type their username (or email) to confirm.
+export async function deleteAccount(input: { confirmation: string }): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return { ok: false, error: "Account not found" };
+
+    const confirmation = input.confirmation.slice(0, 254);
+    const confirmed = user.passwordHash
+      ? await bcrypt.compare(confirmation, user.passwordHash)
+      : [user.username, user.email].includes(confirmation.trim().toLowerCase());
+    if (!confirmed) {
+      return {
+        ok: false,
+        error: user.passwordHash
+          ? "Password is incorrect"
+          : "Type your username exactly to confirm",
+      };
+    }
+
+    await prisma.user.delete({ where: { id: userId } });
+    inBackground("account deleted email", () => sendAccountDeletedEmail(user));
+    return { ok: true };
+  } catch (e) {
+    console.error("deleteAccount failed:", e);
+    return { ok: false, error: "Something went wrong deleting your account" };
+  }
 }

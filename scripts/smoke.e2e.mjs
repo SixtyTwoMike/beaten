@@ -390,6 +390,55 @@ try {
   check("sign in works after password reset", true);
   await page.goto(resetLink);
   check("reset link can't be reused", await page.getByText("Link expired").isVisible());
+
+  // 19. Data export (still signed in from step 18): JSON is complete and free
+  // of secrets; CSV is the diary
+  const jsonRes = await page.request.get(`${BASE}/api/account/export?format=json`);
+  const exported = await jsonRes.json();
+  check(
+    "JSON export downloads as an attachment",
+    jsonRes.headers()["content-disposition"]?.startsWith("attachment")
+  );
+  check("JSON export includes profile and logs", exported.profile.email === email && exported.logs.length >= 2);
+  check(
+    "JSON export includes reviews and shelves",
+    exported.logs.some((l) => l.review?.includes("Masterpiece")) &&
+      exported.shelves.some((s) => s.name === "All-timers")
+  );
+  const rawJson = JSON.stringify(exported);
+  check("JSON export omits security fields", !/passwordHash|tokenVersion|tokenHash/.test(rawJson));
+  const csvText = await (await page.request.get(`${BASE}/api/account/export?format=csv`)).text();
+  check(
+    "CSV export has header and a diary row",
+    csvText.includes('"Game","Release year"') && csvText.includes("Breath of the Wild")
+  );
+  const anonContext = await browser.newContext();
+  const anonRes = await anonContext.request.get(`${BASE}/api/account/export?format=json`);
+  check("export requires sign-in", anonRes.status() === 401);
+  await anonContext.close();
+
+  // 20. Delete account: needs the password; removes profile and sign-in
+  const deleteAskedAt = new Date().toISOString();
+  await page.goto(`${BASE}/settings`);
+  await page.getByRole("button", { name: "Delete my account…" }).click();
+  await page.fill("#delete-confirmation", "wrong-password");
+  await page.getByRole("button", { name: "Permanently delete account" }).click();
+  await page.waitForSelector("text=Password is incorrect");
+  check("account deletion requires the correct password", true);
+  await page.fill("#delete-confirmation", password);
+  await page.getByRole("button", { name: "Permanently delete account" }).click();
+  await page.waitForURL("**/login?deleted=1");
+  check("deleting the account signs out with notice", await page.getByText("account has been deleted").isVisible());
+  const goneProfile = await page.goto(`${BASE}/u/${username}`);
+  check("deleted user's public profile is gone", goneProfile?.status() === 404);
+  await page.goto(`${BASE}/login`);
+  await page.fill("#login-email", email);
+  await page.fill("#login-password", password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForSelector("text=Incorrect email or password");
+  check("deleted account can't sign in", true);
+  await waitForEmail(email, "account has been deleted", deleteAskedAt);
+  check("deletion confirmation email sent", true);
 } catch (e) {
   failures++;
   console.error("FAIL (exception):", e.message);

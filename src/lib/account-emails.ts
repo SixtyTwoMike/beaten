@@ -78,3 +78,16 @@ export function sendPasswordChangedEmail(user: Recipient) {
       SIGN_OFF,
   });
 }
+
+export function sendAccountDeletedEmail(user: Recipient) {
+  return sendEmail({
+    to: user.email,
+    subject: "Your Beaten account has been deleted",
+    text:
+      greet(user) +
+      "Your Beaten account and everything in it — logs, reviews, shelves and " +
+      "your public profile — have been permanently deleted.\n\n" +
+      `If you didn't do this, contact us right away: ${appUrl()}/support` +
+      SIGN_OFF,
+  });
+}

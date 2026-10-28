@@ -9,6 +9,7 @@ const NOTICES: Record<string, string> = {
   changed: "Password changed. Sign in with your new password.",
   reset: "Password reset. Sign in with your new password.",
   verified: "Email confirmed — you can sign in now.",
+  deleted: "Your account has been deleted.",
 };
 
 export default async function LoginPage({
