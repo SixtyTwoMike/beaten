@@ -4,7 +4,6 @@ import { isAvatarSource } from "@/lib/avatar";
 import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
-import { ShareCardBuilder } from "@/components/ShareCardBuilder";
 import { SignOutEverywhereButton } from "@/components/SignOutEverywhereButton";
 import { SocialLinksForm } from "@/components/SocialLinksForm";
 import { UsernameForm } from "@/components/UsernameForm";
@@ -110,23 +109,6 @@ export default async function SettingsPage() {
         </div>
       </Section>
 
-      <Section id="share" title="Share card">
-        {profile?.username ? (
-          <>
-            <p className="mt-1 text-sm text-fog">
-              An image of your last four finished games, for Instagram, Bluesky
-              or anywhere else.
-            </p>
-            <div className="mt-4">
-              <ShareCardBuilder username={profile.username} />
-            </div>
-          </>
-        ) : (
-          <p className="mt-1 text-sm text-fog">
-            Pick a username above to make a share card.
-          </p>
-        )}
-      </Section>
 
       <Section id="password" title="Password">
         {profile?.passwordHash ? (

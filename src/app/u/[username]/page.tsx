@@ -203,7 +203,7 @@ export default async function ProfilePage({ params }: Params) {
           </div>
           {isOwner && (
             <div className="ml-auto flex gap-4 self-start text-sm">
-              <Link href="/settings#share" className="text-mint hover:underline">
+              <Link href="/share" className="text-mint hover:underline">
                 Share card
               </Link>
               <Link href="/settings" className="text-mint hover:underline">

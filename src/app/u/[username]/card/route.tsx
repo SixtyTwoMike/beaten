@@ -15,7 +15,7 @@ import {
 } from "@/lib/share-card";
 import { STAR_PATH } from "@/components/Stars";
 
-// Public share card: a PNG of someone's last four finished games. Uses only
+// Public share card: a PNG of someone's last four finished (or played) games. Uses only
 // what their public profile already shows. Cached for 10 minutes (nginx
 // caches it too), since rendering is the most expensive thing the box does.
 
@@ -118,11 +118,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   if (!user?.username) return new Response("Not found", { status: 404 });
 
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  const [logs, beatenGames, thisYear] = await Promise.all([
+  const played = opts.source === "played";
+  const [rawLogs, beatenGames, thisYear] = await Promise.all([
     prisma.playLog.findMany({
-      where: { userId: user.id, finishedAt: { not: null } },
-      orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
-      take: 20,
+      where: { userId: user.id, ...(played ? {} : { finishedAt: { not: null } }) },
+      orderBy: played ? [{ createdAt: "desc" }] : [{ finishedAt: "desc" }, { createdAt: "desc" }],
+      take: played ? 60 : 20,
       include: { game: { select: { id: true, name: true, coverUrl: true, artworkUrl: true } } },
     }),
     prisma.playLog.findMany({
@@ -133,13 +134,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     prisma.playLog.count({ where: { userId: user.id, finishedAt: { gte: yearStart } } }),
   ]);
 
-  // Most recent finish per game, newest first.
+  // "Played" orders by each log's latest date (finished, else started, else
+  // logged), so a game you've just picked up comes before an old finish.
+  const lastActive = (l: (typeof rawLogs)[number]) =>
+    (l.finishedAt ?? l.startedAt ?? l.createdAt).getTime();
+  const logs = played ? [...rawLogs].sort((a, b) => lastActive(b) - lastActive(a)) : rawLogs;
+
+  // Most recent log per game, newest first.
   const seen = new Set<string>();
   const games: (CardGame & { artworkUrl: string | null })[] = [];
   for (const log of logs) {
     if (seen.has(log.game.id)) continue;
     seen.add(log.game.id);
     games.push({ ...log.game, rating: log.rating, finishedAt: log.finishedAt, status: log.status });
+
     if (games.length === CARD_GAMES) break;
   }
 
@@ -229,7 +237,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   const grid = (
     <div style={{ display: "flex", flexWrap: "wrap", gap, justifyContent: story ? "center" : "flex-start" }}>
       {games.length === 0 ? (
-        <div style={{ fontSize: 32, color: FOG }}>Nothing beaten yet — watch this space.</div>
+        <div style={{ fontSize: 32, color: FOG }}>{played ? "Nothing logged yet — watch this space." : "Nothing beaten yet — watch this space."}</div>
       ) : (
         games.map((g, i) => (
           <div key={i} style={{ display: "flex", flexDirection: "column", width: coverWidth, gap: 10 }}>
@@ -248,13 +256,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
             >
               {g.name}
             </div>
-            {(opts.ratings || opts.dates) && (
+            {(opts.ratings || opts.dates || !g.finishedAt) && (
               <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 {opts.ratings && g.rating != null && (
                   <Stars rating={g.rating} size={wide ? 15 : story ? 26 : 20} color={accent} />
                 )}
                 {opts.dates && g.finishedAt && (
                   <div style={{ fontSize: wide ? 15 : story ? 24 : 18, color: FOG }}>{formatDate(g.finishedAt)}</div>
+                )}
+                {!g.finishedAt && (
+                  <div
+                    style={{
+                      display: "flex",
+                      fontSize: wide ? 13 : story ? 20 : 15,
+                      fontWeight: 600,
+                      color: accent,
+                      textTransform: "uppercase",
+                      letterSpacing: 1.5,
+                    }}
+                  >
+                    Playing
+                  </div>
                 )}
               </div>
             )}

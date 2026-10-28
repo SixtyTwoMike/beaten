@@ -344,10 +344,33 @@ try {
   check("nav shows the game avatar", await navAvatar.waitFor({ timeout: 5000 }).then(() => true, () => false));
   await page.screenshot({ path: `${shots}/smoke-settings-profile.png`, fullPage: true });
 
-  // 12d. Share card builder previews a PNG
-  await page.locator("#share").scrollIntoViewIfNeeded();
-  check("share card builder shows a preview",
-    await page.locator('#share img[alt="Preview of your share card"]').evaluate((img) => img.complete && img.naturalWidth === 1080));
+  // 12d. Share page: builder previews a PNG; "last 4 played" swaps headings
+  await page.getByRole("link", { name: "Share", exact: true }).click();
+  await page.waitForURL("**/share");
+  const preview = page.locator('img[alt="Preview of your share card"]');
+  await page.waitForFunction(
+    () => {
+      const img = document.querySelector('img[alt="Preview of your share card"]');
+      return img?.complete && img.naturalWidth > 0;
+    },
+    null,
+    { timeout: 15000 }
+  );
+  check("share page shows a card preview", await preview.evaluate((img) => img.naturalWidth === 1080));
+  await page.getByRole("button", { name: "Last 4 played" }).click();
+  check("played cards offer played headings",
+    await page.getByRole("button", { name: "What I've been playing" }).isVisible() &&
+      !(await page.getByRole("button", { name: "Latest conquests" }).isVisible()));
+  await page.waitForFunction(
+    () => {
+      const img = document.querySelector('img[alt="Preview of your share card"]');
+      return img?.getAttribute("src")?.includes("games=played") && img.complete && img.naturalWidth > 0;
+    },
+    null,
+    { timeout: 15000 }
+  );
+  check("preview follows the played option", true);
+  await page.screenshot({ path: `${shots}/smoke-share.png`, fullPage: true });
 
   // 13. Sign out returns to login
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
@@ -377,6 +400,8 @@ try {
     check(`share card ${format} is a ${w}x${h} PNG`,
       res.headers()["content-type"] === "image/png" && png.readUInt32BE(16) === w && png.readUInt32BE(20) === h);
   }
+  const playedCard = await page.request.get(`${BASE}/u/${username}/card?games=played&heading=playing`);
+  check("played share card renders", playedCard.headers()["content-type"] === "image/png");
   const bogus = await page.request.get(`${BASE}/u/${username}/card?format=<script>&heading=pwned`);
   check("share card ignores unknown options", bogus.ok() && (await bogus.body()).readUInt32BE(16) === 1080);
   check("share card for unknown user is a 404",

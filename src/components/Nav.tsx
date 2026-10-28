@@ -12,6 +12,7 @@ const links = [
   { href: "/search", label: "Search" },
   { href: "/log", label: "Diary" },
   { href: "/shelves", label: "Shelves" },
+  { href: "/share", label: "Share" },
 ];
 
 export function Nav({

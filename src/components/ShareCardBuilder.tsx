@@ -5,12 +5,14 @@ import {
   CARD_ACCENTS,
   CARD_FORMATS,
   CARD_HEADINGS,
+  CARD_SOURCES,
   DEFAULT_CARD,
+  HEADINGS_FOR,
   cardQuery,
   type CardAccent,
   type CardFormat,
-  type CardHeading,
   type CardOptions,
+  type CardSource,
 } from "@/lib/share-card";
 
 const TOGGLES = [
@@ -45,6 +47,12 @@ export function ShareCardBuilder({ username }: { username: string }) {
     setOpts((o) => ({ ...o, [k]: v }));
   };
 
+  // Switching between beaten and played swaps in a heading that fits.
+  const setSource = (source: CardSource) => {
+    setCopied(false);
+    setOpts((o) => ({ ...o, source, heading: HEADINGS_FOR[source][0] }));
+  };
+
   async function copy() {
     try {
       await navigator.clipboard.writeText(new URL(path, window.location.origin).toString());
@@ -59,10 +67,10 @@ export function ShareCardBuilder({ username }: { username: string }) {
   const { width, height } = CARD_FORMATS[opts.format];
 
   return (
-    <div className="space-y-4">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <div
         className="relative mx-auto w-full overflow-hidden rounded-lg border border-edge bg-canvas"
-        style={{ aspectRatio: `${width} / ${height}`, maxWidth: opts.format === "story" ? 240 : undefined }}
+        style={{ aspectRatio: `${width} / ${height}`, maxWidth: opts.format === "story" ? 360 : undefined }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -74,68 +82,77 @@ export function ShareCardBuilder({ username }: { username: string }) {
         />
       </div>
 
-      <div className="space-y-3 text-xs">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Format">
-          {(Object.keys(CARD_FORMATS) as CardFormat[]).map((f) => (
-            <button key={f} type="button" aria-pressed={opts.format === f} onClick={() => set("format", f)} className={chip}>
-              {CARD_FORMATS[f].label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Heading">
-          {(Object.keys(CARD_HEADINGS) as CardHeading[]).map((h) => (
-            <button key={h} type="button" aria-pressed={opts.heading === h} onClick={() => set("heading", h)} className={chip}>
-              {CARD_HEADINGS[h]}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Accent colour">
-          {(Object.keys(CARD_ACCENTS) as CardAccent[]).map((a) => (
+      <div className="space-y-5">
+        <div className="space-y-3 text-xs">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Games">
+            {(Object.keys(CARD_SOURCES) as CardSource[]).map((src) => (
+              <button key={src} type="button" aria-pressed={opts.source === src} onClick={() => setSource(src)} className={chip}>
+                {CARD_SOURCES[src]}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Format">
+            {(Object.keys(CARD_FORMATS) as CardFormat[]).map((f) => (
+              <button key={f} type="button" aria-pressed={opts.format === f} onClick={() => set("format", f)} className={chip}>
+                {CARD_FORMATS[f].label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Heading">
+            {HEADINGS_FOR[opts.source].map((h) => (
+              <button key={h} type="button" aria-pressed={opts.heading === h} onClick={() => set("heading", h)} className={chip}>
+                {CARD_HEADINGS[h]}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Accent colour">
+            {(Object.keys(CARD_ACCENTS) as CardAccent[]).map((a) => (
+              <button
+                key={a}
+                type="button"
+                aria-pressed={opts.accent === a}
+                aria-label={a}
+                title={a}
+                onClick={() => set("accent", a)}
+                className="h-7 w-7 rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-card aria-pressed:ring-white"
+                style={{ backgroundColor: CARD_ACCENTS[a] }}
+              />
+            ))}
+            <span className="mx-1 h-5 w-px bg-edge" />
             <button
-              key={a}
               type="button"
-              aria-pressed={opts.accent === a}
-              aria-label={a}
-              title={a}
-              onClick={() => set("accent", a)}
-              className="h-7 w-7 rounded-full ring-2 ring-transparent ring-offset-2 ring-offset-card aria-pressed:ring-white"
-              style={{ backgroundColor: CARD_ACCENTS[a] }}
-            />
-          ))}
-          <span className="mx-1 h-5 w-px bg-edge" />
+              aria-pressed={opts.background === "art"}
+              onClick={() => set("background", opts.background === "art" ? "plain" : "art")}
+              className={chip}
+            >
+              Game art background
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
+            {TOGGLES.map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={opts[k]} onClick={() => set(k, !opts[k])} className={chip}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <a
+            href={path}
+            download={`beaten-${username}-${opts.source}-${opts.format}.png`}
+            className="rounded-md bg-mint px-4 py-2 text-sm font-semibold text-canvas hover:brightness-110 transition"
+          >
+            Download PNG
+          </a>
           <button
             type="button"
-            aria-pressed={opts.background === "art"}
-            onClick={() => set("background", opts.background === "art" ? "plain" : "art")}
-            className={chip}
+            onClick={copy}
+            className="rounded-md border border-edge px-3 py-2 text-sm text-fog hover:border-fog/50 hover:text-white transition"
           >
-            Game art background
+            {copied ? "Link copied" : "Copy image link"}
           </button>
         </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Show">
-          {TOGGLES.map(([k, label]) => (
-            <button key={k} type="button" aria-pressed={opts[k]} onClick={() => set(k, !opts[k])} className={chip}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <a
-          href={path}
-          download={`beaten-${username}-${opts.format}.png`}
-          className="rounded-md bg-mint px-4 py-2 text-sm font-semibold text-canvas hover:brightness-110 transition"
-        >
-          Download PNG
-        </a>
-        <button
-          type="button"
-          onClick={copy}
-          className="rounded-md border border-edge px-3 py-2 text-sm text-fog hover:border-fog/50 hover:text-white transition"
-        >
-          {copied ? "Link copied" : "Copy image link"}
-        </button>
       </div>
     </div>
   );
