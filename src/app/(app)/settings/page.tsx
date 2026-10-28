@@ -7,9 +7,17 @@ import { UsernameForm } from "@/components/UsernameForm";
 
 export const metadata = { title: "Settings — Beaten" };
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id?: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="mt-6 rounded-xl border border-edge bg-card p-5">
+    <section id={id} className="mt-6 scroll-mt-20 rounded-xl border border-edge bg-card p-5">
       <h2 className="font-semibold">{title}</h2>
       {children}
     </section>
@@ -20,7 +28,7 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const profile = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { username: true, passwordHash: true },
+    select: { username: true, email: true, passwordHash: true },
   });
 
   return (
@@ -37,10 +45,10 @@ export default async function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Password">
+      <Section id="password" title="Password">
         {profile?.passwordHash ? (
           <div className="mt-4">
-            <ChangePasswordForm />
+            <ChangePasswordForm email={profile.email} />
           </div>
         ) : (
           <p className="mt-1 text-sm text-fog">

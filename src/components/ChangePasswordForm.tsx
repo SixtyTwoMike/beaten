@@ -6,7 +6,7 @@ import { changePassword } from "@/app/actions/auth";
 import { buttonClass, inputClass } from "./AuthForms";
 import { NewPasswordField } from "./NewPasswordField";
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ email }: { email: string }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +28,15 @@ export function ChangePasswordForm() {
 
   return (
     <form onSubmit={submit} className="space-y-3">
+      {/* Tells Keychain / Google Password Manager which saved login to update. */}
+      <input
+        type="email"
+        name="username"
+        autoComplete="username"
+        value={email}
+        readOnly
+        hidden
+      />
       <input
         type="password"
         required

@@ -88,7 +88,7 @@ export function ForgotPasswordForm() {
   );
 }
 
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({ token, email }: { token: string; email: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +107,18 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <Card title="Choose a new password">
       <form onSubmit={submit} className="space-y-3">
+        {/* Read-only account field so password managers save the new
+            password against the right login. */}
+        <input
+          type="email"
+          name="username"
+          id="reset-username"
+          autoComplete="username"
+          value={email}
+          readOnly
+          aria-label="Account email"
+          className={`${inputClass} text-fog`}
+        />
         <NewPasswordField
           id="reset-password"
           value={password}

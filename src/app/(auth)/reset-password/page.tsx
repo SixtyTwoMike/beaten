@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { findValidToken } from "@/lib/tokens";
 import { ResetPasswordForm } from "@/components/AccountForms";
 
@@ -30,5 +32,10 @@ export default async function ResetPasswordPage({
       </div>
     );
   }
-  return <ResetPasswordForm token={token} />;
+  const user = await prisma.user.findUnique({
+    where: { id: valid.userId },
+    select: { email: true },
+  });
+  if (!user) notFound();
+  return <ResetPasswordForm token={token} email={user.email} />;
 }

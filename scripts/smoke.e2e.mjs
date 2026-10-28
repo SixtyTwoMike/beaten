@@ -61,6 +61,11 @@ try {
   await page.waitForURL("**/login");
   check("unauthenticated app page redirects to /login", page.url().includes("/login"));
 
+  // 1b. Password managers' change-password URL
+  const wk = await page.request.get(`${BASE}/.well-known/change-password`, { maxRedirects: 0 });
+  check("/.well-known/change-password redirects to settings",
+    wk.status() === 307 && (wk.headers().location ?? "").endsWith("/settings#password"));
+
   // 2. Register — first assert the Apple/keychain autofill attributes
   await page.goto(`${BASE}/register`);
   check(
@@ -362,6 +367,8 @@ try {
   await signInIn(page);
   await page.goto(`${BASE}/settings`);
   const newPassword = `Changed#${Date.now()}y`;
+  check("change password form names the account for password managers",
+    (await page.locator('form:has(#current-password) input[autocomplete="username"]').inputValue()) === email);
   await page.fill("#current-password", "not-my-password");
   await page.fill("#change-new-password", newPassword);
   await page.getByRole("button", { name: "Change password" }).click();
@@ -403,6 +410,8 @@ try {
     "reset page sets no-referrer",
     (await page.locator('meta[name="referrer"]').getAttribute("content")) === "no-referrer"
   );
+  check("reset form names the account for password managers",
+    (await page.locator('#reset-username[autocomplete="username"]').inputValue()) === email);
   const resetPasswordValue = `Reset%${Date.now()}w`;
   await page.fill("#reset-password", resetPasswordValue);
   await page.getByRole("button", { name: "Save new password" }).click();
