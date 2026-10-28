@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { resendVerification } from "@/app/actions/account";
 import { registerUser } from "@/app/actions/auth";
 import { NewPasswordField } from "./NewPasswordField";
 
@@ -46,18 +47,23 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [unverified, setUnverified] = useState(false);
+  const [resent, setResent] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setUnverified(false);
     startTransition(async () => {
       const res = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
-      if (res?.error) {
+      if (res?.code === "email_not_verified") {
+        setUnverified(true);
+      } else if (res?.error) {
         setError("Incorrect email or password");
       } else {
         router.push("/");
@@ -102,9 +108,35 @@ export function LoginForm({
           className={inputClass}
         />
         {error && <p className="text-sm text-red-400">{error}</p>}
+        {unverified && (
+          <div role="alert" className="rounded-md bg-gold/10 px-3 py-2 text-sm text-gold">
+            Please confirm your email first — check your inbox for our link.{" "}
+            {resent ? (
+              <span className="text-fog">Sent another one.</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  startTransition(async () => {
+                    await resendVerification(email);
+                    setResent(true);
+                  })
+                }
+                className="underline hover:text-white"
+              >
+                Resend link
+              </button>
+            )}
+          </div>
+        )}
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Signing in…" : "Sign in"}
         </button>
+        <p className="text-right text-sm">
+          <Link href="/forgot-password" className="text-fog hover:text-white hover:underline">
+            Forgot password?
+          </Link>
+        </p>
       </form>
       {googleEnabled && (
         <div className="mt-4 space-y-4">
@@ -123,7 +155,7 @@ export function LoginForm({
 }
 
 export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
-  const router = useRouter();
+  const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -140,18 +172,27 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
         setError(result.error);
         return;
       }
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-      if (res?.error) {
-        router.push("/login");
-      } else {
-        router.push("/");
-        router.refresh();
-      }
+      setSubmitted(true);
     });
+  }
+
+  if (submitted) {
+    return (
+      <div className="w-full max-w-sm rounded-xl border border-edge bg-card p-6 shadow-xl">
+        <h1 className="mb-2 text-lg font-semibold">Check your email</h1>
+        <p className="text-sm text-fog">
+          We&apos;ve sent a link to <span className="text-white">{email}</span>.
+          Open it to confirm your address, then sign in.
+        </p>
+        <p className="mt-4 text-sm text-fog">
+          Nothing arrived after a few minutes? Check spam, or{" "}
+          <Link href="/login" className="text-mint hover:underline">
+            sign in
+          </Link>{" "}
+          to resend it.
+        </p>
+      </div>
+    );
   }
 
   return (

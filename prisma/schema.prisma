@@ -19,9 +19,29 @@ model User {
   image        String?
   // Bumped by "sign out everywhere"; sessions carrying an older value are rejected.
   tokenVersion Int       @default(0)
+  // Null until the address is confirmed (verification link, password reset,
+  // or Google). Password accounts can't sign in until it's set.
+  emailVerifiedAt DateTime?
   createdAt    DateTime  @default(now())
   playLogs     PlayLog[]
   shelves      Shelf[]
+  authTokens   AuthToken[]
+}
+
+// Single-use emailed tokens (password reset, email verification). Only a
+// SHA-256 of the token is stored, so a database leak can't be replayed.
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  // "RESET_PASSWORD" | "VERIFY_EMAIL"
+  purpose   String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
 }
 
 // Local cache of IGDB game data, populated when a game is first logged or shelved.

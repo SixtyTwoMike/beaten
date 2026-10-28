@@ -2,6 +2,14 @@
 
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { Prisma } from "@prisma/client";
+import {
+  sendAlreadyRegisteredEmail,
+  sendPasswordChangedEmail,
+  sendVerifyEmail,
+} from "@/lib/account-emails";
+import { issueToken } from "@/lib/tokens";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { MAX_EMAIL, MAX_NAME } from "@/lib/limits";
@@ -36,10 +44,7 @@ export async function registerUser(input: {
     const badPassword = passwordError(password);
     if (badPassword) return { ok: false, error: badPassword };
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return { ok: false, error: "An account with that email already exists" };
-    }
+    // Usernames are public, so saying one is taken reveals nothing.
     if (await prisma.user.findUnique({ where: { username } })) {
       return { ok: false, error: "That username is taken" };
     }
@@ -48,8 +53,40 @@ export async function registerUser(input: {
       return { ok: false, error: BREACHED_PASSWORD_ERROR };
     }
 
+    // Whether or not the email is already registered, the response is the
+    // same ("check your email"); only the email that's sent differs.
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      after(() =>
+        sendAlreadyRegisteredEmail(existing).catch((e) =>
+          console.error("already-registered email failed:", e)
+        )
+      );
+      return { ok: true };
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
-    await prisma.user.create({ data: { email, name, username, passwordHash } });
+    let user;
+    try {
+      user = await prisma.user.create({ data: { email, name, username, passwordHash } });
+    } catch (e) {
+      // Lost a race for the same email or username.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        const target = String(e.meta?.target ?? "");
+        if (target.includes("username")) return { ok: false, error: "That username is taken" };
+        return { ok: true };
+      }
+      throw e;
+    }
+    const created = user;
+    after(async () => {
+      try {
+        const token = await issueToken(created.id, "VERIFY_EMAIL");
+        if (token) await sendVerifyEmail(created, token);
+      } catch (e) {
+        console.error("verification email failed:", e);
+      }
+    });
     return { ok: true };
   } catch (e) {
     console.error("registerUser failed:", e);
@@ -122,13 +159,18 @@ export async function changePassword(input: {
       return { ok: false, error: BREACHED_PASSWORD_ERROR };
     }
 
-    await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: userId },
       data: {
         passwordHash: await bcrypt.hash(input.newPassword, 12),
         tokenVersion: { increment: 1 },
       },
     });
+    after(() =>
+      sendPasswordChangedEmail(updated).catch((e) =>
+        console.error("password changed email failed:", e)
+      )
+    );
     return { ok: true };
   } catch (e) {
     console.error("changePassword failed:", e);

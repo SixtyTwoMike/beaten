@@ -48,3 +48,4 @@ prisma/*.db-journal
 
 # deploy artifacts
 deploy/out/
+.dev-outbox/

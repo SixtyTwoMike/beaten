@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthConfig } from "next-auth";
+import NextAuth, { CredentialsSignin, type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -7,6 +7,12 @@ import { prisma } from "./db";
 // Compared against when the email is unknown, so a failed sign-in takes the
 // same bcrypt time whether or not the account exists.
 const DUMMY_HASH = "$2b$12$bcZWFlt4lprVdx1DlBLZL.VPJAXEI.1FjI1.hT0Acr7FBLUp1Qmhu";
+
+// Right password, but the address hasn't been confirmed yet. Only reachable
+// with the correct password, so it doesn't help enumerate accounts.
+class EmailNotVerified extends CredentialsSignin {
+  code = "email_not_verified";
+}
 
 // Sessions expire after 14 days instead of Auth.js's 30-day default.
 const SESSION_MAX_AGE = 14 * 24 * 60 * 60;
@@ -29,6 +35,7 @@ const providers: NextAuthConfig["providers"] = [
       const user = await prisma.user.findUnique({ where: { email } });
       const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
       if (!user?.passwordHash || !valid) return null;
+      if (!user.emailVerifiedAt) throw new EmailNotVerified();
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },
   }),
@@ -75,6 +82,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               email: user.email.toLowerCase(),
               name: user.name,
               image: user.image,
+              // signIn() only admits Google addresses marked email_verified.
+              emailVerifiedAt: new Date(),
             },
           });
           token.uid = dbUser.id;

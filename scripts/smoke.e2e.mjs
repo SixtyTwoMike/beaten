@@ -1,4 +1,6 @@
 // End-to-end smoke test against the dev server (IGDB_MOCK=1).
+// Emails are read from the dev outbox the app writes in development.
+import { readFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
 const BASE = "http://localhost:3000";
@@ -7,6 +9,32 @@ const email = `smoke-${Date.now()}@example.com`;
 let password = `Smoke!${Date.now()}x`;
 const username = `smoke_${Date.now().toString(36)}`;
 const shots = process.env.SMOKE_SHOTS_DIR || "/tmp";
+
+const OUTBOX = new URL("../.dev-outbox/outbox.jsonl", import.meta.url);
+
+async function outbox() {
+  const raw = await readFile(OUTBOX, "utf8").catch(() => "");
+  return raw.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+}
+
+// Waits for an email to `to` whose subject contains `subject`, sent after
+// `since` (emails are sent in the background after the response).
+async function waitForEmail(to, subject, since) {
+  for (let i = 0; i < 50; i++) {
+    const found = (await outbox()).find(
+      (m) => m.to === to && m.subject.includes(subject) && m.sentAt >= since
+    );
+    if (found) return found;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(`no "${subject}" email to ${to}`);
+}
+
+function linkIn(mail, pathname) {
+  const match = mail.text.match(new RegExp(`https?://\\S+${pathname}\\?token=\\S+`));
+  if (!match) throw new Error(`no ${pathname} link in "${mail.subject}"`);
+  return match[0];
+}
 
 let failures = 0;
 function check(name, cond) {
@@ -62,7 +90,43 @@ try {
   await page.waitForSelector("text=appeared in a data breach");
   check("breached password rejected", true);
   await page.fill("#register-password", password);
+  const registeredAt = new Date().toISOString();
   await page.click('button[type="submit"]');
+  await page.waitForSelector("text=Check your email");
+  check("register asks to confirm email", true);
+
+  // 2b. Can't sign in until the address is confirmed
+  await page.goto(`${BASE}/login`);
+  await page.fill("#login-email", email);
+  await page.fill("#login-password", password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForSelector("text=Please confirm your email");
+  check("unverified account can't sign in", true);
+
+  // 2c. Registering an existing email looks identical, but emails the owner
+  const dupContext = await browser.newContext();
+  const dup = await dupContext.newPage();
+  await dup.goto(`${BASE}/register`);
+  await dup.fill("#register-name", "Impostor");
+  await dup.fill("#register-username", `${username}_2`);
+  await dup.fill("#register-email", email);
+  await dup.fill("#register-password", `Other#${Date.now()}z`);
+  await dup.click('button[type="submit"]');
+  await dup.waitForSelector("text=Check your email");
+  check("duplicate email registration gives the same response", true);
+  await dupContext.close();
+  await waitForEmail(email, "already have a Beaten account", registeredAt);
+  check("existing owner is emailed about the attempt", true);
+
+  // 2d. Confirm via the emailed link, then sign in
+  const verifyMail = await waitForEmail(email, "Confirm your email", registeredAt);
+  await page.goto(linkIn(verifyMail, "/verify-email"));
+  await page.getByRole("button", { name: "Confirm my email" }).click();
+  await page.waitForURL("**/login?verified=1");
+  check("verification link confirms the email", await page.getByText("Email confirmed").isVisible());
+  await page.fill("#login-email", email);
+  await page.fill("#login-password", password);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(BASE + "/");
   check("register lands on dashboard", await page.getByText("Welcome back, Smoke Tester").isVisible());
   await page.screenshot({ path: `${shots}/01-dashboard-empty.png` });
@@ -288,6 +352,44 @@ try {
   password = newPassword;
   await signInIn(page);
   check("sign in works with the new password", true);
+  await waitForEmail(email, "password was changed", registeredAt);
+  check("password change sends a notification email", true);
+
+  // 18. Forgot password: same answer for unknown emails; reset link works once
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.waitForURL("**/login**");
+  const unknownEmail = `nobody-${Date.now()}@example.com`;
+  await page.goto(`${BASE}/forgot-password`);
+  await page.fill("#forgot-email", unknownEmail);
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await page.waitForSelector("text=Check your email");
+  check("forgot password answers the same for unknown emails", true);
+  const resetAskedAt = new Date().toISOString();
+  await page.goto(`${BASE}/forgot-password`);
+  await page.fill("#forgot-email", email);
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await page.waitForSelector("text=Check your email");
+  const resetMail = await waitForEmail(email, "Reset your Beaten password", resetAskedAt);
+  await new Promise((r) => setTimeout(r, 1000));
+  check(
+    "no email sent for an unknown address",
+    !(await outbox()).some((m) => m.to === unknownEmail)
+  );
+  const resetLink = linkIn(resetMail, "/reset-password");
+  await page.goto(resetLink);
+  check(
+    "reset page sets no-referrer",
+    (await page.locator('meta[name="referrer"]').getAttribute("content")) === "no-referrer"
+  );
+  const resetPasswordValue = `Reset%${Date.now()}w`;
+  await page.fill("#reset-password", resetPasswordValue);
+  await page.getByRole("button", { name: "Save new password" }).click();
+  await page.waitForURL("**/login?reset=1");
+  password = resetPasswordValue;
+  await signInIn(page);
+  check("sign in works after password reset", true);
+  await page.goto(resetLink);
+  check("reset link can't be reused", await page.getByText("Link expired").isVisible());
 } catch (e) {
   failures++;
   console.error("FAIL (exception):", e.message);

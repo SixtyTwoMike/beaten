@@ -73,8 +73,8 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
 NGINX
 
-# App locations. Sign-in posts and registration (a server-action POST to
-# /register) are rate limited; GETs never are.
+# App locations. Sign-in posts and account-form POSTs (server actions) are
+# rate limited; GETs never are.
 cat > /etc/nginx/snippets/beaten-app.conf <<'NGINX'
 client_max_body_size 1m;
 
@@ -84,7 +84,8 @@ location = /api/auth/callback/credentials {
     proxy_pass http://127.0.0.1:3000;
 }
 
-location = /register {
+# Server-action POSTs that hash passwords or send email.
+location ~ ^/(register|login|forgot-password|reset-password|verify-email)$ {
     limit_req zone=register burst=5 nodelay;
     include snippets/beaten-proxy.conf;
     proxy_pass http://127.0.0.1:3000;

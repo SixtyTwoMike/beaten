@@ -7,6 +7,8 @@ export const metadata = { title: "Sign in — Beaten" };
 // One-off notices shown above the form after redirects from other flows.
 const NOTICES: Record<string, string> = {
   changed: "Password changed. Sign in with your new password.",
+  reset: "Password reset. Sign in with your new password.",
+  verified: "Email confirmed — you can sign in now.",
 };
 
 export default async function LoginPage({
