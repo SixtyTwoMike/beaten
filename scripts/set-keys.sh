@@ -21,7 +21,7 @@ keys=() vals=() # parallel arrays: macOS ships bash 3.2
 
 ask() { # name, prompt, hidden?
   local v status="not set"
-  [[ -n "$(current "$1")" ]] && status="set — Enter keeps it"
+  [[ -n "$(current "$1")" ]] && status="set - Enter keeps it"
   if [[ ${3:-} == hidden ]]; then
     read -rsp "$2 ($status): " v
     echo
@@ -38,7 +38,7 @@ if [[ ${1:-} == --decades ]]; then
   source ~/decades/.deploy.env
   SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
   [[ -n "${DECADES_SSH_KEY:-}" ]] && SSH_OPTS+=(-i "${DECADES_SSH_KEY/#\~/$HOME}")
-  echo "Fetching Twitch keys from $DECADES_HOST…"
+  echo "Fetching Twitch keys from ${DECADES_HOST}..."
   fetched=$(ssh "${SSH_OPTS[@]}" "${DECADES_SSH_USER:-ubuntu}@$DECADES_HOST" \
     "sudo grep -E '^TWITCH_CLIENT_(ID|SECRET)=' /etc/decades/decades.env")
   for name in TWITCH_CLIENT_ID TWITCH_CLIENT_SECRET; do
@@ -52,7 +52,7 @@ else
   ask TWITCH_CLIENT_SECRET "Twitch client secret" hidden
 fi
 
-echo "Resend key: resend.com → API Keys (Sending access, beaten.games)"
+echo "Resend key: resend.com > API Keys (Sending access, beaten.games)"
 ask RESEND_API_KEY "Resend API key" hidden
 
 (( ${#keys[@]} )) || { echo "Nothing to change."; exit 0; }
