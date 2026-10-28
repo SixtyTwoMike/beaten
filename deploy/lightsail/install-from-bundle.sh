@@ -85,6 +85,9 @@ ADMIN
 chmod 755 /usr/local/bin/beaten-admin
 
 mkdir -p /var/www/certbot
+# Share-card cache (proxy_cache_path below); nginx creates only the last level.
+mkdir -p /var/cache/nginx/beaten-cards
+chown www-data:www-data /var/cache/nginx/beaten-cards
 
 # Shared proxy settings. X-Forwarded-Host is overwritten, never passed
 # through, so clients can't spoof the origin Auth.js sees.
@@ -199,7 +202,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates `http2 on;`
+    listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates 'http2 on;'
     server_name $BEATEN_DOMAIN;
     ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
@@ -212,7 +215,7 @@ NGINX
         cat <<NGINX
 
 server {
-    listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates `http2 on;`
+    listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates 'http2 on;'
     server_name $www;
     ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
