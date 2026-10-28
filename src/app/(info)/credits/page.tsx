@@ -17,7 +17,7 @@ export default async function CreditsPage() {
     })).map((p) => [p.id, p.name])
   );
   const rows = credits
-    .map((c) => ({ ...c, name: names.get(c.platformId) ?? c.file.replace(/^File:|\.\w+$/g, "") }))
+    .map((c) => ({ ...c, name: c.variantName ?? names.get(c.platformId) ?? c.file.replace(/^File:|\.\w+$/g, "") }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
@@ -46,7 +46,7 @@ export default async function CreditsPage() {
         </p>
         <ul className={list}>
           {rows.map((c) => (
-            <li key={c.platformId}>
+            <li key={c.file}>
               <span className="text-white">{c.name}</span>:{" "}
               <a href={c.source} className="text-mint hover:underline" target="_blank" rel="noopener noreferrer">
                 photo

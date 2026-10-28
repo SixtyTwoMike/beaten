@@ -1,5 +1,5 @@
 {
-  "_comment": "IGDB platform id -> Wikimedia Commons file used as that console's photo in Console Chronicles. Run `node scripts/console-images.mjs` after changing this; consoles not listed fall back to their IGDB logo.",
+  "_comment": "IGDB platform id (or <id>-<variant> for a model listed separately, see CONSOLE_VARIANTS in src/lib/console-art.ts) -> Wikimedia Commons file used as that console's photo in Console Chronicles. Run `node scripts/console-images.mjs` after changing this; consoles not listed fall back to their IGDB logo.",
   "7": "File:PSX-Console-wController.png",
   "8": "File:Sony-PlayStation-2-30001-wController-L.png",
   "9": "File:Sony-PlayStation-3-CECHA01-wController-L.png",
@@ -48,5 +48,7 @@
   "50": "File:3DO-FZ-10-Console-FL.png",
   "57": "File:WonderSwan-Black-Left.png",
   "67": "File:Mattel-Intellivision-Console-BL.jpg",
-  "68": "File:ColecoVision-Console-FL.jpg"
+  "68": "File:ColecoVision-Console-FL.jpg",
+  "169-series-x": "File:Xbox Series X mit Controller (transparent background).png",
+  "169-series-s": "File:Xbox Series S with controller (transparent background).png"
 }

@@ -45,13 +45,14 @@ const pngResponse = (png: ArrayBuffer) =>
   new Response(png, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=600" } });
 
 // Console photos are read from disk (the renderer can't fetch relative URLs).
-const photoCache = new Map<number, string>();
-async function photoDataUrl(platformId: number): Promise<string | null> {
-  if (photoCache.has(platformId)) return photoCache.get(platformId)!;
+const photoCache = new Map<string, string>();
+async function photoDataUrl(key: string): Promise<string | null> {
+  if (photoCache.has(key)) return photoCache.get(key)!;
+  if (!/^[0-9]+(-[a-z0-9-]+)?$/.test(key)) return null;
   try {
-    const data = await readFile(path.join(process.cwd(), "public/consoles", `${platformId}.png`));
+    const data = await readFile(path.join(process.cwd(), "public/consoles", `${key}.png`));
     const url = `data:image/png;base64,${data.toString("base64")}`;
-    photoCache.set(platformId, url);
+    photoCache.set(key, url);
     return url;
   } catch {
     return null;
@@ -234,7 +235,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   const view = await loadChronicle(user);
   const first = (page - 1) * STORY_PER_PAGE;
   const stops = view.stops.slice(first, first + STORY_PER_PAGE);
-  const photos = await Promise.all(stops.map((s) => (s.art?.kind === "photo" ? photoDataUrl(s.platformId) : null)));
+  const photos = await Promise.all(stops.map((s) => (s.art?.kind === "photo" ? photoDataUrl(s.art.key) : null)));
   const firstYear = view.stops[0].year;
   const lastYear = view.stops[view.stops.length - 1].year;
 

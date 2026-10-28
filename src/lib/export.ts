@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { ratingToStars, toPartialInput } from "./format";
+import { variantOf } from "./console-art";
 import { getPlatforms } from "./platforms";
 
 // Everything a user has put into Beaten, for the "Download your data"
@@ -105,7 +106,7 @@ export async function buildExport(userId: string) {
       birthYear: chronicle.birthYear,
       showAges: chronicle.showAges,
       consoles: chronicle.entries.map((e) => ({
-        platform: platformName.get(e.platformId) ?? null,
+        platform: variantOf(e.platformId, e.variant)?.name ?? platformName.get(e.platformId) ?? null,
         platformId: e.platformId,
         model: e.model,
         gotAt: toPartialInput(e.gotAt, e.gotPrecision),

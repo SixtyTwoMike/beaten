@@ -182,7 +182,10 @@ function EntryForm({
 }) {
   const router = useRouter();
   const thisYear = String(new Date().getUTCFullYear());
-  const [platformId, setPlatformId] = useState<string>(stop ? String(stop.platformId) : "");
+  // "<platformId>" or "<platformId>:<variant>", as ConsoleOption.value.
+  const [choice, setChoice] = useState<string>(stop ? `${stop.platformId}${stop.variant ? `:${stop.variant}` : ""}` : "");
+  const [platformPart, variantPart] = choice.split(":");
+  const platformId = platformPart || "";
   const [model, setModel] = useState(stop?.model ?? "");
   const [gotAt, setGotAt] = useState(stop?.gotAt ?? thisYear);
   const [age, setAge] = useState(stop?.ageTyped != null ? String(stop.ageTyped) : "");
@@ -201,6 +204,7 @@ function EntryForm({
         saveChronicleEntry({
           id: stop?.id,
           platformId: Number(platformId),
+          variant: variantPart ?? null,
           model,
           gotAt,
           age: age.trim() ? Number(age) : null,
@@ -219,16 +223,16 @@ function EntryForm({
       <h3 className="font-semibold">{stop ? `Edit ${stop.platformName}` : "Add a console"}</h3>
       <div>
         <label className={label} htmlFor="chronicle-console">Console</label>
-        <select id="chronicle-console" required value={platformId} onChange={(e) => setPlatformId(e.target.value)} className={`${field} min-w-0`}>
+        <select id="chronicle-console" required value={choice} onChange={(e) => setChoice(e.target.value)} className={`${field} min-w-0`}>
           <option value="">Choose…</option>
           <optgroup label="Popular">
             {popular.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.value} value={c.value}>{c.name}</option>
             ))}
           </optgroup>
           <optgroup label="Everything else">
             {consoles.filter((c) => !c.popular).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.value} value={c.value}>{c.name}</option>
             ))}
           </optgroup>
         </select>

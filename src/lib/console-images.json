@@ -439,5 +439,23 @@
     "license": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "source": "https://commons.wikimedia.org/wiki/File:Nintendo_Switch_2_in_Handheld_Mode.jpg"
+  },
+  "169-series-x": {
+    "file": "File:Xbox Series X mit Controller (transparent background).png",
+    "width": 329,
+    "height": 640,
+    "artist": "Der. Bellemer",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Xbox_Series_X_mit_Controller_(transparent_background).png"
+  },
+  "169-series-s": {
+    "file": "File:Xbox Series S with controller (transparent background).png",
+    "width": 436,
+    "height": 640,
+    "artist": "AsmodeanUnderscore",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Xbox_Series_S_with_controller_(transparent_background).png"
   }
 }

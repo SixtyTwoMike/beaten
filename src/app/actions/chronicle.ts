@@ -11,6 +11,7 @@ import {
   isBackground,
   isPath,
 } from "@/lib/chronicle";
+import { variantOf } from "@/lib/console-art";
 import { parsePartialDate } from "@/lib/dates";
 import { ensureGame } from "@/lib/games";
 import { isIgdbId } from "@/lib/limits";
@@ -72,6 +73,7 @@ export async function saveChronicleSettings(input: {
 export async function saveChronicleEntry(input: {
   id?: string | null;
   platformId: number;
+  variant?: string | null;
   model?: string | null;
   gotAt: string;
   age?: number | null;
@@ -84,6 +86,8 @@ export async function saveChronicleEntry(input: {
     if (!(await prisma.platform.findUnique({ where: { id: input.platformId } }))) {
       return { ok: false, error: "Pick a console" };
     }
+    const variant = input.variant ? String(input.variant) : null;
+    if (variant && !variantOf(input.platformId, variant)) return { ok: false, error: "Pick a console" };
     const got = parsePartialDate(input.gotAt);
     const thisYear = new Date().getUTCFullYear();
     if (!got || got.date.getUTCFullYear() < 1970 || got.date.getUTCFullYear() > thisYear) {
@@ -111,6 +115,7 @@ export async function saveChronicleEntry(input: {
 
     const data = {
       platformId: input.platformId,
+      variant,
       model: clean(input.model, MAX_MODEL),
       gotAt: got.date,
       gotPrecision: got.precision === "DAY" ? null : got.precision,

@@ -508,6 +508,7 @@ try {
   await addConsole("PlayStation 2", "2002", "zelda");
   await addConsole("Game Boy Advance", "2001", null);
   await addConsole("Nintendo Switch", "2017", null);
+  await addConsole("Xbox Series X", "2021", null);
   await page.waitForTimeout(1000);
   const stops = page.locator("ol > li");
   check("chronicle orders consoles by when you got them",
@@ -517,6 +518,9 @@ try {
     await stops.nth(1).getByText("First console").isVisible() && await stops.nth(0).getByText("First handheld").isVisible());
   check("console photos are shown", (await page.locator('ol img[src^="/consoles/"]').count()) >= 3);
   check("favourite games appear on the map", (await stops.nth(1).locator('[title*="Zelda"]').count()) === 1);
+  check("Xbox Series X is its own console with its own photo",
+    (await page.locator('ol img[src="/consoles/169-series-x.webp"]').count()) === 1 &&
+      (await stops.nth(3).textContent()).includes("Xbox Series X"));
   check("chronicle editor has a story button", await page.getByRole("button", { name: "Make Instagram story" }).isVisible());
 
   // 13. Sign out returns to login
@@ -594,8 +598,9 @@ try {
   const storyPng = await story.body();
   check("chronicle story page is a 1080x1920 PNG",
     story.headers()["content-type"] === "image/png" && storyPng.readUInt32BE(16) === 1080 && storyPng.readUInt32BE(20) === 1920);
-  check("story pages past the end are a 404",
-    (await page.request.get(`${BASE}/${username}/chronicles/story?page=2`)).status() === 404);
+  check("four consoles make two story pages; past the end is a 404",
+    (await page.request.get(`${BASE}/${username}/chronicles/story?page=2`)).status() === 200 &&
+      (await page.request.get(`${BASE}/${username}/chronicles/story?page=3`)).status() === 404);
 
   // 14b. Support and privacy pages are public and linked from sign-in
   await page.goto(`${BASE}/login`);
@@ -747,7 +752,7 @@ try {
   check("JSON export includes profile and logs", exported.profile.email === email && exported.logs.length >= 2);
   check("JSON export includes social links", exported.profile.instagram === "smoke.tester");
   check("JSON export includes the console chronicle",
-    exported.consoleChronicle?.birthYear === 1990 && exported.consoleChronicle.consoles.length === 3);
+    exported.consoleChronicle?.birthYear === 1990 && exported.consoleChronicle.consoles.length === 4);
   check(
     "JSON export includes reviews and shelves",
     exported.logs.some((l) => l.review?.includes("Masterpiece")) &&

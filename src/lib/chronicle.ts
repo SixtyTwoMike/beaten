@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { consoleArt, type ConsoleArt } from "./console-art";
+import { CONSOLE_VARIANTS, consoleArt, variantOf, type ConsoleArt } from "./console-art";
 import { formatPartialDate } from "./format";
 import { getPlatforms } from "./platforms";
 import { CARD_ACCENTS, type CardAccent } from "./share-card";
@@ -38,14 +38,19 @@ const HYBRIDS = new Set([130, 508]);
 // Known handhelds, for a platform list synced before IGDB types were stored.
 const HANDHELDS = new Set([33, 22, 24, 20, 159, 37, 137, 38, 46, 35, 61, 119, 120, 57]);
 
-export type ConsoleOption = { id: number; name: string; popular: boolean };
+// `value` is "<platformId>" or "<platformId>:<variant>".
+export type ConsoleOption = { value: string; platformId: number; variant: string | null; name: string; popular: boolean };
 
 export async function consoleOptions(): Promise<ConsoleOption[]> {
   const platforms = await getPlatforms();
   const popular = new Set(POPULAR_CONSOLES);
   return platforms
     .filter((p) => CONSOLE_TYPES.has(p.category ?? -1) || p.id === 6 || popular.has(p.id) || HANDHELDS.has(p.id))
-    .map((p) => ({ id: p.id, name: p.name, popular: popular.has(p.id) }));
+    .flatMap((p): ConsoleOption[] =>
+      CONSOLE_VARIANTS[p.id]
+        ? CONSOLE_VARIANTS[p.id].map((v) => ({ value: `${p.id}:${v.key}`, platformId: p.id, variant: v.key, name: v.name, popular: popular.has(p.id) }))
+        : [{ value: String(p.id), platformId: p.id, variant: null, name: p.name, popular: popular.has(p.id) }]
+    );
 }
 
 export function isAccent(v: unknown): v is CardAccent {
@@ -67,6 +72,7 @@ export const BADGE_LABELS: Record<ChronicleBadge, string> = {
 export type ChronicleStop = {
   id: string;
   platformId: number;
+  variant: string | null;
   platformName: string;
   model: string | null;
   gotAt: string; // YYYY, YYYY-MM or YYYY-MM-DD, for the editor
@@ -133,7 +139,8 @@ export async function loadChronicle(user: { id: string; name: string | null; use
     return {
       id: e.id,
       platformId: e.platformId,
-      platformName: platform?.name ?? "Unknown console",
+      variant: variantOf(e.platformId, e.variant) ? e.variant : null,
+      platformName: variantOf(e.platformId, e.variant)?.name ?? platform?.name ?? "Unknown console",
       model: e.model,
       gotAt: precision === "YEAR" ? iso.slice(0, 4) : precision === "MONTH" ? iso.slice(0, 7) : iso.slice(0, 10),
       gotLabel: formatPartialDate(e.gotAt, precision === "DAY" ? "MONTH" : precision),
@@ -142,7 +149,7 @@ export async function loadChronicle(user: { id: string; name: string | null; use
       ageTyped: e.age,
       note: e.note,
       badges,
-      art: consoleArt(e.platformId, platform?.logoImageId),
+      art: consoleArt(e.platformId, platform?.logoImageId, e.variant),
       games: e.games.map((g) => g.game),
     };
   });

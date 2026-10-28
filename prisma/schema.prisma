@@ -246,6 +246,9 @@ model ChronicleEntry {
   userId       String
   chronicle    Chronicle       @relation(fields: [userId], references: [userId], onDelete: Cascade)
   platformId   Int // IGDB platform id
+  // A model listed as its own console though IGDB has one platform for it
+  // ("series-x" of Xbox Series X|S); see CONSOLE_VARIANTS.
+  variant      String?
   // Free-text model ("Slim", "Lite", "Launch edition"), optional.
   model        String?
   // When they got it; at least the year. Precision as on PlayLog dates.
