@@ -2,6 +2,9 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { isAvatarSource } from "@/lib/avatar";
 import { FINISHED_STATUSES } from "@/lib/status";
+import { formatDate } from "@/lib/format";
+import { raConfigured, raProfileUrl } from "@/lib/retroachievements";
+import { RetroAchievementsLink } from "@/components/RetroAchievementsLink";
 import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
@@ -30,7 +33,7 @@ function Section({
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const [profile, finishedLogs] = await Promise.all([
+  const [profile, finishedLogs, raAccount, raPending] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -52,6 +55,13 @@ export default async function SettingsPage() {
       where: { userId: user.id, status: { in: FINISHED_STATUSES } },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
       select: { game: { select: { id: true, name: true, coverUrl: true, artworkUrl: true } } },
+    }),
+    prisma.raAccount.findUnique({ where: { userId: user.id } }),
+    // Games waiting for review (a beaten + mastered pair is one game).
+    prisma.raAward.findMany({
+      where: { userId: user.id, state: "PENDING", matchConfidence: { not: null } },
+      select: { raGameId: true },
+      distinct: ["raGameId"],
     }),
   ]);
 
@@ -110,6 +120,30 @@ export default async function SettingsPage() {
         </div>
       </Section>
 
+
+      {raConfigured() && (
+        <Section id="retroachievements" title="RetroAchievements">
+          <p className="mt-1 text-sm text-fog">
+            Import the games you&apos;ve beaten and mastered on
+            RetroAchievements. Link your public username; you review every
+            game before it&apos;s added to your diary.
+          </p>
+          <div className="mt-4">
+            <RetroAchievementsLink
+              account={
+                raAccount
+                  ? {
+                      raUsername: raAccount.raUsername,
+                      profileUrl: raProfileUrl(raAccount.raUsername),
+                      lastSynced: raAccount.lastSyncedAt ? formatDate(raAccount.lastSyncedAt) : null,
+                    }
+                  : null
+              }
+              reviewCount={raPending.length}
+            />
+          </div>
+        </Section>
+      )}
 
       <Section id="password" title="Password">
         {profile?.passwordHash ? (

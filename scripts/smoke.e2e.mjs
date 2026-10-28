@@ -393,6 +393,47 @@ try {
   check("preview follows the played option", true);
   await page.screenshot({ path: `${shots}/smoke-share.png`, fullPage: true });
 
+  // 12e. RetroAchievements import (RA_MOCK sample library): link, review,
+  // import. Confident matches are ticked; hacks/subsets/unknowns aren't.
+  await page.goto(`${BASE}/settings`);
+  await page.fill('input[aria-label="RetroAchievements username"]', "nobody");
+  await page.getByRole("button", { name: "Link account" }).click();
+  await page.getByText("No RetroAchievements user by that name").waitFor();
+  check("RA link rejects an unknown user", true);
+  await page.fill('input[aria-label="RetroAchievements username"]', "SmokeRA");
+  await page.getByRole("button", { name: "Link account" }).click();
+  await page.getByText(/10 new awards/).waitFor({ timeout: 20000 });
+  check("RA link syncs awards", true);
+  await page.getByRole("link", { name: /Review 9 to import/ }).click();
+  await page.waitForURL("**/import/retroachievements");
+  const raRow = (title) => page.locator("li", { has: page.getByRole("link", { name: title, exact: true }) });
+  check("RA review: confident matches are ticked",
+    await raRow("Super Metroid").getByRole("checkbox").isChecked() &&
+      await raRow("Legend of Zelda, The: Ocarina of Time").getByRole("checkbox").isChecked());
+  check("RA review: hacks and subsets aren't matched",
+    await raRow("~Hack~ Super Metroid: Redesign").getByRole("checkbox").isDisabled() &&
+      await raRow("Metroid Prime [Subset - Bonus]").getByRole("checkbox").isDisabled());
+  check("RA review: beaten + mastered collapse to one row",
+    (await page.getByRole("link", { name: "Super Metroid", exact: true }).count()) === 1);
+  check("RA review: game already in the diary is linked, not duplicated",
+    await raRow("Chrono Trigger").getByText(/will just link/).isVisible());
+  await raRow("Final Fantasy VII").getByRole("checkbox").uncheck();
+  await page.getByRole("button", { name: "Import 5 games" }).click();
+  await page.getByText("Imported 4, linked 1 already in your diary.").waitFor({ timeout: 15000 });
+  check("RA import reports what it did", true);
+  await raRow("Super Mario 64").waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  check("RA review keeps unticked games for later",
+    await raRow("Final Fantasy VII").isVisible() && !(await raRow("Super Mario 64").isVisible()));
+  await page.screenshot({ path: `${shots}/smoke-ra-review.png`, fullPage: true });
+  await page.goto(`${BASE}/log`);
+  const smImported = page.locator("li", { hasText: "Super Metroid" }).first();
+  check("RA import adds a mastered, dated diary entry",
+    await smImported.getByText("★ Mastered").isVisible() && await smImported.getByText("Nov 2, 2025").isVisible());
+  await smImported.getByRole("link", { name: /Super Metroid/ }).first().click();
+  await page.waitForURL("**/games/**");
+  check("game page links the RA set",
+    await page.getByRole("link", { name: "Super Metroid on RetroAchievements" }).waitFor({ timeout: 10000 }).then(() => true, () => false));
+
   // 13. Sign out returns to login
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.waitForURL("**/login**");

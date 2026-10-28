@@ -40,6 +40,8 @@ model User {
   playLogs     PlayLog[]
   shelves      Shelf[]
   authTokens   AuthToken[]
+  raAccount    RaAccount?
+  raAwards     RaAward[]
 }
 
 // Single-use emailed tokens (password reset, email verification). Only a
@@ -104,6 +106,7 @@ model PlayLog {
   updatedAt  DateTime  @updatedAt
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   game       Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  raAwards   RaAward[]
 
   @@index([userId, finishedAt])
   @@index([userId, status])
@@ -130,4 +133,59 @@ model ShelfItem {
   game    Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   @@unique([shelfId, gameId])
+}
+
+// A linked RetroAchievements account. Requests use the site-wide RA_API_KEY;
+// nothing secret of the user's is stored, only their public RA identity.
+model RaAccount {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  // Display casing as RA returns it
+  raUsername   String
+  // RA's stable user id; usernames can be changed on RA
+  raUlid       String?
+  lastSyncedAt DateTime?
+  // Any sync attempt (successful or not), for the per-user rate limit
+  lastAttemptAt DateTime?
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per RetroAchievements award that maps to a Beaten status, so syncs
+// can tell what's new. A game can have a BEATEN and a MASTERED row; the
+// import turns each game into a single diary entry with the highest status.
+model RaAward {
+  id          String    @id @default(cuid())
+  userId      String
+  raGameId    Int
+  // "BEATEN" | "MASTERED" (RA mastery and softcore completion both master)
+  kind        String
+  awardedAt   DateTime
+  title       String
+  consoleId   Int?
+  consoleName String?
+  // RA's game icon path (e.g. /Images/012345.png on media.retroachievements.org)
+  iconPath    String?
+  // Earned in hardcore mode (no save states / rewind)
+  hardcore    Boolean   @default(false)
+  // "PENDING" (awaiting review) | "IMPORTED" (created or upgraded a log)
+  // | "LINKED" (game was already in the diary) | "SKIPPED"
+  state       String    @default("PENDING")
+  // Proposed IGDB match while pending; the accepted one afterwards
+  igdbId      Int?
+  // "HIGH" | "LOW" | "NONE"; null until the matcher has looked
+  matchConfidence String?
+  // What the proposed match looks like, for the review list (not every
+  // matched game is in the local Game cache yet)
+  matchName     String?
+  matchCoverUrl String?
+  matchYear     Int?
+  playLogId   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playLog     PlayLog?  @relation(fields: [playLogId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, raGameId, kind])
+  @@index([userId, state])
 }

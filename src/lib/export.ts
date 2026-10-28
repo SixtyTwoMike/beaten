@@ -18,6 +18,7 @@ export async function buildExport(userId: string) {
         emailVerifiedAt: true,
         instagram: true,
         bluesky: true,
+        raAccount: { select: { raUsername: true } },
       },
     }),
     prisma.playLog.findMany({
@@ -53,6 +54,7 @@ export async function buildExport(userId: string) {
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       instagram: user.instagram,
       bluesky: user.bluesky,
+      retroAchievements: user.raAccount?.raUsername ?? null,
     },
     logs: logs.map((log) => ({
       game: {

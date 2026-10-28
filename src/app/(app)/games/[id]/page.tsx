@@ -4,6 +4,7 @@ import { logDates, toDateInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
+import { raGameUrl } from "@/lib/retroachievements";
 import { requireUser } from "@/lib/session";
 import { Backdrop } from "@/components/Backdrop";
 import { GameShelves } from "@/components/GameShelves";
@@ -47,7 +48,7 @@ export default async function GamePage({
   }
   if (!game) notFound();
 
-  const [platforms, shelves, logs, shelfItems] = await Promise.all([
+  const [platforms, shelves, logs, shelfItems, raAwards] = await Promise.all([
     getPlatforms(),
     prisma.shelf.findMany({
       where: { userId: user.id },
@@ -61,6 +62,12 @@ export default async function GamePage({
     prisma.shelfItem.findMany({
       where: { shelf: { userId: user.id }, game: { igdbId } },
       select: { shelfId: true },
+    }),
+    // RA sets this user imported or linked to this game.
+    prisma.raAward.findMany({
+      where: { userId: user.id, igdbId, state: { in: ["IMPORTED", "LINKED"] } },
+      select: { raGameId: true, title: true, consoleName: true },
+      distinct: ["raGameId"],
     }),
   ]);
 
@@ -220,10 +227,24 @@ export default async function GamePage({
 
         <div className="mt-10 rounded-xl border border-dashed border-edge p-4">
           <h2 className="text-sm font-semibold text-fog">External links</h2>
-          <p className="mt-1 text-xs text-fog/85">
-            RetroAchievements, HowLongToBeat, and other integrations are coming
-            in a future version.
-          </p>
+          {raAwards.length > 0 ? (
+            <ul className="mt-1 space-y-1 text-sm">
+              {raAwards.map((a) => (
+                <li key={a.raGameId}>
+                  <a href={raGameUrl(a.raGameId)} target="_blank" rel="noopener noreferrer" className="text-mint hover:underline">
+                    {a.title} on RetroAchievements
+                  </a>
+                  {a.consoleName && <span className="text-fog"> · {a.consoleName}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs text-fog/85">
+              RetroAchievements links appear here for games you import from
+              there (Settings → RetroAchievements). HowLongToBeat and more are
+              coming.
+            </p>
+          )}
         </div>
       </div>
     </div>

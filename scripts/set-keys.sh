@@ -60,11 +60,17 @@ echo "  (OAuth client, Web application; redirect URI https://beaten.games/api/au
 ask GOOGLE_CLIENT_ID "Google client ID"
 ask GOOGLE_CLIENT_SECRET "Google client secret" hidden
 
+echo "RetroAchievements key: retroachievements.org > Settings > Keys (Web API Key)"
+ask RA_API_KEY "RetroAchievements web API key" hidden
+
 (( ${#keys[@]} )) || { echo "Nothing to change."; exit 0; }
 
-# Live IGDB once both Twitch keys exist.
+# Live IGDB once both Twitch keys exist; live RetroAchievements once its key does.
 for i in "${!keys[@]}"; do
   if [[ ${keys[$i]} == TWITCH_CLIENT_ID ]]; then keys+=(IGDB_MOCK); vals+=(0); break; fi
+done
+for i in "${!keys[@]}"; do
+  if [[ ${keys[$i]} == RA_API_KEY ]]; then keys+=(RA_MOCK); vals+=(0); break; fi
 done
 
 # Rewrite .env with the changed keys replaced (values never hit argv).
