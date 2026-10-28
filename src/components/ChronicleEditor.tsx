@@ -61,6 +61,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+// The three favourite slots. Tapping an empty one opens a search right
+// under them (scrolled to the top of the dialog, so the keyboard can't hide
+// it) that searches as you type, with this console's diary games below.
 function GamePicker({
   platformId,
   picked,
@@ -72,47 +75,74 @@ function GamePicker({
   onChange: (games: SuggestedGame[]) => void;
   suggestions: { byPlatform: Record<number, SuggestedGame[]> };
 }) {
+  const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SuggestedGame[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const full = picked.length >= 3;
-  // Only games logged on this console.
-  const fromDiary = (platformId != null ? suggestions.byPlatform[platformId] ?? [] : []).filter(
-    (g) => !picked.some((p) => p.igdbId === g.igdbId)
-  );
+  const notPicked = (g: SuggestedGame) => !picked.some((p) => p.igdbId === g.igdbId);
+  const fromDiary = (platformId != null ? suggestions.byPlatform[platformId] ?? [] : []).filter(notPicked);
 
-  async function search(e: React.FormEvent | React.MouseEvent) {
-    e.preventDefault();
-    if (q.trim().length < 2) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({ q: q.trim() });
-      if (platformId) params.set("platform", String(platformId));
-      const res = await fetch(`/api/igdb/search?${params}`);
-      const data = (await res.json()) as { results?: SuggestedGame[] };
-      if (!res.ok) throw new Error();
-      setResults((data.results ?? []).slice(0, 8).map((g) => ({ igdbId: g.igdbId, name: g.name, coverUrl: g.coverUrl })));
-    } catch {
-      setError("Search failed — try again");
-    } finally {
-      setBusy(false);
-    }
+  // Search as you type, a moment after the last key.
+  useEffect(() => {
+    const term = q.trim();
+    if (!open || term.length < 2) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ q: term });
+        if (platformId) params.set("platform", String(platformId));
+        const res = await fetch(`/api/igdb/search?${params}`);
+        const data = (await res.json()) as { results?: SuggestedGame[] };
+        if (!res.ok) throw new Error();
+        if (!cancelled) setResults((data.results ?? []).slice(0, 10).map((g) => ({ igdbId: g.igdbId, name: g.name, coverUrl: g.coverUrl })));
+      } catch {
+        if (!cancelled) setError("Search failed — try again");
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [q, open, platformId]);
+
+  // Once open: focus the box and bring the slots and search to the top of
+  // the dialog.
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus({ preventScroll: true });
+    rootRef.current?.scrollIntoView({ block: "start" });
+  }, [open]);
+
+  function add(g: SuggestedGame) {
+    if (full) return;
+    const next = [...picked, g];
+    onChange(next);
+    setQ("");
+    setResults(null);
+    if (next.length >= 3) setOpen(false);
+    else inputRef.current?.focus({ preventScroll: true });
   }
 
-  const add = (g: SuggestedGame) => !full && onChange([...picked, g]);
-  const tile = (g: SuggestedGame, onClick: () => void, title: string) => (
+  const tile = (g: SuggestedGame) => (
     <li key={g.igdbId}>
-      <button type="button" onClick={onClick} title={title} disabled={full} className="block w-full hover:opacity-80 disabled:opacity-40">
+      <button type="button" onClick={() => add(g)} title={`Add ${g.name}`} className="block w-full hover:opacity-80">
         <Poster name={g.name} coverUrl={g.coverUrl} />
         <span className="mt-1 block truncate text-[11px] text-fog">{g.name}</span>
       </button>
     </li>
   );
+  const shown = q.trim().length >= 2 ? (results ?? []).filter(notPicked) : [];
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="scroll-mt-3 space-y-3">
       <ul className="grid max-w-[15rem] grid-cols-3 gap-2">
         {[0, 1, 2].map((i) =>
           picked[i] ? (
@@ -128,39 +158,48 @@ function GamePicker({
               </button>
             </li>
           ) : (
-            <li key={`empty-${i}`} className="flex aspect-[3/4] items-center justify-center rounded-md border border-dashed border-edge text-xs text-fog">
-              #{i + 1}
+            <li key={`empty-${i}`}>
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label={`Choose game ${i + 1}`}
+                className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-edge text-fog transition hover:border-mint/60 hover:text-white"
+              >
+                <span className="text-xl leading-none">+</span>
+                <span className="text-xs">#{i + 1}</span>
+              </button>
             </li>
           )
         )}
       </ul>
-      {!full && fromDiary.length > 0 && (
-        <div>
-          <p className="mb-1.5 text-xs text-fog">From your diary</p>
-          <ul className="grid grid-cols-5 gap-2 sm:grid-cols-6">{fromDiary.slice(0, 6).map((g) => tile(g, () => add(g), `Add ${g.name}`))}</ul>
-        </div>
-      )}
-      {!full && (
-        <div>
+
+      {open && !full && (
+        // Tall enough to scroll to the top of the dialog even with no results yet.
+        <div className="min-h-[60dvh] space-y-3 rounded-lg border border-edge bg-canvas p-3 sm:min-h-0">
           <div className="flex gap-2">
             <input
+              ref={inputRef}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && search(e as unknown as React.FormEvent)}
+              onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
               placeholder="Search for a game"
               aria-label="Search for a game"
+              enterKeyHint="search"
               className={field}
             />
-            <button type="button" onClick={search} disabled={busy} className={quiet}>
-              {busy ? "…" : "Search"}
+            <button type="button" onClick={() => setOpen(false)} className={quiet}>
+              Done
             </button>
           </div>
-          {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
-          {results && results.length === 0 && <p className="mt-1 text-xs text-fog">No games found.</p>}
-          {results && results.length > 0 && (
-            <ul className="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-6">
-              {results.filter((g) => !picked.some((p) => p.igdbId === g.igdbId)).map((g) => tile(g, () => add(g), `Add ${g.name}`))}
-            </ul>
+          {busy && <p className="text-xs text-fog">Searching…</p>}
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          {!busy && q.trim().length >= 2 && results && shown.length === 0 && <p className="text-xs text-fog">No games found.</p>}
+          {shown.length > 0 && <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5">{shown.map(tile)}</ul>}
+          {fromDiary.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs text-fog">From your diary</p>
+              <ul className="grid grid-cols-5 gap-2 sm:grid-cols-6">{fromDiary.slice(0, 10).map(tile)}</ul>
+            </div>
           )}
         </div>
       )}

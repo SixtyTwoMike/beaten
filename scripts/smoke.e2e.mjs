@@ -499,9 +499,10 @@ try {
     await page.locator('[aria-label="How exact"]').first().getByRole("button", { name: "Year" }).click();
     await page.selectOption("#chronicle-got", year);
     if (gameQuery) {
+      await page.getByRole("button", { name: "Choose game 1" }).click();
       await page.fill('input[aria-label="Search for a game"]', gameQuery);
-      await page.getByRole("button", { name: "Search", exact: true }).click();
-      await page.locator('button[title^="Add "]:not([disabled])').first().click();
+      await page.getByText("Searching…").waitFor({ state: "detached" }).catch(() => {});
+      await page.locator('button[title^="Add "]').first().click();
     }
     await page.getByRole("button", { name: "Add to timeline" }).click();
     await page.waitForSelector("#chronicle-console", { state: "detached" });
@@ -516,6 +517,9 @@ try {
     (await page.getByRole("option").first().textContent()).includes("Mega Drive"));
   await page.fill("#chronicle-console", "Nintendo Switch");
   await page.getByRole("option", { name: "Nintendo Switch", exact: true }).click();
+  await page.getByRole("button", { name: "Choose game 1" }).click();
+  check("tapping a game slot opens the search, focused",
+    await page.locator('input[aria-label="Search for a game"]').evaluate((el) => el === document.activeElement));
   check("diary suggestions are games logged on that console",
     await page.getByText("From your diary").isVisible() && (await page.locator('button[title="Add The Legend of Zelda: Breath of the Wild"]').count()) === 1);
   await page.fill("#chronicle-console", "Game Boy Advance");
