@@ -292,6 +292,21 @@ try {
   const missing = await page.goto(`${BASE}/u/no_such_user_xyz`);
   check("unknown profile is a 404", missing?.status() === 404);
 
+  // 14b. Support and privacy pages are public and linked from sign-in
+  await page.goto(`${BASE}/login`);
+  await page.getByRole("link", { name: "Get help" }).click();
+  await page.waitForURL(/\/support$/);
+  check("support page linked from sign in", await page.getByRole("heading", { name: "Help & support" }).isVisible());
+  check("support page shows the free-site disclaimer",
+    await page.getByText("there may be a delay").isVisible());
+  check("support page shows the contact address",
+    await page.getByRole("link", { name: "support@beaten.games" }).isVisible());
+  await page.screenshot({ path: `${shots}/support.png`, fullPage: true });
+  await page.getByRole("contentinfo").getByRole("link", { name: "Privacy" }).click();
+  await page.waitForURL(/\/privacy$/);
+  check("privacy page linked from footer", await page.getByRole("heading", { name: "Privacy", level: 1 }).isVisible());
+  await page.screenshot({ path: `${shots}/privacy.png`, fullPage: true });
+
   // 15. "Sign out everywhere" revokes sessions on other devices too
   async function signInIn(ctxPage) {
     await ctxPage.goto(`${BASE}/login`);

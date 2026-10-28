@@ -10,31 +10,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-NAME="${LIGHTSAIL_NAME:-beaten-prod}"
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$(aws configure get region || echo us-east-1)}"
 TARBALL=deploy/out/beaten-bundle.tar.gz
 
 if [ "${1:-}" != "--no-build" ] || [ ! -f "$TARBALL" ]; then
   ./deploy/build-lightsail-bundle.sh
 fi
 
-KEYDIR=$(mktemp -d)
-trap 'rm -rf "$KEYDIR"' EXIT
-ACCESS=$(aws lightsail get-instance-access-details --instance-name "$NAME" \
-  --protocol ssh --output json)
-node -e '
-  const a = JSON.parse(require("fs").readFileSync(0, "utf8")).accessDetails;
-  const fs = require("fs"), dir = process.argv[1];
-  fs.writeFileSync(`${dir}/key`, a.privateKey, { mode: 0o600 });
-  fs.writeFileSync(`${dir}/key-cert.pub`, a.certKey);
-  fs.writeFileSync(`${dir}/known_hosts`,
-    a.hostKeys.map((k) => `${a.ipAddress} ${k.algorithm} ${k.publicKey}`).join("\n") + "\n");
-  fs.writeFileSync(`${dir}/target`, `${a.username}@${a.ipAddress}`);
-' "$KEYDIR" <<<"$ACCESS"
-TARGET=$(cat "$KEYDIR/target")
-SSH_OPTS=(-i "$KEYDIR/key" -o CertificateFile="$KEYDIR/key-cert.pub"
-  -o UserKnownHostsFile="$KEYDIR/known_hosts" -o StrictHostKeyChecking=yes
-  -o BatchMode=yes -o ConnectTimeout=10)
+# shellcheck source=deploy/lightsail-ssh.sh
+. deploy/lightsail-ssh.sh
 
 echo "==> waiting for base setup on $TARGET"
 for i in $(seq 1 40); do

@@ -62,6 +62,15 @@ and HSTS, and certbot's timer renews automatically. To move to a new domain,
 change `BEATEN_DOMAIN` and `AUTH_URL` in `/etc/beaten.env` and re-run
 `push-lightsail.sh --no-build` (users sign in again on the new domain).
 
+### Support / account queries
+
+```bash
+./deploy/admin.sh find someone@example.com      # no args lists all commands
+```
+
+Runs `sudo beaten-admin` on the instance (installed with the app; uses the
+same short-lived SSH credentials as the push). See `docs/support-playbook.md`.
+
 ### Teardown (stops all charges)
 
 ```bash

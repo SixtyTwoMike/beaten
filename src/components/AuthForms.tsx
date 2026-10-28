@@ -150,6 +150,12 @@ export function LoginForm({
           Create an account
         </Link>
       </p>
+      <p className="mt-2 text-sm text-fog">
+        Trouble signing in?{" "}
+        <Link href="/support" className="text-mint hover:underline">
+          Get help
+        </Link>
+      </p>
     </div>
   );
 }

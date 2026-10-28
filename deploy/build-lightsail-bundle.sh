@@ -27,8 +27,17 @@ cp prisma/schema.prisma "$STAGE/prisma/"
 cp -r prisma/migrations "$STAGE/prisma/"
 git rev-parse --short HEAD > "$STAGE/REVISION" 2>/dev/null || true
 
+# Support CLI (beaten-admin on the server), compiled against the app's lib code.
+rm -rf "$OUT_DIR/admin"
+npx tsc -p tsconfig.admin.json
+cp -r "$OUT_DIR/admin" "$STAGE/admin"
+
 if ! ls "$STAGE"/node_modules/.prisma/client/*debian-openssl-3.0.x* >/dev/null 2>&1; then
   echo "Linux Prisma engine missing from bundle (check binaryTargets)" >&2
+  exit 1
+fi
+if ! node -e 'require.resolve("@prisma/client", { paths: [process.argv[1]] })' "$STAGE/admin/scripts"; then
+  echo "Admin CLI can't resolve @prisma/client from the bundle" >&2
   exit 1
 fi
 

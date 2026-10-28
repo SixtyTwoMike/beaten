@@ -1,5 +1,6 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { SUPPORT_EMAIL } from "./site";
 
 // Transactional email via Resend's HTTP API (plain text only, so no HTML
 // escaping concerns). In development, emails go to .dev-outbox/outbox.jsonl
@@ -32,7 +33,13 @@ export async function sendEmail(email: Email): Promise<void> {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [email.to], subject: email.subject, text: email.text }),
+    body: JSON.stringify({
+      from: FROM,
+      to: [email.to],
+      reply_to: SUPPORT_EMAIL, // replies to noreply@ reach a person
+      subject: email.subject,
+      text: email.text,
+    }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {

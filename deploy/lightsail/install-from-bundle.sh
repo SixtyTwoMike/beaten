@@ -62,6 +62,19 @@ systemctl daemon-reload
 systemctl enable beaten
 systemctl restart beaten
 
+# Support CLI: `sudo beaten-admin <command>` (see docs/support-playbook.md).
+# Runs as the app user with the app's environment, like the service.
+cat > /usr/local/bin/beaten-admin <<'ADMIN'
+#!/usr/bin/env bash
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "Run with sudo." >&2; exit 1; }
+set -a; . /etc/beaten.env; set +a
+export NODE_ENV=production
+cd /opt/beaten/app
+exec runuser -u beaten -- node admin/scripts/admin.js "$@"
+ADMIN
+chmod 755 /usr/local/bin/beaten-admin
+
 mkdir -p /var/www/certbot
 
 # Shared proxy settings. X-Forwarded-Host is overwritten, never passed

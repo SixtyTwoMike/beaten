@@ -91,3 +91,17 @@ export function sendAccountDeletedEmail(user: Recipient) {
       SIGN_OFF,
   });
 }
+
+// Sent to the old address when support moves an account to a new email.
+export function sendEmailChangedEmail(user: Recipient, newEmail: string) {
+  return sendEmail({
+    to: user.email,
+    subject: "Your Beaten email address was changed",
+    text:
+      greet(user) +
+      `At your request, the email for your Beaten account is now ${newEmail}, ` +
+      "and you've been signed out on every device.\n\n" +
+      `If you didn't ask for this, contact us right away: ${appUrl()}/support` +
+      SIGN_OFF,
+  });
+}
