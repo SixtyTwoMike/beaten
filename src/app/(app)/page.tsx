@@ -10,8 +10,12 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
-  const [beatenGames, masteredGames, logsThisYear, playingLogs, recentLogs] =
+  const [profile, beatenGames, masteredGames, logsThisYear, playingLogs, recentLogs] =
     await Promise.all([
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { username: true },
+      }),
       prisma.playLog.findMany({
         where: { userId: user.id, finishedAt: { not: null } },
         select: { gameId: true },
@@ -70,6 +74,15 @@ export default async function DashboardPage() {
           + Log a game
         </Link>
       </div>
+
+      {!profile?.username && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-mint/30 bg-mint/5 p-4 text-sm">
+          <p>Pick a username to get a public profile page you can share.</p>
+          <Link href="/settings" className="font-semibold text-mint hover:underline">
+            Set username →
+          </Link>
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((s) => (

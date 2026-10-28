@@ -4,6 +4,7 @@ import { chromium } from "playwright-core";
 const BASE = "http://localhost:3000";
 const email = `smoke-${Date.now()}@example.com`;
 const password = "hunter2hunter2";
+const username = `smoke_${Date.now().toString(36)}`;
 const shots = process.env.SMOKE_SHOTS_DIR || "/tmp";
 
 let failures = 0;
@@ -43,6 +44,7 @@ try {
     Boolean(await page.getAttribute("#register-password", "name"))
   );
   await page.fill('input[placeholder="Display name"]', "Smoke Tester");
+  await page.fill("#register-username", username.toUpperCase());
   await page.fill('input[placeholder="Email"]', email);
   await page.fill('input[placeholder="Password (8+ characters)"]', password);
   await page.click('button[type="submit"]');
@@ -189,10 +191,27 @@ try {
   await page.waitForSelector("li:has-text('Super Metroid')", { state: "detached" });
   check("log deleted from diary", true);
 
-  // 12. Sign out returns to login
+  // 12. Nav links to the user's public profile
+  check(
+    "nav links to public profile",
+    (await page.locator(`header a[href="/u/${username}"]`).count()) === 1
+  );
+
+  // 13. Sign out returns to login
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.waitForURL("**/login**");
   check("sign out redirects to login", true);
+
+  // 14. Public profile is viewable signed out, without leaking the email
+  await page.goto(`${BASE}/u/${username.toUpperCase()}`);
+  check("public profile loads signed out", page.url().includes(`/u/`) && !page.url().includes("/login"));
+  check("public profile shows name", await page.getByRole("heading", { name: "Smoke Tester" }).isVisible());
+  check("public profile shows a finished game", await page.getByText("Breath of the Wild").first().isVisible());
+  check("public profile hides email", !(await page.content()).includes(email));
+  check("public profile offers sign up", await page.getByRole("link", { name: "Join Beaten" }).isVisible());
+  await page.screenshot({ path: `${shots}/profile-public.png`, fullPage: true });
+  const missing = await page.goto(`${BASE}/u/no_such_user_xyz`);
+  check("unknown profile is a 404", missing?.status() === 404);
 } catch (e) {
   failures++;
   console.error("FAIL (exception):", e.message);

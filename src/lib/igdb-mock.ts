@@ -35,6 +35,7 @@ export const mockGames: IgdbGame[] = [
     name: "The Legend of Zelda: Breath of the Wild",
     slug: "the-legend-of-zelda-breath-of-the-wild",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2017,
     summary:
       "Step into a world of discovery, exploration, and adventure in this open-air take on Hyrule.",
@@ -45,6 +46,7 @@ export const mockGames: IgdbGame[] = [
     name: "Elden Ring",
     slug: "elden-ring",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2022,
     summary:
       "A vast fantasy action RPG from FromSoftware. Rise, Tarnished, and claim the Elden Ring.",
@@ -55,6 +57,7 @@ export const mockGames: IgdbGame[] = [
     name: "Hades",
     slug: "hades",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2020,
     summary:
       "Defy the god of the dead in this rogue-like dungeon crawler from Supergiant Games.",
@@ -65,6 +68,7 @@ export const mockGames: IgdbGame[] = [
     name: "Hollow Knight",
     slug: "hollow-knight",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2017,
     summary:
       "Forge your own path through a vast, ruined kingdom of insects and heroes.",
@@ -75,6 +79,7 @@ export const mockGames: IgdbGame[] = [
     name: "Chrono Trigger",
     slug: "chrono-trigger",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 1995,
     summary:
       "A legendary time-travelling JRPG following Crono and friends across eras to save the planet.",
@@ -85,6 +90,7 @@ export const mockGames: IgdbGame[] = [
     name: "Super Metroid",
     slug: "super-metroid",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 1994,
     summary:
       "Samus Aran returns to planet Zebes in the genre-defining exploration classic.",
@@ -95,6 +101,7 @@ export const mockGames: IgdbGame[] = [
     name: "Half-Life 2",
     slug: "half-life-2",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2004,
     summary:
       "Gordon Freeman fights the Combine occupation in City 17 with the iconic gravity gun.",
@@ -105,6 +112,7 @@ export const mockGames: IgdbGame[] = [
     name: "Portal 2",
     slug: "portal-2",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2011,
     summary:
       "Think with portals in Aperture Science's award-winning first-person puzzler.",
@@ -115,6 +123,7 @@ export const mockGames: IgdbGame[] = [
     name: "Dark Souls",
     slug: "dark-souls",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2011,
     summary:
       "Prepare to die in Lordran, the punishing action RPG that spawned a genre.",
@@ -125,6 +134,7 @@ export const mockGames: IgdbGame[] = [
     name: "God of War",
     slug: "god-of-war-2018",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2018,
     summary:
       "Kratos and Atreus journey through the Norse wilds in this reinvention of the series.",
@@ -135,6 +145,7 @@ export const mockGames: IgdbGame[] = [
     name: "Celeste",
     slug: "celeste",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2018,
     summary:
       "Help Madeline survive her climb of Celeste Mountain in this tight platformer.",
@@ -145,6 +156,7 @@ export const mockGames: IgdbGame[] = [
     name: "Stardew Valley",
     slug: "stardew-valley",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2016,
     summary:
       "Inherit your grandfather's old farm plot and build the life you've dreamed of.",
@@ -155,6 +167,7 @@ export const mockGames: IgdbGame[] = [
     name: "Super Mario 64",
     slug: "super-mario-64",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 1996,
     summary: "Mario's landmark leap into 3D across the paintings of Peach's castle.",
     platformIds: [4],
@@ -164,6 +177,7 @@ export const mockGames: IgdbGame[] = [
     name: "Final Fantasy VII",
     slug: "final-fantasy-vii",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 1997,
     summary:
       "Cloud Strife joins AVALANCHE against the Shinra corporation and Sephiroth.",
@@ -174,6 +188,7 @@ export const mockGames: IgdbGame[] = [
     name: "The Witcher 3: Wild Hunt",
     slug: "the-witcher-3-wild-hunt",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2015,
     summary:
       "Geralt of Rivia hunts the Wild Hunt across a war-torn open world.",
@@ -184,6 +199,7 @@ export const mockGames: IgdbGame[] = [
     name: "Metroid Prime",
     slug: "metroid-prime",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 2002,
     summary:
       "Samus explores Tallon IV in first person in Retro Studios' acclaimed adventure.",
@@ -194,6 +210,7 @@ export const mockGames: IgdbGame[] = [
     name: "Sonic the Hedgehog 2",
     slug: "sonic-the-hedgehog-2",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 1992,
     summary: "Sonic and Tails race through the Genesis classic at full speed.",
     platformIds: [29],
@@ -203,6 +220,7 @@ export const mockGames: IgdbGame[] = [
     name: "The Legend of Zelda: Ocarina of Time",
     slug: "the-legend-of-zelda-ocarina-of-time",
     coverUrl: null,
+    artworkUrl: null,
     releaseYear: 1998,
     summary:
       "Link travels through time to stop Ganondorf in the N64 masterpiece.",

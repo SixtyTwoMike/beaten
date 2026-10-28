@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { Logo } from "./Logo";
 
 const links = [
   { href: "/", label: "Home" },
@@ -11,14 +12,18 @@ const links = [
   { href: "/shelves", label: "Shelves" },
 ];
 
-export function Nav({ userName }: { userName: string }) {
+export function Nav({
+  userName,
+  username,
+}: {
+  userName: string;
+  username: string | null;
+}) {
   const pathname = usePathname();
   return (
     <header className="sticky top-0 z-40 border-b border-edge bg-canvas/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-        <Link href="/" className="text-xl font-black tracking-tight">
-          BEAT<span className="text-mint">EN</span>
-        </Link>
+        <Logo href="/" />
         <nav className="flex items-center gap-1 text-sm">
           {links.map((l) => {
             const active =
@@ -39,7 +44,23 @@ export function Nav({ userName }: { userName: string }) {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
-          <span className="hidden text-fog sm:inline">{userName}</span>
+          <Link
+            href={username ? `/u/${username}` : "/settings"}
+            className="hidden text-fog hover:text-white sm:inline"
+            title={username ? "Your public profile" : "Set up your public profile"}
+          >
+            {userName}
+          </Link>
+          <Link
+            href="/settings"
+            className={`rounded-md px-2 py-1.5 transition ${
+              pathname.startsWith("/settings")
+                ? "text-white"
+                : "text-fog hover:text-white"
+            }`}
+          >
+            Settings
+          </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="rounded-md border border-edge px-3 py-1.5 text-fog hover:border-fog/50 hover:text-white transition"

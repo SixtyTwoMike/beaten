@@ -10,6 +10,8 @@ datasource db {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
+  // Public handle for /u/<username>; lowercase a-z, 0-9, _ (null until chosen)
+  username     String?   @unique
   name         String?
   passwordHash String?
   image        String?
@@ -25,6 +27,8 @@ model Game {
   name        String
   slug        String?
   coverUrl    String?
+  // Wide key art (IGDB artwork, falling back to a screenshot) for banners
+  artworkUrl  String?
   releaseYear Int?
   summary     String?
   // JSON array of IGDB platform ids, e.g. "[48,6,130]"

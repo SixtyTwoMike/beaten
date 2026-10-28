@@ -4,6 +4,7 @@ import { formatDate, toDateInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
+import { Backdrop } from "@/components/Backdrop";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
@@ -38,6 +39,7 @@ export default async function GamePage({
         name: cached.name,
         slug: cached.slug,
         coverUrl: cached.coverUrl,
+        artworkUrl: cached.artworkUrl,
         releaseYear: cached.releaseYear,
         summary: cached.summary,
         platformIds: JSON.parse(cached.platformIds) as number[],
@@ -78,13 +80,22 @@ export default async function GamePage({
   };
 
   return (
-    <div className="flex flex-col gap-8 md:flex-row">
+    <div
+      className={`relative isolate flex flex-col gap-8 md:flex-row ${
+        game.artworkUrl ? "pt-40 sm:pt-56" : ""
+      }`}
+    >
+      <Backdrop artworkUrl={game.artworkUrl} />
       <div className="w-40 shrink-0 sm:w-52">
-        <Poster name={game.name} coverUrl={game.coverUrl} />
+        <Poster
+          name={game.name}
+          coverUrl={game.coverUrl}
+          className="shadow-2xl ring-1 ring-white/10"
+        />
       </div>
 
       <div className="min-w-0 flex-1">
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-3xl font-bold drop-shadow">
           {game.name}
           {game.releaseYear && (
             <span className="ml-3 text-xl font-normal text-fog">

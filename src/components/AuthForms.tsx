@@ -113,6 +113,7 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
 export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +125,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await registerUser({ name, email, password });
+      const result = await registerUser({ name, username, email, password });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -158,6 +159,26 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
         />
+        <div>
+          <input
+            type="text"
+            required
+            name="handle"
+            id="register-username"
+            autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            pattern="@?[A-Za-z0-9_]{3,20}"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-fog/70">
+            Your public profile: /u/{username.trim().replace(/^@/, "").toLowerCase() || "username"}
+          </p>
+        </div>
         <input
           type="email"
           required

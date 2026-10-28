@@ -9,6 +9,7 @@ export type IgdbGame = {
   name: string;
   slug: string | null;
   coverUrl: string | null;
+  artworkUrl: string | null;
   releaseYear: number | null;
   summary: string | null;
   platformIds: number[];
@@ -81,11 +82,22 @@ type RawGame = {
   first_release_date?: number;
   platforms?: number[];
   cover?: { image_id?: string };
+  artworks?: { image_id?: string }[];
+  screenshots?: { image_id?: string }[];
 };
 
 export function coverUrlFromImageId(imageId: string | undefined): string | null {
   return imageId
     ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`
+    : null;
+}
+
+function artworkUrlFromRaw(raw: RawGame): string | null {
+  const imageId =
+    raw.artworks?.find((a) => a.image_id)?.image_id ??
+    raw.screenshots?.find((s) => s.image_id)?.image_id;
+  return imageId
+    ? `https://images.igdb.com/igdb/image/upload/t_screenshot_huge/${imageId}.jpg`
     : null;
 }
 
@@ -95,6 +107,7 @@ function toIgdbGame(raw: RawGame): IgdbGame {
     name: raw.name,
     slug: raw.slug ?? null,
     coverUrl: coverUrlFromImageId(raw.cover?.image_id),
+    artworkUrl: artworkUrlFromRaw(raw),
     releaseYear: raw.first_release_date
       ? new Date(raw.first_release_date * 1000).getUTCFullYear()
       : null,
@@ -104,7 +117,7 @@ function toIgdbGame(raw: RawGame): IgdbGame {
 }
 
 const GAME_FIELDS =
-  "fields name,slug,summary,first_release_date,platforms,cover.image_id;";
+  "fields name,slug,summary,first_release_date,platforms,cover.image_id,artworks.image_id,screenshots.image_id;";
 
 export async function searchGames(
   query: string,
