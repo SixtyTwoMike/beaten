@@ -355,73 +355,67 @@ function EntryForm({
   );
 }
 
-// Instagram story: fetch every page first (a story can't be shared after an
-// await on iPhone, so it takes two taps), then hand them all to the share
-// sheet, or offer downloads where sharing files isn't supported. Keyed by
-// the chronicle's version, so edits start it afresh.
-function StoryShare({ username, pages, version }: { username: string; pages: number; version: string }) {
-  const [files, setFiles] = useState<File[] | null>(null);
-  const [busy, setBusy] = useState(false);
+// Instagram story video, made on this device (lib/chronicle-video): render,
+// then a second tap hands it to the share sheet (iPhone won't share after
+// a long wait without a fresh tap), or downloads it where sharing files
+// isn't supported. Keyed by the chronicle's version, so edits start afresh.
+function VideoShare({ view }: { view: ChronicleView }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const canShare = (f: File[]) => typeof navigator !== "undefined" && Boolean(navigator.canShare?.({ files: f }));
-  const urls = useMemo(() => files?.map((f) => URL.createObjectURL(f)) ?? [], [files]);
-  useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
+  const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => () => {
+    if (url) URL.revokeObjectURL(url);
+  }, [url]);
+  const canShare = file != null && typeof navigator !== "undefined" && Boolean(navigator.canShare?.({ files: [file] }));
 
-  async function prepare() {
-    setBusy(true);
+  async function make() {
     setError(null);
+    setProgress(0);
     try {
-      const made: File[] = [];
-      for (let n = 1; n <= pages; n++) {
-        const res = await fetch(`/${username}/chronicles/story?page=${n}&v=${version}`);
-        if (!res.ok) throw new Error();
-        made.push(new File([await res.blob()], `console-chronicles-${n}-of-${pages}.png`, { type: "image/png" }));
-      }
-      setFiles(made);
-    } catch {
-      setError("Couldn't make the story images — try again");
+      const { renderChronicleVideo } = await import("@/lib/chronicle-video");
+      setFile(await renderChronicleVideo(view, setProgress));
+    } catch (e) {
+      console.error("chronicle video failed:", e);
+      setError("Couldn't make the video on this device — try again");
     } finally {
-      setBusy(false);
+      setProgress(null);
     }
   }
 
   async function share() {
-    if (!files) return;
+    if (!file) return;
     try {
-      await navigator.share({ files, title: "My console chronicles" });
+      await navigator.share({ files: [file], title: "My console chronicles" });
     } catch {
       // Cancelled.
     }
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-fog">
-        {pages} story page{pages === 1 ? "" : "s"}, three consoles each, numbered so they post in order.
-      </p>
-      {!files ? (
-        <button type="button" onClick={prepare} disabled={busy} className={primary}>
-          {busy ? "Making images…" : "Make Instagram story"}
-        </button>
-      ) : canShare(files) ? (
-        <button type="button" onClick={share} className={primary}>Share {files.length} image{files.length === 1 ? "" : "s"}</button>
+    <div className="space-y-3">
+      <p className="text-sm text-fog">A story-sized video that travels down your road, console by console.</p>
+      {progress != null ? (
+        <div>
+          <div className="h-2 overflow-hidden rounded-full bg-card-2">
+            <div className="h-full bg-mint transition-[width]" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-fog">Making your video… {Math.round(progress * 100)}%</p>
+        </div>
+      ) : !file ? (
+        <button type="button" onClick={make} className={primary}>Make story video</button>
       ) : (
-        <ul className="flex flex-wrap gap-2">
-          {urls.map((u, i) => (
-            <li key={u}>
-              <a href={u} download={files[i].name} className={quiet}>Download {i + 1}/{files.length}</a>
-            </li>
-          ))}
-        </ul>
-      )}
-      {files && (
-        <ul className="flex gap-2 overflow-x-auto pt-1">
-          {urls.map((u) => (
-            <li key={u} className="w-20 shrink-0">
-              <img src={u} alt="" className="rounded border border-edge" />
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-3">
+          <video src={url!} controls playsInline muted loop className="max-h-96 w-auto rounded-lg border border-edge" />
+          <div className="flex flex-wrap gap-2">
+            {canShare ? (
+              <button type="button" onClick={share} className={primary}>Share video</button>
+            ) : (
+              <a href={url!} download={file.name} className={primary}>Download video</a>
+            )}
+            <button type="button" onClick={make} className={quiet}>Make again</button>
+          </div>
+        </div>
       )}
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
     </div>
@@ -432,12 +426,10 @@ export function ChronicleEditor({
   view,
   consoles,
   suggestions,
-  storyPages,
 }: {
   view: ChronicleView;
   consoles: ConsoleOption[];
   suggestions: { byPlatform: Record<number, SuggestedGame[]> };
-  storyPages: number;
 }) {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>({
@@ -498,7 +490,7 @@ export function ChronicleEditor({
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">Console chronicles</h1>
           <p className="mt-1 text-sm text-fog">Every console you&apos;ve owned, in the order you got them.</p>
@@ -606,7 +598,7 @@ export function ChronicleEditor({
                   beaten.games/{view.username}/chronicles
                 </Link>
               </p>
-              {view.stops.length > 0 && <StoryShare key={version} username={view.username} pages={storyPages} version={version} />}
+              {view.stops.length > 0 && <VideoShare key={version} view={preview} />}
             </div>
           ) : (
             <p className="text-sm text-fog">
@@ -619,7 +611,7 @@ export function ChronicleEditor({
         </p>
       </div>
 
-      <div>
+      <div className="min-w-0">
         <ChronicleMap view={preview} />
       </div>
     </div>

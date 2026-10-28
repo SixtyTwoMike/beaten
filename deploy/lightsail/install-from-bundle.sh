@@ -128,10 +128,10 @@ location ~ ^/(register|login|forgot-password|reset-password|verify-email|setting
     proxy_pass http://127.0.0.1:3000;
 }
 
-# Share-card and chronicle-story PNGs are the most expensive thing the app renders. Cache them
+# Share-card PNGs are the most expensive thing the app renders. Cache them
 # (the URL fully determines the image; no cookies are involved) and rate
 # limit misses-and-hits alike so query-string variations can't pin the CPU.
-location ~ ^/[A-Za-z0-9_]+/(card|chronicles/story)$ {
+location ~ ^/[A-Za-z0-9_]+/card$ {
     limit_req zone=cardrate burst=20 nodelay;
     proxy_cache cardcache;
     proxy_cache_valid 200 10m;

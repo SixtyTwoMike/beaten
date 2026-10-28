@@ -87,10 +87,8 @@ function Stop({ stop, view, index }: { stop: ChronicleStop; view: ChronicleView;
             ))}
           </div>
         )}
-        <p className="font-semibold leading-snug text-white">
-          {stop.platformName}
-          {stop.model && <span className="font-normal text-fog"> · {stop.model}</span>}
-        </p>
+        <p className="font-semibold leading-snug text-white">{stop.platformName}</p>
+        {stop.model && <p className="text-xs text-fog">{stop.model}</p>}
         {stop.note && <p className="mt-1 text-sm italic text-fog">“{stop.note}”</p>}
 
         {stop.games.length > 0 && (

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { consoleOptions, loadChronicle, STORY_PER_PAGE } from "@/lib/chronicle";
+import { consoleOptions, loadChronicle } from "@/lib/chronicle";
 import { ChronicleEditor, type SuggestedGame } from "@/components/ChronicleEditor";
 
 export const metadata = { title: "Console chronicles — Beaten" };
@@ -32,7 +32,6 @@ export default async function ChroniclesEditorPage() {
       view={view}
       consoles={consoles}
       suggestions={{ byPlatform }}
-      storyPages={Math.max(1, Math.ceil(view.stops.length / STORY_PER_PAGE))}
     />
   );
 }

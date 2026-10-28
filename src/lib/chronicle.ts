@@ -20,9 +20,6 @@ export const MAX_MODEL = 30;
 export const MAX_TITLE = 40;
 export const DEFAULT_TITLE = "My console chronicles";
 
-// Consoles per Instagram story page.
-export const STORY_PER_PAGE = 3;
-
 // The best-sellers, pinned above the full list in the picker (IGDB has no
 // popularity for platforms).
 export const POPULAR_CONSOLES = [

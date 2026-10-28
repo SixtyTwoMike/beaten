@@ -551,7 +551,16 @@ try {
     await page.getByRole("dialog").isVisible() &&
       await page.getByRole("button", { name: "Add to timeline" }).evaluate((el) => el.getBoundingClientRect().bottom <= innerHeight));
   await page.keyboard.press("Escape");
-  check("chronicle editor has a story button", await page.getByRole("button", { name: "Make Instagram story" }).isVisible());
+  // The story video is made in the browser (WebCodecs H.264 into an MP4).
+  await page.getByRole("button", { name: "Make story video" }).click();
+  await page.waitForSelector("video", { timeout: 120000 });
+  const video = await page.evaluate(async () => {
+    const blob = await (await fetch(document.querySelector("video").src)).blob();
+    const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+    return { type: blob.type, size: blob.size, ftyp: String.fromCharCode(...head.slice(4, 8)) };
+  });
+  check("story video is an MP4 made on the device", video.type === "video/mp4" && video.ftyp === "ftyp" && video.size > 100000);
+  check("editor page stays phone-width-safe", (await page.evaluate(() => document.documentElement.scrollWidth)) <= (await page.evaluate(() => innerWidth)));
 
   // 13. Sign out returns to login
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
@@ -621,16 +630,9 @@ try {
   check("invite link lets that person sign up with it", await tryRegister(reserved, inviteCode));
   await regContext.close();
 
-  // 14a3. The chronicle is public, with paginated story images
+  // 14a3. The chronicle is public
   const chron = await page.goto(`${BASE}/${username}/chronicles`);
   check("console chronicle is public", chron?.status() === 200 && (await page.getByText("Game Boy Advance").first().isVisible()));
-  const story = await page.request.get(`${BASE}/${username}/chronicles/story?page=1`);
-  const storyPng = await story.body();
-  check("chronicle story page is a 1080x1920 PNG",
-    story.headers()["content-type"] === "image/png" && storyPng.readUInt32BE(16) === 1080 && storyPng.readUInt32BE(20) === 1920);
-  check("five consoles make two story pages; past the end is a 404",
-    (await page.request.get(`${BASE}/${username}/chronicles/story?page=2`)).status() === 200 &&
-      (await page.request.get(`${BASE}/${username}/chronicles/story?page=3`)).status() === 404);
 
   // 14b. Support and privacy pages are public and linked from sign-in
   await page.goto(`${BASE}/login`);
