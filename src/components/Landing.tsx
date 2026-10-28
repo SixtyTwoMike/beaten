@@ -34,8 +34,8 @@ async function showcase(): Promise<CoverflowItem[]> {
 
 const FEATURES = [
   { title: "Log every run", body: "Mark games as playing, beaten or mastered, with dates, platform and replays." },
-  { title: "Rate & review", body: "Half-star ratings and as many words as the ending deserves." },
-  { title: "Build shelves", body: "All-timers, backlog, comfort games — curate lists however you like." },
+  { title: "Rate & review", body: "How much did you enjoy (or hate) the games you play?" },
+  { title: "Build shelves", body: "All-timers, piles of shame, cosy gems — curate lists however you like." },
   { title: "Share your profile", body: "A public page of everything you've finished, at your own link." },
 ];
 
@@ -69,11 +69,8 @@ export async function Landing() {
 
         <section className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:flex lg:items-center lg:py-28">
           <div className="lg:ml-auto lg:w-[44%] lg:pl-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-mint">
-              Your gaming diary
-            </p>
-            <h1 className="mt-3 text-4xl font-bold leading-tight text-white sm:text-5xl">
-              Every game you&apos;ve conquered, in one place.
+            <h1 className="text-4xl font-bold leading-tight text-white sm:text-5xl">
+              Every game you&apos;ve beaten, in one diary.
             </h1>
             <p className="mt-5 text-base leading-relaxed text-fog">
               Beaten is a log for the games you play. Keep track of what
