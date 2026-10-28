@@ -110,10 +110,11 @@ export function SearchClient({
         <input
           type="search"
           autoFocus
+          aria-label="Search for a game…"
           placeholder="Search for a game…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 rounded-lg border border-edge bg-card px-4 py-3 text-base outline-none placeholder:text-fog/60 focus:border-mint/60 focus:ring-1 focus:ring-mint/40"
+          className="flex-1 rounded-lg border border-edge bg-card px-4 py-3 text-base outline-none placeholder:text-fog/70 focus:border-mint/60 focus:ring-1 focus:ring-mint/40"
         />
         <select
           value={platformId}

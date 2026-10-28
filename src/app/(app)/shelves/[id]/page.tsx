@@ -34,11 +34,11 @@ export default async function ShelfPage({
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{shelf.name}</h1>
+          <h1 className="break-words text-2xl font-bold">{shelf.name}</h1>
           {shelf.description && (
-            <p className="mt-1 text-sm text-fog">{shelf.description}</p>
+            <p className="mt-1 break-words text-sm text-fog">{shelf.description}</p>
           )}
-          <p className="mt-1 text-xs text-fog/70">
+          <p className="mt-1 text-xs text-fog/85">
             {shelf.items.length} {shelf.items.length === 1 ? "game" : "games"}
           </p>
         </div>
@@ -74,7 +74,7 @@ export default async function ShelfPage({
                   >
                     {item.game.name}
                   </Link>
-                  <p className="text-xs text-fog/70">
+                  <p className="text-xs text-fog/85">
                     Added {formatDate(item.addedAt)}
                   </p>
                 </div>

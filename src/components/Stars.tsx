@@ -3,7 +3,7 @@ export const STAR_PATH =
 
 export function StarIcon({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
       <path d={STAR_PATH} />
     </svg>
   );
@@ -23,7 +23,11 @@ function StarRow({ className }: { className: string }) {
 export function Stars({ rating }: { rating: number }) {
   const pct = Math.max(0, Math.min(100, rating * 10));
   return (
-    <span className="relative inline-block align-middle">
+    <span
+      role="img"
+      aria-label={`${rating / 2} out of 5 stars`}
+      className="relative inline-block align-middle"
+    >
       <StarRow className="text-edge" />
       <span
         className="absolute inset-y-0 left-0 overflow-hidden"

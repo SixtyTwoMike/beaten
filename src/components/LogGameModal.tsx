@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveLog } from "@/app/actions/logs";
 import { todayDateInput } from "@/lib/format";
@@ -13,6 +13,7 @@ import type {
 import { isPlayStatus, type PlayStatus } from "@/lib/status";
 import { Poster } from "./Poster";
 import { StarRatingInput } from "./StarRatingInput";
+import { safeAction } from "@/lib/safe-action";
 
 const fieldClass =
   "w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none focus:border-mint/60 focus:ring-1 focus:ring-mint/40";
@@ -34,6 +35,7 @@ function Segmented<T extends string>({
         <button
           key={o.value}
           type="button"
+          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition ${
             value === o.value ? o.activeClass : "text-fog hover:text-white"
@@ -83,9 +85,39 @@ export function LogGameModal({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Move focus into the dialog on open and give it back on close.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLElement>("button, input, select, textarea")?.focus();
+    return () => previous?.focus();
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      // Keep Tab cycling within the dialog.
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = [
+          ...dialogRef.current.querySelectorAll<HTMLElement>(
+            "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]"
+          ),
+        ];
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (!first || !last) return;
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        } else if (!dialogRef.current.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -112,7 +144,7 @@ export function LogGameModal({
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await saveLog({
+      const result = await safeAction(() => saveLog({
         logId: existing?.logId,
         igdbId: game.igdbId,
         status,
@@ -124,7 +156,7 @@ export function LogGameModal({
         reviewText: reviewText || null,
         shelfIds: selectedShelves,
         newShelfName: newShelfName || null,
-      });
+      }));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -141,13 +173,19 @@ export function LogGameModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-xl border border-edge bg-card shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="log-modal-title"
+        className="w-full max-w-lg rounded-xl border border-edge bg-card shadow-2xl"
+      >
         <div className="flex items-center gap-4 border-b border-edge p-4">
           <div className="w-12 shrink-0">
             <Poster name={game.name} coverUrl={game.coverUrl} />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-semibold">
+            <p id="log-modal-title" className="truncate font-semibold">
               {game.name}
               {game.releaseYear && (
                 <span className="ml-2 font-normal text-fog">
@@ -249,7 +287,7 @@ export function LogGameModal({
             <div>
               <label className={labelClass} htmlFor="log-started">
                 {isPlaying ? "Playing since" : "Started"}{" "}
-                <span className="normal-case text-fog/60">(optional)</span>
+                <span className="normal-case text-fog/85">(optional)</span>
               </label>
               <input
                 id="log-started"
@@ -284,7 +322,7 @@ export function LogGameModal({
 
           <div>
             <label className={labelClass} htmlFor="log-review">
-              Review <span className="normal-case text-fog/60">(optional)</span>
+              Review <span className="normal-case text-fog/85">(optional)</span>
             </label>
             <textarea
               id="log-review"
@@ -318,6 +356,7 @@ export function LogGameModal({
                 <input
                   type="text"
                   maxLength={60}
+                  aria-label="+ New shelf name"
                   placeholder="+ New shelf name"
                   value={newShelfName}
                   onChange={(e) => setNewShelfName(e.target.value)}

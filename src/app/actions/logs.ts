@@ -28,10 +28,12 @@ export type SaveLogInput = {
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+// Strictly YYYY-MM-DD; rejects expanded years ("+202600-01-01") and
+// rollovers like 2026-02-31.
 function parseDate(value: string | null | undefined): Date | null {
-  if (!value) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const d = new Date(`${value}T00:00:00.000Z`);
-  return isNaN(d.getTime()) ? null : d;
+  return isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value ? null : d;
 }
 
 export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
@@ -55,7 +57,7 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
     let rating: number | null = null;
     if (input.rating != null && input.rating !== 0) {
       rating = Math.round(input.rating);
-      if (rating < 1 || rating > 10) {
+      if (!Number.isFinite(rating) || rating < 1 || rating > 10) {
         return { ok: false, error: "Invalid rating" };
       }
     }
@@ -71,6 +73,9 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
       return { ok: false, error: "Too many shelves" };
     }
     const platformId = input.platformId ?? null;
+    if (platformId !== null && !isIgdbId(platformId)) {
+      return { ok: false, error: "Invalid platform" };
+    }
 
     const game = await ensureGame(input.igdbId);
 

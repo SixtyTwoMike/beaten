@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { changePassword } from "@/app/actions/auth";
 import { buttonClass, inputClass } from "./AuthForms";
 import { NewPasswordField } from "./NewPasswordField";
+import { safeAction } from "@/lib/safe-action";
 
 export function ChangePasswordForm({ email }: { email: string }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -16,7 +17,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await changePassword({ currentPassword, newPassword });
+      const result = await safeAction(() => changePassword({ currentPassword, newPassword }));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -35,7 +36,9 @@ export function ChangePasswordForm({ email }: { email: string }) {
         autoComplete="username"
         value={email}
         readOnly
-        hidden
+        tabIndex={-1}
+        aria-hidden="true"
+        className="sr-only"
       />
       <input
         type="password"
@@ -44,6 +47,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
         id="current-password"
         autoComplete="current-password"
         maxLength={128}
+        aria-label="Current password"
         placeholder="Current password"
         value={currentPassword}
         onChange={(e) => setCurrentPassword(e.target.value)}
@@ -60,7 +64,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
       <button type="submit" disabled={pending} className={`${buttonClass} sm:w-auto sm:px-4`}>
         {pending ? "Changing…" : "Change password"}
       </button>
-      <p className="text-xs text-fog/70">
+      <p className="text-xs text-fog/85">
         You&apos;ll be signed out everywhere and asked to sign in again.
       </p>
     </form>

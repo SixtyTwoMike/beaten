@@ -2,9 +2,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { formatDate, toDateInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
+import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
 import { Backdrop } from "@/components/Backdrop";
+import { GameShelves } from "@/components/GameShelves";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
@@ -19,36 +21,33 @@ export default async function GamePage({
   const user = await requireUser();
   const { id } = await params;
   const igdbId = Number(id);
-  if (!Number.isInteger(igdbId) || igdbId <= 0) notFound();
+  if (!isIgdbId(igdbId)) notFound();
 
-  // Prefer live IGDB data; fall back to the local cache for games that were
-  // logged before credentials were removed or while IGDB is unreachable.
+  // Games anyone has logged are cached locally (and refreshed when logged);
+  // only unseen games need a live IGDB call.
   let game: IgdbGame | null = null;
-  if (igdbConfigured()) {
+  const cached = await prisma.game.findUnique({ where: { igdbId } });
+  if (cached) {
+    game = {
+      igdbId: cached.igdbId,
+      name: cached.name,
+      slug: cached.slug,
+      coverUrl: cached.coverUrl,
+      artworkUrl: cached.artworkUrl,
+      releaseYear: cached.releaseYear,
+      summary: cached.summary,
+      platformIds: JSON.parse(cached.platformIds) as number[],
+    };
+  } else if (igdbConfigured()) {
     try {
       game = await getGame(igdbId);
     } catch (e) {
       console.error("IGDB getGame failed:", e);
     }
   }
-  if (!game) {
-    const cached = await prisma.game.findUnique({ where: { igdbId } });
-    if (cached) {
-      game = {
-        igdbId: cached.igdbId,
-        name: cached.name,
-        slug: cached.slug,
-        coverUrl: cached.coverUrl,
-        artworkUrl: cached.artworkUrl,
-        releaseYear: cached.releaseYear,
-        summary: cached.summary,
-        platformIds: JSON.parse(cached.platformIds) as number[],
-      };
-    }
-  }
   if (!game) notFound();
 
-  const [platforms, shelves, logs] = await Promise.all([
+  const [platforms, shelves, logs, shelfItems] = await Promise.all([
     getPlatforms(),
     prisma.shelf.findMany({
       where: { userId: user.id },
@@ -58,6 +57,10 @@ export default async function GamePage({
     prisma.playLog.findMany({
       where: { userId: user.id, game: { igdbId } },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
+    }),
+    prisma.shelfItem.findMany({
+      where: { shelf: { userId: user.id }, game: { igdbId } },
+      select: { shelfId: true },
     }),
   ]);
 
@@ -132,6 +135,18 @@ export default async function GamePage({
           />
         </div>
 
+        <div className="mt-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">On your shelves</h2>
+          <div className="mt-2">
+            <GameShelves
+              igdbId={game.igdbId}
+              gameId={cached?.id ?? null}
+              shelves={shelves}
+              onShelves={shelfItems.map((i) => i.shelfId)}
+            />
+          </div>
+        </div>
+
         <div className="mt-10">
           <h2 className="text-lg font-semibold">Your log</h2>
           {logs.length === 0 ? (
@@ -196,7 +211,7 @@ export default async function GamePage({
                       </div>
                     )}
                     {log.reviewText && (
-                      <p className="mt-2 whitespace-pre-line text-sm text-fog/90">
+                      <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
                         {log.reviewText}
                       </p>
                     )}
@@ -209,7 +224,7 @@ export default async function GamePage({
 
         <div className="mt-10 rounded-xl border border-dashed border-edge p-4">
           <h2 className="text-sm font-semibold text-fog">External links</h2>
-          <p className="mt-1 text-xs text-fog/70">
+          <p className="mt-1 text-xs text-fog/85">
             RetroAchievements, HowLongToBeat, and other integrations are coming
             in a future version.
           </p>

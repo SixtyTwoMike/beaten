@@ -13,6 +13,14 @@ import {
 import { MAX_EMAIL } from "@/lib/limits";
 import { passwordError } from "@/lib/password";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
+import { markEmailVerified } from "@/lib/accounts";
+import {
+  PASSWORD_ATTEMPTS,
+  TOO_MANY_ATTEMPTS,
+  clearAttempts,
+  isLimited,
+  recordAttempt,
+} from "@/lib/rate-limit";
 import { requireUserId } from "@/lib/session";
 import { consumeToken, issueToken } from "@/lib/tokens";
 import type { ActionResult } from "./logs";
@@ -75,12 +83,8 @@ export async function resetPassword(input: {
       },
     });
     // Receiving the link proves the address is theirs.
-    if (!user.emailVerifiedAt) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { emailVerifiedAt: new Date() },
-      });
-    }
+    if (!user.emailVerifiedAt) await markEmailVerified(user.id);
+    clearAttempts(`password:${user.id}`);
     inBackground("password changed email", () => sendPasswordChangedEmail(user));
     return { ok: true };
   } catch (e) {
@@ -95,10 +99,7 @@ export async function verifyEmail(token: string): Promise<ActionResult> {
     if (!row) {
       return { ok: false, error: "This link has expired or was already used" };
     }
-    await prisma.user.updateMany({
-      where: { id: row.userId, emailVerifiedAt: null },
-      data: { emailVerifiedAt: new Date() },
-    });
+    await markEmailVerified(row.userId);
     return { ok: true };
   } catch (e) {
     console.error("verifyEmail failed:", e);
@@ -128,15 +129,21 @@ export async function deleteAccount(input: { confirmation: string }): Promise<Ac
     if (!user) return { ok: false, error: "Account not found" };
 
     const confirmation = input.confirmation.slice(0, 254);
+    const attemptKey = `password:${userId}`;
+    if (user.passwordHash && isLimited(attemptKey, PASSWORD_ATTEMPTS)) {
+      return { ok: false, error: TOO_MANY_ATTEMPTS };
+    }
+    const typed = confirmation.trim().toLowerCase();
     const confirmed = user.passwordHash
       ? await bcrypt.compare(confirmation, user.passwordHash)
-      : [user.username, user.email].includes(confirmation.trim().toLowerCase());
+      : Boolean(typed) && [user.username, user.email].includes(typed);
     if (!confirmed) {
+      if (user.passwordHash) recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
       return {
         ok: false,
         error: user.passwordHash
           ? "Password is incorrect"
-          : "Type your username exactly to confirm",
+          : "Type your username or email exactly to confirm",
       };
     }
 

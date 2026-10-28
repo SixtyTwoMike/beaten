@@ -101,7 +101,7 @@ export async function Landing() {
                 I have an account
               </Link>
             </div>
-            <p className="mt-4 text-xs text-fog/70">
+            <p className="mt-4 text-xs text-fog/85">
               No ads, no tracking. Export or delete your data any time.
             </p>
           </div>

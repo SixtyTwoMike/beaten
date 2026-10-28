@@ -7,6 +7,7 @@ import {
   deleteShelf,
   removeGameFromShelf,
 } from "@/app/actions/shelves";
+import { safeAction } from "@/lib/safe-action";
 
 export function ShelfCreateForm() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export function ShelfCreateForm() {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createShelf(name, description || null);
+      const result = await safeAction(() => createShelf(name, description || null));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -40,20 +41,22 @@ export function ShelfCreateForm() {
           type="text"
           required
           maxLength={60}
+          aria-label="New shelf name (e.g. “100% Completed”, “JRPG Marathon”)"
           placeholder="New shelf name (e.g. “100% Completed”, “JRPG Marathon”)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/60 focus:border-mint/60"
+          className="w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/70 focus:border-mint/60"
         />
         {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
       </div>
       <input
         type="text"
         maxLength={500}
+        aria-label="Description (optional)"
         placeholder="Description (optional)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        className="flex-1 rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/60 focus:border-mint/60"
+        className="flex-1 rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/70 focus:border-mint/60"
       />
       <button
         type="submit"
@@ -69,21 +72,27 @@ export function ShelfCreateForm() {
 export function ShelfDeleteButton({ shelfId }: { shelfId: string }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function remove() {
+    setError(null);
     startTransition(async () => {
-      const result = await deleteShelf(shelfId);
-      if (result.ok) {
-        router.push("/shelves");
-        router.refresh();
-      }
+      const result = await safeAction(() => deleteShelf(shelfId));
+      if (!result.ok) return setError(result.error);
+      router.push("/shelves");
+      router.refresh();
     });
   }
 
   if (confirming) {
     return (
-      <span className="flex items-center gap-1.5 text-xs">
+      <span className="flex flex-wrap items-center gap-1.5 text-xs">
+        {error && (
+          <span role="alert" className="text-red-400">
+            {error}
+          </span>
+        )}
         <span className="text-fog">Delete shelf?</span>
         <button
           onClick={remove}
@@ -119,11 +128,14 @@ export function RemoveFromShelfButton({
   gameId: string;
 }) {
   const router = useRouter();
+  const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function remove() {
+    setFailed(false);
     startTransition(async () => {
-      await removeGameFromShelf(shelfId, gameId);
+      const result = await safeAction(() => removeGameFromShelf(shelfId, gameId));
+      if (!result.ok) return setFailed(true);
       router.refresh();
     });
   }
@@ -132,10 +144,10 @@ export function RemoveFromShelfButton({
     <button
       onClick={remove}
       disabled={pending}
-      title="Remove from shelf"
+      title={failed ? "Couldn't remove it — try again" : "Remove from shelf"}
       className="rounded-md border border-edge px-2 py-1 text-xs text-fog hover:border-red-400/60 hover:text-red-400 disabled:opacity-50 transition"
     >
-      {pending ? "…" : "Remove"}
+      {pending ? "…" : failed ? "Retry" : "Remove"}
     </button>
   );
 }

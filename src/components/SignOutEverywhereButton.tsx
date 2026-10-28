@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 import { signOutEverywhere } from "@/app/actions/auth";
+import { safeAction } from "@/lib/safe-action";
 
 export function SignOutEverywhereButton() {
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +12,7 @@ export function SignOutEverywhereButton() {
   function run() {
     setError(null);
     startTransition(async () => {
-      const result = await signOutEverywhere();
+      const result = await safeAction(() => signOutEverywhere());
       if (!result.ok) {
         setError(result.error);
         return;

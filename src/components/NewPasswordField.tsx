@@ -27,6 +27,7 @@ export function NewPasswordField({
         id={id}
         autoComplete="new-password"
         passwordrules={PASSWORD_RULES_ATTR}
+        aria-label={placeholder}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -40,7 +41,7 @@ export function NewPasswordField({
             <li
               key={rule.label}
               data-met={met}
-              className={met ? "text-mint" : "text-fog/70"}
+              className={met ? "text-mint" : "text-fog/85"}
             >
               {met ? "✓" : "○"} {rule.label}
             </li>

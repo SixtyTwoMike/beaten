@@ -9,16 +9,32 @@ import {
   sendPasswordChangedEmail,
   sendVerifyEmail,
 } from "@/lib/account-emails";
-import { issueToken } from "@/lib/tokens";
+import { issueToken, revokeTokens } from "@/lib/tokens";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { MAX_EMAIL, MAX_NAME } from "@/lib/limits";
 import { passwordError } from "@/lib/password";
+import {
+  PASSWORD_ATTEMPTS,
+  TOO_MANY_ATTEMPTS,
+  clearAttempts,
+  isLimited,
+  recordAttempt,
+} from "@/lib/rate-limit";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
 import { normalizeUsername, usernameError } from "@/lib/username";
 import type { ActionResult } from "./logs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Display names appear in emails sent before an address is confirmed, so
+// keep them to one line and free of links.
+function displayNameError(name: string): string | null {
+  if (!name) return "Enter a display name";
+  if (name.length > MAX_NAME) return `Display name must be ${MAX_NAME} characters or fewer`;
+  if (/https?:|www\.|\.[a-z]{2,}\//i.test(name)) return "Display names can't contain links";
+  return null;
+}
 
 export async function registerUser(input: {
   email: string;
@@ -28,23 +44,23 @@ export async function registerUser(input: {
 }): Promise<ActionResult> {
   try {
     const email = input.email.trim().toLowerCase();
-    const name = input.name.trim();
+    // Control characters (newlines included) become spaces.
+    const name = input.name.replace(/[\p{Cc}\p{Cf}]+/gu, " ").replace(/\s+/g, " ").trim();
     const username = normalizeUsername(input.username);
     const password = input.password;
 
     if (!EMAIL_RE.test(email) || email.length > MAX_EMAIL) {
       return { ok: false, error: "Enter a valid email address" };
     }
-    if (!name) return { ok: false, error: "Enter a display name" };
-    if (name.length > MAX_NAME) {
-      return { ok: false, error: `Display name must be ${MAX_NAME} characters or fewer` };
-    }
+    const badName = displayNameError(name);
+    if (badName) return { ok: false, error: badName };
     const badUsername = usernameError(username);
     if (badUsername) return { ok: false, error: badUsername };
     const badPassword = passwordError(password);
     if (badPassword) return { ok: false, error: badPassword };
 
-    // Usernames are public, so saying one is taken reveals nothing.
+    // Only confirmed accounts hold usernames, so this reveals nothing about
+    // which emails have signed up.
     if (await prisma.user.findUnique({ where: { username } })) {
       return { ok: false, error: "That username is taken" };
     }
@@ -54,7 +70,10 @@ export async function registerUser(input: {
     }
 
     // Whether or not the email is already registered, the response is the
-    // same ("check your email"); only the email that's sent differs.
+    // same ("check your email") and takes as long; only the email sent
+    // differs. The username is held as pending until the address is
+    // confirmed, so nothing public changes either way.
+    const passwordHash = await bcrypt.hash(password, 12);
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       after(() =>
@@ -65,15 +84,14 @@ export async function registerUser(input: {
       return { ok: true };
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
     let user;
     try {
-      user = await prisma.user.create({ data: { email, name, username, passwordHash } });
+      user = await prisma.user.create({
+        data: { email, name, pendingUsername: username, passwordHash },
+      });
     } catch (e) {
-      // Lost a race for the same email or username.
+      // Lost a race for the same email.
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-        const target = String(e.meta?.target ?? "");
-        if (target.includes("username")) return { ok: false, error: "That username is taken" };
         return { ok: true };
       }
       throw e;
@@ -122,6 +140,8 @@ export async function signOutEverywhere(): Promise<ActionResult> {
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
+    // A reset link is as good as a session.
+    await revokeTokens(userId, "RESET_PASSWORD");
     return { ok: true };
   } catch (e) {
     console.error("signOutEverywhere failed:", e);
@@ -144,12 +164,16 @@ export async function changePassword(input: {
     if (!user?.passwordHash) {
       return { ok: false, error: "This account signs in with Google" };
     }
+    const attemptKey = `password:${userId}`;
+    if (isLimited(attemptKey, PASSWORD_ATTEMPTS)) return { ok: false, error: TOO_MANY_ATTEMPTS };
     if (
       input.currentPassword.length > 128 ||
       !(await bcrypt.compare(input.currentPassword, user.passwordHash))
     ) {
+      recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
       return { ok: false, error: "Current password is incorrect" };
     }
+    clearAttempts(attemptKey);
     const badPassword = passwordError(input.newPassword);
     if (badPassword) return { ok: false, error: badPassword };
     if (input.newPassword === input.currentPassword) {
@@ -166,6 +190,7 @@ export async function changePassword(input: {
         tokenVersion: { increment: 1 },
       },
     });
+    await revokeTokens(userId, "RESET_PASSWORD");
     after(() =>
       sendPasswordChangedEmail(updated).catch((e) =>
         console.error("password changed email failed:", e)

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 import { deleteAccount } from "@/app/actions/account";
 import { inputClass } from "./AuthForms";
+import { safeAction } from "@/lib/safe-action";
 
 export function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ export function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await deleteAccount({ confirmation });
+      const result = await safeAction(() => deleteAccount({ confirmation }));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -48,7 +49,8 @@ export function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
         required
         id="delete-confirmation"
         autoComplete={hasPassword ? "current-password" : "off"}
-        placeholder={hasPassword ? "Your password" : "Type your username to confirm"}
+        aria-label={hasPassword ? "Your password" : "Type your username or email to confirm"}
+        placeholder={hasPassword ? "Your password" : "Type your username or email to confirm"}
         value={confirmation}
         onChange={(e) => setConfirmation(e.target.value)}
         className={inputClass}

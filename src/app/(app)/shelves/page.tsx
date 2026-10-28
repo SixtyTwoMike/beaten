@@ -73,7 +73,7 @@ export default async function ShelvesPage() {
                   />
                 ))}
                 {shelf.items.length === 0 && (
-                  <div className="col-span-4 rounded-md border border-dashed border-edge p-4 text-center text-xs text-fog/60">
+                  <div className="col-span-4 rounded-md border border-dashed border-edge p-4 text-center text-xs text-fog/85">
                     Empty shelf
                   </div>
                 )}

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { igdbConfigured, searchGames } from "@/lib/igdb";
+import { isIgdbId } from "@/lib/limits";
+
+const MAX_QUERY = 100;
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -13,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const q = (searchParams.get("q") ?? "").trim();
+  const q = (searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY);
   const platformParam = searchParams.get("platform");
   const platformId = platformParam ? Number(platformParam) : undefined;
 
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
   try {
     const results = await searchGames(
       q,
-      Number.isFinite(platformId) ? platformId : undefined
+      isIgdbId(platformId) ? platformId : undefined
     );
     return NextResponse.json({ configured: true, results });
   } catch (e) {

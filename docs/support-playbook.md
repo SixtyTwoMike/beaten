@@ -31,9 +31,14 @@ for deploys). Messages print to the terminal; nothing secret is shown.
 ./deploy/admin.sh delete <who>                     # permanent; asks you to retype
 ```
 
-Every link-sending command reuses the app's own rate limit (3 per hour per
-account and kind), and all mail goes out via Resend with Reply-To set to
-support@.
+Link-sending commands skip the public forms' rate limit (3 per hour per
+account and kind), so a stranger hammering "forgot password" can't block a
+recovery. `change-email` voids every link sent to the old address. All mail
+goes out via Resend with Reply-To set to support@.
+
+Usernames picked at sign-up are only claimed once the email is confirmed
+(`verify` claims it too). If someone else confirmed first with the same name,
+the account has no username and they pick one in Settings.
 
 ## Common requests
 

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setUsername } from "@/app/actions/auth";
+import { safeAction } from "@/lib/safe-action";
 
 export function UsernameForm({ current }: { current: string | null }) {
   const router = useRouter();
@@ -17,7 +18,7 @@ export function UsernameForm({ current }: { current: string | null }) {
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const result = await setUsername(value);
+      const result = await safeAction(() => setUsername(value));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -44,7 +45,7 @@ export function UsernameForm({ current }: { current: string | null }) {
           placeholder="username"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/60 focus:border-mint/60 focus:ring-1 focus:ring-mint/40"
+          className="w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/70 focus:border-mint/60 focus:ring-1 focus:ring-mint/40"
         />
         <button
           type="submit"

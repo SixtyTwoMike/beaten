@@ -22,7 +22,8 @@ export const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] 
 // Error message for the first unmet rule, or null when the password is valid.
 export function passwordError(pw: string): string | null {
   if (new TextEncoder().encode(pw).length > MAX_PASSWORD_BYTES) {
-    return "Password must be 72 characters or fewer";
+    // Emoji and accented letters take more than one byte each.
+    return "Password is too long — keep it under 72 characters (emoji and accented letters count extra)";
   }
   const failed = PASSWORD_RULES.filter((r) => !r.test(pw));
   if (failed.length === 0) return null;

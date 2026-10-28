@@ -10,6 +10,7 @@ import type {
   ShelfOption,
 } from "@/lib/types";
 import { LogGameModal } from "./LogGameModal";
+import { safeAction } from "@/lib/safe-action";
 
 export function LogEntryActions({
   game,
@@ -25,18 +26,26 @@ export function LogEntryActions({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function remove() {
+    setError(null);
     startTransition(async () => {
-      await deleteLog(existing.logId);
+      const result = await safeAction(() => deleteLog(existing.logId));
       setConfirming(false);
+      if (!result.ok) return setError(result.error);
       router.refresh();
     });
   }
 
   return (
     <div className="flex items-center gap-1.5">
+      {error && (
+        <span role="alert" className="text-xs text-red-400">
+          {error}
+        </span>
+      )}
       {confirming ? (
         <>
           <span className="text-xs text-fog">Delete?</span>

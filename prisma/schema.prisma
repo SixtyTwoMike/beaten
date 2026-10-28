@@ -14,6 +14,9 @@ model User {
   email        String    @unique
   // Public handle for /u/<username>; lowercase a-z, 0-9, _ (null until chosen)
   username     String?   @unique
+  // Username chosen at sign-up, claimed only once the email is confirmed, so
+  // unconfirmed sign-ups can't squat names or reveal which emails exist.
+  pendingUsername String?
   name         String?
   passwordHash String?
   image        String?

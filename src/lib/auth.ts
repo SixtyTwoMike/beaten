@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./db";
+import { PASSWORD_ATTEMPTS, clearAttempts, isLimited, recordAttempt } from "./rate-limit";
 
 // Compared against when the email is unknown, so a failed sign-in takes the
 // same bcrypt time whether or not the account exists.
@@ -32,9 +33,19 @@ const providers: NextAuthConfig["providers"] = [
       if (!email || !password || email.length > 254 || password.length > 128) {
         return null;
       }
+      // Per-account guess limit (nginx limits per IP). Keyed by email so
+      // unknown addresses behave the same; still runs bcrypt so a limited
+      // account answers in the usual time.
+      const attemptKey = `login:${email}`;
+      const limited = isLimited(attemptKey, PASSWORD_ATTEMPTS);
       const user = await prisma.user.findUnique({ where: { email } });
       const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
-      if (!user?.passwordHash || !valid) return null;
+      if (limited) return null;
+      if (!user?.passwordHash || !valid) {
+        recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
+        return null;
+      }
+      clearAttempts(attemptKey);
       if (!user.emailVerifiedAt) throw new EmailNotVerified();
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },
@@ -62,14 +73,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ account, profile }) {
       if (account?.provider !== "google") return true;
       // Only trust addresses Google has verified, and never attach a Google
-      // login to an existing password account: whoever registered that
-      // address with a password (possibly not its owner) would keep access.
+      // login to a confirmed password account: whoever registered that
+      // address with a password would keep access alongside it.
       if (profile?.email_verified !== true || !profile.email) return false;
       const existing = await prisma.user.findUnique({
         where: { email: profile.email.toLowerCase() },
-        select: { passwordHash: true },
+        select: { id: true, passwordHash: true, emailVerifiedAt: true },
       });
-      return !existing?.passwordHash;
+      if (!existing?.passwordHash) return true;
+      if (existing.emailVerifiedAt) return false;
+      // An unconfirmed password sign-up on this address may not be the
+      // owner's. Google has now proved ownership: drop the password and
+      // anything the sign-up chose, and void its links and sessions.
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          passwordHash: null,
+          pendingUsername: null,
+          emailVerifiedAt: new Date(),
+          tokenVersion: { increment: 1 },
+        },
+      });
+      await prisma.authToken.deleteMany({ where: { userId: existing.id } });
+      return true;
     },
     async jwt({ token, user, account }) {
       // Runs with `user` defined only on sign-in.

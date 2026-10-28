@@ -7,7 +7,8 @@
 // stdout carries only command output (export JSON), so it can be redirected.
 
 import { prisma } from "../src/lib/db";
-import { issueToken } from "../src/lib/tokens";
+import { markEmailVerified } from "../src/lib/accounts";
+import { issueToken, revokeTokens } from "../src/lib/tokens";
 import { buildExport } from "../src/lib/export";
 import { MAX_EMAIL } from "../src/lib/limits";
 import { normalizeUsername } from "../src/lib/username";
@@ -84,23 +85,23 @@ async function sendReset(user: User) {
   if (!user.passwordHash) {
     throw new Fail(`${label(user)} signs in with Google; there's no password to reset.`);
   }
-  const token = await issueToken(user.id, "RESET_PASSWORD");
-  if (!token) throw new Fail("Hourly email limit reached for this account; try again later.");
+  const token = await issueToken(user.id, "RESET_PASSWORD", { skipCap: true });
+  if (!token) throw new Fail("Couldn't create a reset link.");
   await sendPasswordResetEmail(user, token);
   log(`Reset link sent to ${user.email} (valid 30 minutes).`);
 }
 
 async function sendVerify(user: User) {
   if (user.emailVerifiedAt) throw new Fail(`${label(user)} is already confirmed.`);
-  const token = await issueToken(user.id, "VERIFY_EMAIL");
-  if (!token) throw new Fail("Hourly email limit reached for this account; try again later.");
+  const token = await issueToken(user.id, "VERIFY_EMAIL", { skipCap: true });
+  if (!token) throw new Fail("Couldn't create a confirmation link.");
   await sendVerifyEmail(user, token);
   log(`Confirmation link sent to ${user.email} (valid 24 hours).`);
 }
 
 async function verify(user: User) {
   if (user.emailVerifiedAt) throw new Fail(`${label(user)} is already confirmed.`);
-  await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+  await markEmailVerified(user.id);
   log(`Marked ${label(user)} as confirmed.`);
 }
 
@@ -130,9 +131,12 @@ async function changeEmail(user: User, raw: string | undefined) {
     where: { id: user.id },
     data: { email: newEmail, emailVerifiedAt: null, tokenVersion: { increment: 1 } },
   });
+  // Links already sent to the old inbox must not work on the moved account.
+  await revokeTokens(user.id);
   await sendEmailChangedEmail(user, newEmail);
-  const token = await issueToken(user.id, "VERIFY_EMAIL");
-  if (token) await sendVerifyEmail(updated, token);
+  const token = await issueToken(user.id, "VERIFY_EMAIL", { skipCap: true });
+  if (!token) throw new Fail(`Moved ${label(user)} to ${newEmail}, but couldn't create a confirmation link; run send-verify.`);
+  await sendVerifyEmail(updated, token);
   log(`Moved ${label(user)} to ${newEmail}; confirmation link sent there, notice sent to the old address.`);
 }
 

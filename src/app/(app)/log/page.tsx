@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatDate, toDateInput } from "@/lib/format";
+import { MAX_YEAR, MIN_YEAR, isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
 import { isPlayStatus } from "@/lib/status";
@@ -24,9 +25,13 @@ export default async function LogPage({
   if (params.status && isPlayStatus(params.status)) {
     where.status = params.status;
   }
-  const platformFilter = params.platform ? Number(params.platform) : null;
+  // Out-of-range filters are ignored rather than handed to Prisma.
+  const platformParam = params.platform ? Number(params.platform) : null;
+  const platformFilter = isIgdbId(platformParam) ? platformParam : null;
   if (platformFilter) where.platformId = platformFilter;
-  const yearFilter = params.year ? Number(params.year) : null;
+  const yearParam = params.year ? Number(params.year) : null;
+  const yearFilter =
+    Number.isInteger(yearParam) && yearParam! >= MIN_YEAR && yearParam! <= MAX_YEAR ? yearParam : null;
   if (yearFilter) {
     where.finishedAt = {
       gte: new Date(Date.UTC(yearFilter, 0, 1)),
@@ -87,7 +92,7 @@ export default async function LogPage({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Diary</h1>
         <form method="GET" className="flex flex-wrap items-center gap-2">
-          <select name="status" defaultValue={params.status ?? ""} className={selectClass}>
+          <select name="status" aria-label="Filter by status" defaultValue={params.status ?? ""} className={selectClass}>
             <option value="">Any status</option>
             <option value="PLAYING">Playing</option>
             <option value="BEATEN">Beaten</option>
@@ -95,6 +100,7 @@ export default async function LogPage({
           </select>
           <select
             name="platform"
+            aria-label="Filter by platform"
             defaultValue={params.platform ?? ""}
             className={selectClass}
           >
@@ -105,7 +111,7 @@ export default async function LogPage({
               </option>
             ))}
           </select>
-          <select name="year" defaultValue={params.year ?? ""} className={selectClass}>
+          <select name="year" aria-label="Filter by year" defaultValue={params.year ?? ""} className={selectClass}>
             <option value="">Any year</option>
             {years.map((y) => (
               <option key={y} value={y}>
@@ -189,7 +195,7 @@ export default async function LogPage({
                     </div>
                   )}
                   {log.reviewText && (
-                    <p className="mt-2 whitespace-pre-line text-sm text-fog/90">
+                    <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
                       {log.reviewText}
                     </p>
                   )}

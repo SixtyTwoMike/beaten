@@ -91,6 +91,13 @@ try {
   await page.fill('input[placeholder="Display name"]', "Smoke Tester");
   await page.fill("#register-username", username.toUpperCase());
   await page.fill('input[placeholder="Email"]', email);
+  // Display names go into emails to unconfirmed addresses: no links.
+  await page.fill("#register-password", password);
+  await page.fill('input[placeholder="Display name"]', "https://evil.example/login");
+  await page.click('button[type="submit"]');
+  await page.waitForSelector("text=Display names can't contain links");
+  check("display name with a link rejected", true);
+  await page.fill('input[placeholder="Display name"]', "Smoke Tester");
   // Password rules are enforced server-side, not just by the checklist.
   await page.fill("#register-password", "abcdefghij");
   check(
@@ -110,6 +117,8 @@ try {
   await page.click('button[type="submit"]');
   await page.waitForSelector("text=Check your email");
   check("register asks to confirm email", true);
+  check("unconfirmed sign-up doesn't claim its username",
+    (await page.request.get(`${BASE}/u/${username}`)).status() === 404);
 
   // 2b. Can't sign in until the address is confirmed
   await page.goto(`${BASE}/login`);
@@ -130,6 +139,8 @@ try {
   await dup.click('button[type="submit"]');
   await dup.waitForSelector("text=Check your email");
   check("duplicate email registration gives the same response", true);
+  check("duplicate registration leaves no public trace",
+    (await page.request.get(`${BASE}/u/${username}_2`)).status() === 404);
   await dupContext.close();
   await waitForEmail(email, "already have a Beaten account", registeredAt);
   check("existing owner is emailed about the attempt", true);
@@ -241,6 +252,16 @@ try {
   check("game detail shows beaten button", true);
   check("game detail shows playing button", await page.getByText("I'm playing this").isVisible());
   check("game detail shows external links stub", await page.getByText("RetroAchievements").isVisible());
+  // Shelve a game straight from its page, no log entry needed
+  await page.getByRole("button", { name: "+ Backlog Someday" }).click();
+  await page.getByRole("button", { name: "✓ Backlog Someday" }).waitFor();
+  await page.reload();
+  check("game page adds to a shelf directly",
+    (await page.getByRole("button", { name: "✓ Backlog Someday" }).getAttribute("aria-pressed")) === "true");
+  // Out-of-range ids and filters are a 404 / ignored, not a 500
+  check("oversized game id is a 404", (await page.request.get(`${BASE}/games/2147483648`)).status() === 404);
+  check("bad diary filters are ignored",
+    (await page.request.get(`${BASE}/log?year=999999&platform=1.5`)).status() === 200);
   await page.screenshot({ path: `${shots}/07-game-detail.png` });
 
   // 10a. Mark Hades as currently playing (no finish date)
@@ -424,6 +445,18 @@ try {
   check(`login timing similar for unknown email (${known.toFixed(0)}ms vs ${unknown.toFixed(0)}ms)`, known > 100 && unknown > known * 0.5);
 
   // 17. Change password: wrong current rejected; success signs out everywhere
+  // and voids reset links sent before the change.
+  const staleAskedAt = new Date().toISOString();
+  {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    await p.goto(`${BASE}/forgot-password`);
+    await p.fill("#forgot-email", email);
+    await p.getByRole("button", { name: "Send reset link" }).click();
+    await p.waitForSelector("text=Check your email");
+    await ctx.close();
+  }
+  const staleResetLink = linkIn(await waitForEmail(email, "Reset your Beaten password", staleAskedAt), "/reset-password");
   await signInIn(page);
   await page.goto(`${BASE}/settings`);
   const newPassword = `Changed#${Date.now()}y`;
@@ -443,6 +476,13 @@ try {
   check("sign in works with the new password", true);
   await waitForEmail(email, "password was changed", registeredAt);
   check("password change sends a notification email", true);
+  {
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    await p.goto(staleResetLink);
+    check("password change voids earlier reset links", await p.getByText("Link expired").isVisible());
+    await ctx.close();
+  }
 
   // 18. Forgot password: same answer for unknown emails; reset link works once
   await page.getByRole("button", { name: "Sign out" }).click();
@@ -466,6 +506,8 @@ try {
   );
   const resetLink = linkIn(resetMail, "/reset-password");
   await page.goto(resetLink);
+  await page.waitForFunction(() => !location.search.includes("token="), null, { timeout: 5000 }).catch(() => {});
+  check("reset token is removed from the address bar", !page.url().includes("token="));
   check(
     "reset page sets no-referrer",
     (await page.locator('meta[name="referrer"]').getAttribute("content")) === "no-referrer"

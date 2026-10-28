@@ -7,9 +7,10 @@ import Link from "next/link";
 import { resendVerification } from "@/app/actions/account";
 import { registerUser } from "@/app/actions/auth";
 import { NewPasswordField } from "./NewPasswordField";
+import { REQUEST_FAILED, safeAction } from "@/lib/safe-action";
 
 export const inputClass =
-  "w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/60 focus:border-mint/60 focus:ring-1 focus:ring-mint/40";
+  "w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/70 focus:border-mint/60 focus:ring-1 focus:ring-mint/40";
 
 export const buttonClass =
   "w-full rounded-md bg-mint px-3 py-2 text-sm font-semibold text-canvas hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition";
@@ -28,7 +29,7 @@ function GoogleButton() {
 
 function Divider() {
   return (
-    <div className="flex items-center gap-3 text-xs text-fog/70">
+    <div className="flex items-center gap-3 text-xs text-fog/85">
       <span className="h-px flex-1 bg-edge" />
       or
       <span className="h-px flex-1 bg-edge" />
@@ -60,8 +61,10 @@ export function LoginForm({
         email,
         password,
         redirect: false,
-      });
-      if (res?.code === "email_not_verified") {
+      }).catch(() => null);
+      if (!res) {
+        setError(REQUEST_FAILED);
+      } else if (res.code === "email_not_verified") {
         setUnverified(true);
       } else if (res?.error) {
         setError("Incorrect email or password");
@@ -91,6 +94,7 @@ export function LoginForm({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
+          aria-label="Email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -102,6 +106,7 @@ export function LoginForm({
           name="password"
           id="login-password"
           autoComplete="current-password"
+          aria-label="Password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -118,8 +123,9 @@ export function LoginForm({
                 type="button"
                 onClick={() =>
                   startTransition(async () => {
-                    await resendVerification(email);
-                    setResent(true);
+                    const result = await safeAction(() => resendVerification(email));
+                    if (result.ok) setResent(true);
+                    else setError(result.error);
                   })
                 }
                 className="underline hover:text-white"
@@ -173,7 +179,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await registerUser({ name, username, email, password });
+      const result = await safeAction(() => registerUser({ name, username, email, password }));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -212,6 +218,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           id="register-name"
           maxLength={50}
           autoComplete="name"
+          aria-label="Display name"
           placeholder="Display name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -228,12 +235,13 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             autoCorrect="off"
             spellCheck={false}
             pattern="@?[A-Za-z0-9_]{3,20}"
+            aria-label="Username"
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-fog/70">
+          <p className="mt-1 text-xs text-fog/85">
             Your public profile: /u/{username.trim().replace(/^@/, "").toLowerCase() || "username"}
           </p>
         </div>
@@ -247,6 +255,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
+          aria-label="Email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}

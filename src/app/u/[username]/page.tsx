@@ -273,7 +273,9 @@ export default async function ProfilePage({ params }: Params) {
               {reviews.map((log) => (
                 <li key={log.id} className="flex gap-4 rounded-xl border border-edge bg-card p-4">
                   <div className="w-16 shrink-0">
-                    <Poster name={log.game.name} coverUrl={log.game.coverUrl} />
+                    <GameLink igdbId={log.game.igdbId}>
+                      <Poster name={log.game.name} coverUrl={log.game.coverUrl} />
+                    </GameLink>
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -282,7 +284,7 @@ export default async function ProfilePage({ params }: Params) {
                       {log.rating != null && <Stars rating={log.rating} />}
                     </div>
                     <p className="mt-0.5 text-xs text-fog">{formatDate(log.finishedAt)}</p>
-                    <p className="mt-2 whitespace-pre-line text-sm text-fog/90">
+                    <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
                       {log.reviewText}
                     </p>
                   </div>
@@ -298,16 +300,18 @@ export default async function ProfilePage({ params }: Params) {
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {shelves.map((shelf) => (
                 <div key={shelf.id} className="rounded-xl border border-edge bg-card p-4">
-                  <h3 className="font-semibold">{shelf.name}</h3>
+                  <h3 className="break-words font-semibold">{shelf.name}</h3>
                   <p className="text-xs text-fog">
                     {shelf._count.items} {shelf._count.items === 1 ? "game" : "games"}
                   </p>
                   {shelf.description && (
-                    <p className="mt-1 text-sm text-fog/90">{shelf.description}</p>
+                    <p className="mt-1 break-words text-sm text-fog/90">{shelf.description}</p>
                   )}
                   <div className="mt-3 grid grid-cols-8 gap-1.5">
                     {shelf.items.map((item) => (
-                      <Poster key={item.id} name={item.game.name} coverUrl={item.game.coverUrl} />
+                      <GameLink key={item.id} igdbId={item.game.igdbId}>
+                        <Poster name={item.game.name} coverUrl={item.game.coverUrl} />
+                      </GameLink>
                     ))}
                   </div>
                 </div>

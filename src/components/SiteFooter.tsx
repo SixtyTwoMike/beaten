@@ -11,7 +11,7 @@ export function SiteFooter() {
   const igdbSource =
     process.env.IGDB_MOCK === "1" ? "from built-in sample catalog" : "via IGDB";
   return (
-    <footer className="border-t border-edge px-4 py-6 text-center text-xs text-fog/60">
+    <footer className="border-t border-edge px-4 py-6 text-center text-xs text-fog/85">
       <p>
         Beaten — game data {igdbSource} ·{" "}
         <Link href="/support" className="text-fog hover:text-white hover:underline">

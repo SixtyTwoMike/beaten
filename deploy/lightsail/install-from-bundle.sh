@@ -86,10 +86,22 @@ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
 NGINX
 
-# App locations. Sign-in posts and account-form POSTs (server actions) are
-# rate limited; GETs never are.
+# Headers for every app response. Server actions accept POSTs on any page
+# path, so framing is denied site-wide (clickjacking on settings forms).
+cat > /etc/nginx/snippets/beaten-headers.conf <<'NGINX'
+add_header X-Frame-Options DENY always;
+add_header Content-Security-Policy "frame-ancestors 'none'" always;
+add_header X-Content-Type-Options nosniff always;
+add_header Referrer-Policy strict-origin-when-cross-origin always;
+NGINX
+
+# App locations. Every POST is rate limited per IP (GETs never are): Next.js
+# dispatches a server action to whatever page path it's posted to, so the
+# stricter path-based limits below can't be the only line of defence.
+# Per-account limits on password checks live in the app.
 cat > /etc/nginx/snippets/beaten-app.conf <<'NGINX'
 client_max_body_size 1m;
+include snippets/beaten-headers.conf;
 
 location = /api/auth/callback/credentials {
     limit_req zone=auth burst=5 nodelay;
@@ -97,8 +109,8 @@ location = /api/auth/callback/credentials {
     proxy_pass http://127.0.0.1:3000;
 }
 
-# Server-action POSTs that hash passwords or send email.
-location ~ ^/(register|login|forgot-password|reset-password|verify-email)$ {
+# Pages whose server actions hash passwords or send email.
+location ~ ^/(register|login|forgot-password|reset-password|verify-email|settings)$ {
     limit_req zone=register burst=5 nodelay;
     include snippets/beaten-proxy.conf;
     proxy_pass http://127.0.0.1:3000;
@@ -116,12 +128,12 @@ location ~ ^/u/[^/]+/card$ {
     proxy_cache_use_stale updating error timeout;
     proxy_ignore_headers Set-Cookie;
     proxy_hide_header Set-Cookie;
-    add_header X-Cache-Status $upstream_cache_status always;
     include snippets/beaten-proxy.conf;
     proxy_pass http://127.0.0.1:3000;
 }
 
 location / {
+    limit_req zone=posts burst=20 nodelay;
     include snippets/beaten-proxy.conf;
     proxy_pass http://127.0.0.1:3000;
 }
@@ -151,9 +163,11 @@ map $request_method $auth_post_key {
     default "";
 }
 limit_req_zone $auth_post_key zone=register:10m rate=10r/m;
+limit_req_zone $auth_post_key zone=posts:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=cardrate:10m rate=30r/m;
 proxy_cache_path /var/cache/nginx/beaten-cards levels=1:2 keys_zone=cardcache:10m max_size=200m inactive=1h use_temp_path=off;
 limit_req_status 429;
+server_tokens off;
 
 NGINX
     if [ -n "$BEATEN_DOMAIN" ] && [ -f "$cert" ]; then
@@ -194,6 +208,7 @@ server {
     ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
     return 301 https://$BEATEN_DOMAIN\$request_uri;
 }
 NGINX

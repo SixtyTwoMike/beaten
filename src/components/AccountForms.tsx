@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { requestPasswordReset, resetPassword, verifyEmail } from "@/app/actions/account";
 import { buttonClass, inputClass } from "./AuthForms";
 import { NewPasswordField } from "./NewPasswordField";
+import { safeAction } from "@/lib/safe-action";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -26,7 +27,7 @@ export function ForgotPasswordForm() {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await requestPasswordReset(email);
+      const result = await safeAction(() => requestPasswordReset(email));
       if (!result.ok) setError(result.error);
       else setSent(true);
     });
@@ -68,6 +69,7 @@ export function ForgotPasswordForm() {
           autoCorrect="off"
           spellCheck={false}
           maxLength={254}
+          aria-label="Email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -88,7 +90,18 @@ export function ForgotPasswordForm() {
   );
 }
 
+// The token arrives in the query string; take it out of the address bar (and
+// so out of history and any later Referer) once the page has it.
+function useHideTokenFromUrl() {
+  useEffect(() => {
+    if (window.location.search.includes("token=")) {
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    }
+  }, []);
+}
+
 export function ResetPasswordForm({ token, email }: { token: string; email: string }) {
+  useHideTokenFromUrl();
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +111,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await resetPassword({ token, newPassword: password });
+      const result = await safeAction(() => resetPassword({ token, newPassword: password }));
       if (!result.ok) setError(result.error);
       else router.replace("/login?reset=1");
     });
@@ -130,7 +143,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Saving…" : "Save new password"}
         </button>
-        <p className="text-xs text-fog/70">
+        <p className="text-xs text-fog/85">
           This signs you out on every device.
         </p>
       </form>
@@ -139,6 +152,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
 }
 
 export function VerifyEmailForm({ token }: { token: string }) {
+  useHideTokenFromUrl();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -146,7 +160,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
   function confirm() {
     setError(null);
     startTransition(async () => {
-      const result = await verifyEmail(token);
+      const result = await safeAction(() => verifyEmail(token));
       if (!result.ok) setError(result.error);
       else router.replace("/login?verified=1");
     });
@@ -159,7 +173,7 @@ export function VerifyEmailForm({ token }: { token: string }) {
       </p>
       {error && (
         <p className="mb-3 text-sm text-red-400">
-          {error}.{" "}
+          {error.replace(/\.$/, "")}.{" "}
           <Link href="/login" className="underline">
             Sign in
           </Link>{" "}

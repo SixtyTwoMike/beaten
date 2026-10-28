@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateSocialLinks } from "@/app/actions/profile";
 import { inputClass } from "./AuthForms";
+import { safeAction } from "@/lib/safe-action";
 
 export function SocialLinksForm({
   instagram,
@@ -24,7 +25,7 @@ export function SocialLinksForm({
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const result = await updateSocialLinks({ instagram: ig, bluesky: bs });
+      const result = await safeAction(() => updateSocialLinks({ instagram: ig, bluesky: bs }));
       if (!result.ok) return setError(result.error);
       setSaved(true);
       router.refresh();
@@ -44,7 +45,7 @@ export function SocialLinksForm({
         {label}
       </label>
       <div className="mt-1 flex items-center rounded-md border border-edge bg-canvas focus-within:border-mint/60 focus-within:ring-1 focus-within:ring-mint/40">
-        <span className="pl-3 text-sm text-fog/70">{prefix}</span>
+        <span className="pl-3 text-sm text-fog/85">{prefix}</span>
         <input
           id={id}
           value={value}

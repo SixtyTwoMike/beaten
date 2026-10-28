@@ -8,6 +8,13 @@ export const MAX_SHELF_NAME = 60;
 export const MAX_SHELF_DESCRIPTION = 500;
 export const MAX_SHELVES_PER_LOG = 50;
 
+// IGDB ids are stored as SQLite INT4; anything larger can't be a real id.
+const MAX_INT4 = 2147483647;
+
 export function isIgdbId(value: unknown): value is number {
-  return Number.isInteger(value) && (value as number) > 0;
+  return Number.isInteger(value) && (value as number) > 0 && (value as number) <= MAX_INT4;
 }
+
+// Diary year filter range.
+export const MIN_YEAR = 1950;
+export const MAX_YEAR = 2100;

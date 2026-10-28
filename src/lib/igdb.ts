@@ -32,6 +32,10 @@ export function igdbConfigured(): boolean {
   );
 }
 
+// Fail fast when Twitch/IGDB stall, so pages fall back to the local cache
+// instead of hanging until nginx gives up.
+const IGDB_TIMEOUT_MS = 5000;
+
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getTwitchToken(): Promise<string> {
@@ -45,6 +49,7 @@ async function getTwitchToken(): Promise<string> {
   });
   const res = await fetch(`https://id.twitch.tv/oauth2/token?${params}`, {
     method: "POST",
+    signal: AbortSignal.timeout(IGDB_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`Twitch token request failed: ${res.status}`);
@@ -67,6 +72,7 @@ async function igdbQuery<T>(endpoint: string, body: string): Promise<T[]> {
       Accept: "application/json",
     },
     body,
+    signal: AbortSignal.timeout(IGDB_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`IGDB ${endpoint} request failed: ${res.status}`);

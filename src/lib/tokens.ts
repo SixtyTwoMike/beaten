@@ -20,11 +20,19 @@ function hashToken(token: string): string {
 }
 
 // Returns the raw token to email, or null when the hourly cap is reached.
-export async function issueToken(userId: string, purpose: TokenPurpose): Promise<string | null> {
-  const recent = await prisma.authToken.count({
-    where: { userId, purpose, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
-  });
-  if (recent >= MAX_PER_HOUR) return null;
+// Support (the admin CLI) skips the cap: public forms could otherwise use it
+// up and block a recovery.
+export async function issueToken(
+  userId: string,
+  purpose: TokenPurpose,
+  options: { skipCap?: boolean } = {}
+): Promise<string | null> {
+  if (!options.skipCap) {
+    const recent = await prisma.authToken.count({
+      where: { userId, purpose, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
+    });
+    if (recent >= MAX_PER_HOUR) return null;
+  }
   const token = randomBytes(32).toString("base64url");
   await prisma.authToken.create({
     data: {
@@ -61,4 +69,12 @@ export async function consumeToken(token: string, purpose: TokenPurpose) {
     where: { userId: row.userId, purpose, usedAt: null },
   });
   return row;
+}
+
+// Voids unused tokens (all, or of one kind), e.g. after a password or email
+// change, so links already sent can't undo it.
+export async function revokeTokens(userId: string, purpose?: TokenPurpose) {
+  await prisma.authToken.deleteMany({
+    where: { userId, usedAt: null, ...(purpose ? { purpose } : {}) },
+  });
 }

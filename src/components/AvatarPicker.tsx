@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { clearAvatar, setAvatar } from "@/app/actions/profile";
 import { MAX_ZOOM, MIN_ZOOM, avatarLayout, clamp, type AvatarSource } from "@/lib/avatar";
 import { Avatar } from "./Avatar";
+import { safeAction } from "@/lib/safe-action";
 
 export type AvatarGame = {
   gameId: string;
@@ -70,7 +71,7 @@ export function AvatarPicker({
     if (!crop) return;
     setError(null);
     startTransition(async () => {
-      const result = await setAvatar(crop);
+      const result = await safeAction(() => setAvatar(crop));
       if (!result.ok) return setError(result.error);
       setSaved(true);
       router.refresh();
@@ -80,7 +81,7 @@ export function AvatarPicker({
   function remove() {
     setError(null);
     startTransition(async () => {
-      const result = await clearAvatar();
+      const result = await safeAction(() => clearAvatar());
       if (!result.ok) return setError(result.error);
       setCrop(null);
       setSaved(false);
@@ -148,7 +149,7 @@ export function AvatarPicker({
                   className="mt-1 block w-full accent-[var(--color-mint)]"
                 />
               </label>
-              <p className="text-xs text-fog/70">Drag the picture to reposition it.</p>
+              <p className="text-xs text-fog/85">Drag the picture to reposition it.</p>
             </>
           ) : (
             <p className="text-sm text-fog">Pick a game below to use its art.</p>
