@@ -4,8 +4,24 @@ import { LoginForm } from "@/components/AuthForms";
 
 export const metadata = { title: "Sign in — Beaten" };
 
-export default async function LoginPage() {
+// One-off notices shown above the form after redirects from other flows.
+const NOTICES: Record<string, string> = {
+  changed: "Password changed. Sign in with your new password.",
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await auth();
   if (session?.user) redirect("/");
-  return <LoginForm googleEnabled={googleEnabled} />;
+  const params = await searchParams;
+  const notice = Object.keys(NOTICES).find((key) => params[key] === "1");
+  return (
+    <LoginForm
+      googleEnabled={googleEnabled}
+      notice={notice ? NOTICES[notice] : null}
+    />
+  );
 }

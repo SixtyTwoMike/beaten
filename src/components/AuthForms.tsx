@@ -5,11 +5,12 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { registerUser } from "@/app/actions/auth";
+import { NewPasswordField } from "./NewPasswordField";
 
-const inputClass =
+export const inputClass =
   "w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/60 focus:border-mint/60 focus:ring-1 focus:ring-mint/40";
 
-const buttonClass =
+export const buttonClass =
   "w-full rounded-md bg-mint px-3 py-2 text-sm font-semibold text-canvas hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition";
 
 function GoogleButton() {
@@ -34,7 +35,13 @@ function Divider() {
   );
 }
 
-export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function LoginForm({
+  googleEnabled,
+  notice = null,
+}: {
+  googleEnabled: boolean;
+  notice?: string | null;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +69,11 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   return (
     <div className="w-full max-w-sm rounded-xl border border-edge bg-card p-6 shadow-xl">
       <h1 className="mb-4 text-lg font-semibold">Sign in</h1>
+      {notice && (
+        <p role="status" className="mb-4 rounded-md bg-mint/10 px-3 py-2 text-sm text-mint">
+          {notice}
+        </p>
+      )}
       <form onSubmit={submit} className="space-y-3">
         <input
           type="email"
@@ -118,8 +130,6 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  const passwordTooShort = password.length > 0 && password.length < 8;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -195,27 +205,12 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
         />
-        <div>
-          <input
-            type="password"
-            required
-            minLength={8}
-            maxLength={72}
-            name="new-password"
-            id="register-password"
-            autoComplete="new-password"
-            passwordrules="minlength: 8; maxlength: 72;"
-            placeholder="Password (8+ characters)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
-          />
-          {passwordTooShort && (
-            <p className="mt-1 text-xs text-gold">
-              At least 8 characters required
-            </p>
-          )}
-        </div>
+        <NewPasswordField
+          id="register-password"
+          value={password}
+          onChange={setPassword}
+          className={inputClass}
+        />
         {error && <p className="text-sm text-red-400">{error}</p>}
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Creating account…" : "Create account"}

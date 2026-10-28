@@ -3,7 +3,8 @@ import { chromium } from "playwright-core";
 
 const BASE = "http://localhost:3000";
 const email = `smoke-${Date.now()}@example.com`;
-const password = "hunter2hunter2";
+// Unique per run so it can't appear in the breached-password corpus.
+let password = `Smoke!${Date.now()}x`;
 const username = `smoke_${Date.now().toString(36)}`;
 const shots = process.env.SMOKE_SHOTS_DIR || "/tmp";
 
@@ -46,7 +47,21 @@ try {
   await page.fill('input[placeholder="Display name"]', "Smoke Tester");
   await page.fill("#register-username", username.toUpperCase());
   await page.fill('input[placeholder="Email"]', email);
-  await page.fill('input[placeholder="Password (8+ characters)"]', password);
+  // Password rules are enforced server-side, not just by the checklist.
+  await page.fill("#register-password", "abcdefghij");
+  check(
+    "password checklist flags missing number/symbol",
+    (await page.locator('#register-password-rules li[data-met="false"]').count()) === 2
+  );
+  await page.locator("#register-password").evaluate((el) => el.removeAttribute("minlength"));
+  await page.click('button[type="submit"]');
+  await page.waitForSelector("text=Password needs");
+  check("weak password rejected by server", true);
+  await page.fill("#register-password", "Password123!");
+  await page.click('button[type="submit"]');
+  await page.waitForSelector("text=appeared in a data breach");
+  check("breached password rejected", true);
+  await page.fill("#register-password", password);
   await page.click('button[type="submit"]');
   await page.waitForURL(BASE + "/");
   check("register lands on dashboard", await page.getByText("Welcome back, Smoke Tester").isVisible());
@@ -256,6 +271,23 @@ try {
   const known = await timeLogin(email);
   const unknown = await timeLogin(`nobody-${Date.now()}@example.com`);
   check(`login timing similar for unknown email (${known.toFixed(0)}ms vs ${unknown.toFixed(0)}ms)`, known > 100 && unknown > known * 0.5);
+
+  // 17. Change password: wrong current rejected; success signs out everywhere
+  await signInIn(page);
+  await page.goto(`${BASE}/settings`);
+  const newPassword = `Changed#${Date.now()}y`;
+  await page.fill("#current-password", "not-my-password");
+  await page.fill("#change-new-password", newPassword);
+  await page.getByRole("button", { name: "Change password" }).click();
+  await page.waitForSelector("text=Current password is incorrect");
+  check("change password rejects wrong current password", true);
+  await page.fill("#current-password", password);
+  await page.getByRole("button", { name: "Change password" }).click();
+  await page.waitForURL("**/login?changed=1");
+  check("password change signs out with notice", await page.getByText("Password changed").isVisible());
+  password = newPassword;
+  await signInIn(page);
+  check("sign in works with the new password", true);
 } catch (e) {
   failures++;
   console.error("FAIL (exception):", e.message);

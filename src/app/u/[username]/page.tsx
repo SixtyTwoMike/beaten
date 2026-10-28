@@ -8,6 +8,7 @@ import { normalizeUsername } from "@/lib/username";
 import { Backdrop } from "@/components/Backdrop";
 import { Logo } from "@/components/Logo";
 import { Poster } from "@/components/Poster";
+import { SiteFooter } from "@/components/SiteFooter";
 import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -278,9 +279,7 @@ export default async function ProfilePage({ params }: Params) {
         )}
       </main>
 
-      <footer className="border-t border-edge py-6 text-center text-xs text-fog/60">
-        Beaten — game data via IGDB
-      </footer>
+      <SiteFooter />
     </>
   );
 }

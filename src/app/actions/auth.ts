@@ -4,7 +4,9 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
-import { MAX_EMAIL, MAX_NAME, MAX_PASSWORD_BYTES } from "@/lib/limits";
+import { MAX_EMAIL, MAX_NAME } from "@/lib/limits";
+import { passwordError } from "@/lib/password";
+import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
 import { normalizeUsername, usernameError } from "@/lib/username";
 import type { ActionResult } from "./logs";
 
@@ -31,12 +33,8 @@ export async function registerUser(input: {
     }
     const badUsername = usernameError(username);
     if (badUsername) return { ok: false, error: badUsername };
-    if (password.length < 8) {
-      return { ok: false, error: "Password must be at least 8 characters" };
-    }
-    if (Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES) {
-      return { ok: false, error: "Password must be 72 characters or fewer" };
-    }
+    const badPassword = passwordError(password);
+    if (badPassword) return { ok: false, error: badPassword };
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -44,6 +42,10 @@ export async function registerUser(input: {
     }
     if (await prisma.user.findUnique({ where: { username } })) {
       return { ok: false, error: "That username is taken" };
+    }
+
+    if (await isBreachedPassword(password)) {
+      return { ok: false, error: BREACHED_PASSWORD_ERROR };
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -87,5 +89,49 @@ export async function signOutEverywhere(): Promise<ActionResult> {
   } catch (e) {
     console.error("signOutEverywhere failed:", e);
     return { ok: false, error: "Something went wrong signing you out" };
+  }
+}
+
+// Changing the password signs out every session, including this one; the
+// client sends the user to /login to sign in with the new password.
+export async function changePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<ActionResult> {
+  try {
+    const userId = await requireUserId();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!user?.passwordHash) {
+      return { ok: false, error: "This account signs in with Google" };
+    }
+    if (
+      input.currentPassword.length > 128 ||
+      !(await bcrypt.compare(input.currentPassword, user.passwordHash))
+    ) {
+      return { ok: false, error: "Current password is incorrect" };
+    }
+    const badPassword = passwordError(input.newPassword);
+    if (badPassword) return { ok: false, error: badPassword };
+    if (input.newPassword === input.currentPassword) {
+      return { ok: false, error: "Choose a password you haven't used here before" };
+    }
+    if (await isBreachedPassword(input.newPassword)) {
+      return { ok: false, error: BREACHED_PASSWORD_ERROR };
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: await bcrypt.hash(input.newPassword, 12),
+        tokenVersion: { increment: 1 },
+      },
+    });
+    return { ok: true };
+  } catch (e) {
+    console.error("changePassword failed:", e);
+    return { ok: false, error: "Something went wrong changing your password" };
   }
 }

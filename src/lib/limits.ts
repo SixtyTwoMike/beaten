@@ -3,8 +3,6 @@
 
 export const MAX_EMAIL = 254;
 export const MAX_NAME = 50;
-// bcrypt only uses the first 72 bytes of a password.
-export const MAX_PASSWORD_BYTES = 72;
 export const MAX_REVIEW = 5000;
 export const MAX_SHELF_NAME = 60;
 export const MAX_SHELF_DESCRIPTION = 500;
