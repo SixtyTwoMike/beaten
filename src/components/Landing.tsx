@@ -43,7 +43,7 @@ export async function Landing() {
   const covers = await showcase();
   return (
     <>
-      <header className="absolute inset-x-0 top-0 z-30">
+      <header className="relative z-30 lg:absolute lg:inset-x-0 lg:top-0">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6">
           <Logo href="/" />
           <nav className="ml-auto flex items-center gap-2 text-sm">
@@ -61,7 +61,7 @@ export async function Landing() {
       </header>
 
       <main className="relative flex flex-1 flex-col lg:min-h-[44rem] lg:flex-row">
-        <section className="relative mt-12 h-[19rem] sm:h-[28rem] lg:absolute lg:mt-0 lg:inset-y-0 lg:left-0 lg:h-auto lg:w-[56%]">
+        <section className="relative h-[19rem] sm:h-[28rem] lg:absolute lg:inset-y-0 lg:left-0 lg:h-auto lg:w-[56%]">
           <Coverflow items={covers} />
           {/* Blend the showcase into the text side and the page. */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-canvas/60 via-transparent to-canvas lg:bg-gradient-to-r lg:from-transparent lg:via-transparent lg:to-canvas" />
