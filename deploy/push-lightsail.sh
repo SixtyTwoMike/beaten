@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Builds the bundle and installs it on the Lightsail instance over SSH, using
+# short-lived credentials from `aws lightsail get-instance-access-details`.
+# Also copies TWITCH_CLIENT_ID/SECRET from your local .env into the server's
+# root-only /etc/beaten.env (sent over SSH stdin, never on a command line).
+#
+# Usage: ./deploy/push-lightsail.sh [--no-build]
+#   Re-run any time to deploy the current checkout. Database migrations are
+#   applied on the server; existing data is kept.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+NAME="${LIGHTSAIL_NAME:-beaten-prod}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$(aws configure get region || echo us-east-1)}"
+TARBALL=deploy/out/beaten-bundle.tar.gz
+
+if [ "${1:-}" != "--no-build" ] || [ ! -f "$TARBALL" ]; then
+  ./deploy/build-lightsail-bundle.sh
+fi
+
+KEYDIR=$(mktemp -d)
+trap 'rm -rf "$KEYDIR"' EXIT
+ACCESS=$(aws lightsail get-instance-access-details --instance-name "$NAME" \
+  --protocol ssh --output json)
+node -e '
+  const a = JSON.parse(require("fs").readFileSync(0, "utf8")).accessDetails;
+  const fs = require("fs"), dir = process.argv[1];
+  fs.writeFileSync(`${dir}/key`, a.privateKey, { mode: 0o600 });
+  fs.writeFileSync(`${dir}/key-cert.pub`, a.certKey);
+  fs.writeFileSync(`${dir}/known_hosts`,
+    a.hostKeys.map((k) => `${a.ipAddress} ${k.algorithm} ${k.publicKey}`).join("\n") + "\n");
+  fs.writeFileSync(`${dir}/target`, `${a.username}@${a.ipAddress}`);
+' "$KEYDIR" <<<"$ACCESS"
+TARGET=$(cat "$KEYDIR/target")
+SSH_OPTS=(-i "$KEYDIR/key" -o CertificateFile="$KEYDIR/key-cert.pub"
+  -o UserKnownHostsFile="$KEYDIR/known_hosts" -o StrictHostKeyChecking=yes
+  -o BatchMode=yes -o ConnectTimeout=10)
+
+echo "==> waiting for base setup on $TARGET"
+for i in $(seq 1 40); do
+  if ssh "${SSH_OPTS[@]}" "$TARGET" test -f /var/lib/beaten-base-ready 2>/dev/null; then
+    break
+  fi
+  [ "$i" = 40 ] && { echo "Base setup never finished; see /var/log/beaten-bootstrap.log" >&2; exit 1; }
+  sleep 15
+done
+
+echo "==> uploading bundle + installer"
+ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p ~/beaten-upload"
+scp -q "${SSH_OPTS[@]}" "$TARBALL" deploy/lightsail/install-from-bundle.sh \
+  "$TARGET:beaten-upload/"
+
+# Merge IGDB credentials into /etc/beaten.env when they're set locally.
+CID=$(sed -n 's/^TWITCH_CLIENT_ID=//p' .env 2>/dev/null | tail -1)
+CSECRET=$(sed -n 's/^TWITCH_CLIENT_SECRET=//p' .env 2>/dev/null | tail -1)
+if [ -n "$CID" ] && [ -n "$CSECRET" ]; then
+  echo "==> setting IGDB credentials"
+  printf 'TWITCH_CLIENT_ID=%s\nTWITCH_CLIENT_SECRET=%s\nIGDB_MOCK=0\n' "$CID" "$CSECRET" |
+    ssh "${SSH_OPTS[@]}" "$TARGET" 'sudo bash -c '\''
+      umask 077
+      new=$(cat)
+      keys=$(printf "%s\n" "$new" | cut -d= -f1 | paste -sd"|" -)
+      { grep -vE "^($keys)=" /etc/beaten.env || true; printf "%s\n" "$new"; } > /etc/beaten.env.new
+      mv /etc/beaten.env.new /etc/beaten.env
+    '\'''
+else
+  echo "==> no TWITCH_CLIENT_ID/SECRET in .env — server keeps its current IGDB setting"
+fi
+
+echo "==> installing"
+SHA=$(shasum -a 256 "$TARBALL" | cut -d' ' -f1)
+ssh "${SSH_OPTS[@]}" "$TARGET" "sudo install -m 755 ~/beaten-upload/install-from-bundle.sh /usr/local/bin/beaten-install &&
+  sudo /usr/local/bin/beaten-install file://\$HOME/beaten-upload/beaten-bundle.tar.gz $SHA >/tmp/beaten-install.log 2>&1 ||
+  { tail -40 /tmp/beaten-install.log; exit 1; }
+  tail -3 /tmp/beaten-install.log"
+
+DOMAIN=$(ssh "${SSH_OPTS[@]}" "$TARGET" "sudo sed -n 's/^BEATEN_DOMAIN=//p' /etc/beaten.env")
+IP=${TARGET#*@}
+echo "==> checking"
+curl -s -o /dev/null -w "   http://$IP/login -> %{http_code}\n" --max-time 10 "http://$IP/login" -H "Host: $DOMAIN" || true
+curl -s -o /dev/null -w "   https://$DOMAIN/login -> %{http_code}\n" --max-time 10 "https://$DOMAIN/login" || true

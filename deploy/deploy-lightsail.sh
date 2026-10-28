@@ -7,29 +7,34 @@
 #
 # Requires lightsail:* permissions (see deploy/iam-lightsail-policy.json).
 #
-# Typical flow:
-#   1. Build + upload the artifact (see deploy/README.md):
-#        npm run build; stage standalone bundle; upload beaten-bundle.tar.gz
-#        to a Lightsail bucket with public getObject access
-#   2. BUNDLE_URL=https://<bucket>.s3.<region>.amazonaws.com/beaten-bundle.tar.gz \
-#        ./deploy/deploy-lightsail.sh
+# Usage:
+#   BEATEN_DOMAIN=beaten.example.com ./deploy/deploy-lightsail.sh
+#
+# Creates the instance, then hands off to deploy/push-lightsail.sh, which
+# uploads the bundle + installer over SSH (no bucket, no GitHub fetch) and
+# copies IGDB credentials from your local .env. Point an A record for
+# BEATEN_DOMAIN at the printed static IP, then re-run push-lightsail.sh to
+# obtain the HTTPS certificate.
 #
 # Env overrides:
-#   BUNDLE_URL         URL of the prebuilt tarball (required)
+#   BEATEN_DOMAIN      public hostname (required; used for HTTPS + AUTH_URL)
 #   LIGHTSAIL_BUNDLE   instance size id (default: cheapest dual-stack >= 1GB)
 #   LIGHTSAIL_NAME     instance name (default beaten-prod)
-#   DEPLOY_BRANCH      branch whose installer script the instance fetches
-#   TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET   enable live IGDB search
+#   AWS_DEFAULT_REGION region (default: your AWS CLI region)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 NAME="${LIGHTSAIL_NAME:-beaten-prod}"
-REGION="${AWS_DEFAULT_REGION:-us-east-1}"
+REGION="${AWS_DEFAULT_REGION:-$(aws configure get region || echo us-east-1)}"
+export AWS_DEFAULT_REGION="$REGION"
 AZ="${LIGHTSAIL_AZ:-${REGION}a}"
-BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 STATIC_IP_NAME="${LIGHTSAIL_STATIC_IP:-beaten-ip}"
-BUNDLE_URL="${BUNDLE_URL:?set BUNDLE_URL to the prebuilt tarball URL}"
-INSTALLER_URL="https://raw.githubusercontent.com/SixtyTwoMike/beaten/$BRANCH/deploy/lightsail/install-from-bundle.sh"
+DOMAIN="${BEATEN_DOMAIN:?set BEATEN_DOMAIN to the public hostname}"
+
+if aws lightsail get-instance --instance-name "$NAME" >/dev/null 2>&1; then
+  echo "Instance '$NAME' already exists — use deploy/push-lightsail.sh to update it." >&2
+  exit 1
+fi
 
 BLUEPRINT=$(aws lightsail get-blueprints \
   --query "blueprints[?platform=='LINUX_UNIX' && contains(blueprintId,'ubuntu_24')] | [0].blueprintId" \
@@ -51,7 +56,7 @@ PRICE=$(aws lightsail get-bundles \
 echo "==> plan: instance '$NAME' in $AZ"
 echo "    blueprint: $BLUEPRINT"
 echo "    bundle:    $BUNDLE — \$$PRICE/month flat"
-echo "    artifact:  $BUNDLE_URL"
+echo "    domain:    https://$DOMAIN"
 
 mkdir -p deploy/out
 UD=deploy/out/user-data.sh
@@ -74,39 +79,32 @@ NODE_ENV=production
 PORT=3000
 HOSTNAME=127.0.0.1
 DATABASE_URL=file:/opt/beaten/data/beaten.db
+BEATEN_DOMAIN=$DOMAIN
+AUTH_URL=https://$DOMAIN
 AUTH_SECRET=\$(openssl rand -base64 32)
 AUTH_TRUST_HOST=true
-IGDB_MOCK=${IGDB_MOCK:-1}
-TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
-TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
+IGDB_MOCK=1
 ENV
 chmod 600 /etc/beaten.env
 umask 022
 
-cat > /etc/default/beaten-setup <<CONF
-# Values are single-quoted so presigned-URL query separators (ampersands)
-# survive being sourced by the bootstrap script.
-BUNDLE_URL='$BUNDLE_URL'
-INSTALLER_URL='$INSTALLER_URL'
-CONF
 
 cat > /usr/local/bin/beaten-bootstrap <<'BOOT'
 #!/bin/bash
 set -eux
-source /etc/default/beaten-setup
 export DEBIAN_FRONTEND=noninteractive
 APT="apt-get -o DPkg::Lock::Timeout=300"
 
 \$APT update
-\$APT install -y nginx curl
+\$APT install -y nginx curl certbot
 if ! command -v node >/dev/null || [ "\$(node -v | cut -d. -f1)" != "v22" ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   \$APT install -y nodejs
 fi
 
-curl -fsSL --retry 5 "\$INSTALLER_URL" -o /usr/local/bin/beaten-install
-chmod +x /usr/local/bin/beaten-install
-/usr/local/bin/beaten-install "\$BUNDLE_URL"
+# The app itself is installed by deploy/push-lightsail.sh over SSH once this
+# base setup has finished.
+touch /var/lib/beaten-base-ready
 systemctl disable beaten-setup.service
 BOOT
 chmod +x /usr/local/bin/beaten-bootstrap
@@ -147,9 +145,11 @@ for i in $(seq 1 30); do
   sleep 10
 done
 
-echo "==> opening port 80"
+echo "==> opening ports 80 + 443"
 aws lightsail open-instance-public-ports --instance-name "$NAME" \
   --port-info fromPort=80,toPort=80,protocol=TCP >/dev/null
+aws lightsail open-instance-public-ports --instance-name "$NAME" \
+  --port-info fromPort=443,toPort=443,protocol=TCP >/dev/null
 
 echo "==> static IP"
 aws lightsail allocate-static-ip --static-ip-name "$STATIC_IP_NAME" >/dev/null 2>&1 || true
@@ -158,24 +158,14 @@ aws lightsail attach-static-ip --static-ip-name "$STATIC_IP_NAME" \
 IP=$(aws lightsail get-static-ip --static-ip-name "$STATIC_IP_NAME" \
   --query 'staticIp.ipAddress' --output text)
 
-if [ "${SKIP_HTTP_POLL:-0}" = "1" ]; then
-  echo ""
-  echo "Instance created. App will be at: http://$IP (allow ~3 min for setup)"
-  exit 0
-fi
+echo "==> static IP: $IP"
+echo "==> installing the app (waits for base setup, ~3 min)"
+LIGHTSAIL_NAME="$NAME" ./deploy/push-lightsail.sh
 
-echo "==> waiting for the app (setup usually takes ~3 min)"
-for i in $(seq 1 30); do
-  CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://$IP/login" || true)
-  if [ "$CODE" = "200" ]; then
-    echo ""
-    echo "Deployed: http://$IP"
-    exit 0
-  fi
-  echo "   not up yet (http $CODE)"
-  sleep 20
-done
+cat <<DONE
 
-echo "App did not respond in time. Check /var/log/beaten-bootstrap.log via the" >&2
-echo "Lightsail browser SSH console for instance '$NAME'." >&2
-exit 1
+Instance '$NAME' is up at http://$IP
+
+Next: add a DNS A record  $DOMAIN -> $IP
+then run  ./deploy/push-lightsail.sh --no-build  to obtain the HTTPS certificate.
+DONE

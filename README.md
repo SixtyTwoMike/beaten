@@ -27,7 +27,7 @@ Next.js (App Router, TypeScript) · Tailwind CSS · Prisma + SQLite · Auth.js (
 ```bash
 npm install
 cp .env.example .env       # then edit — see below
-npx prisma db push         # creates prisma/dev.db
+npx prisma migrate dev      # creates prisma/dev.db
 npm run dev                # http://localhost:3000
 ```
 
