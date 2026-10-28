@@ -455,17 +455,35 @@ export function plan(view: ChronicleView, images: Images): VideoPlan {
 
 export type Progress = (fraction: number) => void;
 
-async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, onProgress: Progress): Promise<Blob | null> {
+// "full": 1080x1920 for Instagram (which re-compresses to ~3.5 Mbps anyway).
+// "small": 720x1280 at a bitrate worked out from the length, to land under
+// Discord's (and most messengers') 10MB limit.
+export type VideoSize = "full" | "small";
+const SMALL_TARGET_BYTES = 9 * 1024 * 1024;
+
+type Output = { width: number; height: number; bitrate: number; codecs: string[] };
+
+function output(size: VideoSize, duration: number): Output {
+  if (size === "small") {
+    // 4% for the MP4 container and the encoder overshooting.
+    const bitrate = Math.min(2_500_000, Math.floor((SMALL_TARGET_BYTES * 8 * 0.96) / duration));
+    return { width: 720, height: 1280, bitrate, codecs: ["avc1.64001f", "avc1.4d001f", "avc1.42001f"] };
+  }
+  return { width: W, height: H, bitrate: 6_000_000, codecs: ["avc1.640028", "avc1.4d0028", "avc1.42002a"] };
+}
+
+// Plans are drawn at 1080x1920; smaller outputs scale every frame down.
+function drawFrame(p: VideoPlan, ctx: CanvasRenderingContext2D, time: number) {
+  const scale = ctx.canvas.width / W;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  p.draw(ctx, time);
+}
+
+async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, out: Output, onProgress: Progress): Promise<Blob | null> {
   if (typeof VideoEncoder === "undefined") return null;
-  const configs = ["avc1.640028", "avc1.4d0028", "avc1.42002a"].map((codec) => ({
-    codec,
-    width: W,
-    height: H,
-    bitrate: 10_000_000,
-    framerate: FPS,
-  }));
   let config: VideoEncoderConfig | null = null;
-  for (const c of configs) {
+  for (const codec of out.codecs) {
+    const c = { codec, width: out.width, height: out.height, bitrate: out.bitrate, framerate: FPS };
     if ((await VideoEncoder.isConfigSupported(c).catch(() => ({ supported: false }))).supported) {
       config = c;
       break;
@@ -475,7 +493,7 @@ async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, 
 
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
-    video: { codec: "avc", width: W, height: H, frameRate: FPS },
+    video: { codec: "avc", width: out.width, height: out.height, frameRate: FPS },
     fastStart: "in-memory",
   });
   let failure: unknown = null;
@@ -490,7 +508,7 @@ async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, 
   const frames = Math.round(p.duration * FPS);
   for (let f = 0; f < frames; f++) {
     if (failure) throw failure;
-    p.draw(ctx, f / FPS);
+    drawFrame(p, ctx, f / FPS);
     const frame = new VideoFrame(ctx.canvas, { timestamp: Math.round((f * 1_000_000) / FPS), duration: Math.round(1_000_000 / FPS) });
     encoder.encode(frame, { keyFrame: f % (FPS * 2) === 0 });
     frame.close();
@@ -510,10 +528,10 @@ async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, 
 }
 
 // Fallback: play the animation and record it, in real time.
-async function recordInRealTime(p: VideoPlan, ctx: CanvasRenderingContext2D, onProgress: Progress): Promise<Blob> {
+async function recordInRealTime(p: VideoPlan, ctx: CanvasRenderingContext2D, out: Output, onProgress: Progress): Promise<Blob> {
   const type = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"].find((t) => MediaRecorder.isTypeSupported(t));
   const stream = (ctx.canvas as HTMLCanvasElement).captureStream(FPS);
-  const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 10_000_000 });
+  const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: out.bitrate });
   const chunks: Blob[] = [];
   recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const done = new Promise<void>((r) => (recorder.onstop = () => r()));
@@ -522,7 +540,7 @@ async function recordInRealTime(p: VideoPlan, ctx: CanvasRenderingContext2D, onP
   await new Promise<void>((resolve) => {
     const tick = () => {
       const time = (performance.now() - start) / 1000;
-      p.draw(ctx, Math.min(time, p.duration));
+      drawFrame(p, ctx, Math.min(time, p.duration));
       onProgress(Math.min(1, time / p.duration));
       if (time >= p.duration) resolve();
       else requestAnimationFrame(tick);
@@ -534,14 +552,15 @@ async function recordInRealTime(p: VideoPlan, ctx: CanvasRenderingContext2D, onP
   return new Blob(chunks, { type: recorder.mimeType });
 }
 
-export async function renderChronicleVideo(view: ChronicleView, onProgress: Progress): Promise<File> {
+export async function renderChronicleVideo(view: ChronicleView, size: VideoSize, onProgress: Progress): Promise<File> {
   const images = await loadImages(view);
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
   const p = plan(view, images);
-  const blob = (await encodeWithWebCodecs(p, ctx, onProgress)) ?? (await recordInRealTime(p, ctx, onProgress));
+  const out = output(size, p.duration);
+  const canvas = document.createElement("canvas");
+  canvas.width = out.width;
+  canvas.height = out.height;
+  const ctx = canvas.getContext("2d")!;
+  const blob = (await encodeWithWebCodecs(p, ctx, out, onProgress)) ?? (await recordInRealTime(p, ctx, out, onProgress));
   const ext = blob.type.includes("mp4") ? "mp4" : "webm";
-  return new File([blob], `console-chronicles.${ext}`, { type: blob.type });
+  return new File([blob], `console-chronicles${size === "small" ? "-small" : ""}.${ext}`, { type: blob.type });
 }

@@ -359,7 +359,13 @@ function EntryForm({
 // then a second tap hands it to the share sheet (iPhone won't share after
 // a long wait without a fresh tap), or downloads it where sharing files
 // isn't supported. Keyed by the chronicle's version, so edits start afresh.
+const VIDEO_SIZES = {
+  full: "Instagram (best quality)",
+  small: "Discord & WhatsApp (under 10MB)",
+} as const;
+
 function VideoShare({ view }: { view: ChronicleView }) {
+  const [size, setSize] = useState<keyof typeof VIDEO_SIZES>("full");
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -374,7 +380,7 @@ function VideoShare({ view }: { view: ChronicleView }) {
     setProgress(0);
     try {
       const { renderChronicleVideo } = await import("@/lib/chronicle-video");
-      setFile(await renderChronicleVideo(view, setProgress));
+      setFile(await renderChronicleVideo(view, size, setProgress));
     } catch (e) {
       console.error("chronicle video failed:", e);
       setError("Couldn't make the video on this device — try again");
@@ -395,6 +401,23 @@ function VideoShare({ view }: { view: ChronicleView }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-fog">A story-sized video that travels down your road, console by console.</p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Video size">
+        {(Object.keys(VIDEO_SIZES) as (keyof typeof VIDEO_SIZES)[]).map((k) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={size === k}
+            disabled={progress != null}
+            onClick={() => {
+              setSize(k);
+              setFile(null);
+            }}
+            className={chip}
+          >
+            {VIDEO_SIZES[k]}
+          </button>
+        ))}
+      </div>
       {progress != null ? (
         <div>
           <div className="h-2 overflow-hidden rounded-full bg-card-2">
@@ -407,6 +430,7 @@ function VideoShare({ view }: { view: ChronicleView }) {
       ) : (
         <div className="space-y-3">
           <video src={url!} controls playsInline muted loop className="max-h-96 w-auto rounded-lg border border-edge" />
+          <p className="text-xs text-fog">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
           <div className="flex flex-wrap gap-2">
             {canShare ? (
               <button type="button" onClick={share} className={primary}>Share video</button>
