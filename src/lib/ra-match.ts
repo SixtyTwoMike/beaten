@@ -1,4 +1,5 @@
-import { searchGames, type IgdbGame } from "./igdb";
+import { findByAlternativeName, searchGames, type IgdbGame } from "./igdb";
+import { titleKey } from "./titles";
 
 // Matches a RetroAchievements game to an IGDB game by title and console.
 // HIGH: same title (after cleanup) on the right platform — preselected for
@@ -61,17 +62,6 @@ export function cleanRaTitle(title: string): string {
   return t.replace(/\s{2,}/g, " ").trim();
 }
 
-// Comparison key: case, punctuation, "&"/"and" and accents don't matter.
-export function titleKey(title: string): string {
-  return title
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 export async function matchRaGame(title: string, consoleId: number | null): Promise<Match> {
   if (isUnmatchableRaTitle(title)) return { game: null, confidence: "NONE" };
   const clean = cleanRaTitle(title);
@@ -79,7 +69,12 @@ export async function matchRaGame(title: string, consoleId: number | null): Prom
   const key = titleKey(clean);
   const platformId = consoleId != null ? RA_TO_IGDB_PLATFORM[consoleId] : undefined;
 
-  const exact = (games: IgdbGame[]) => games.find((g) => titleKey(g.name) === key);
+  // Same title (or an alternative title); among several, the most-rated
+  // (IGDB has near-empty duplicate entries for some classics).
+  const exact = (games: IgdbGame[]) =>
+    games
+      .filter((g) => [g.name, ...(g.altNames ?? [])].some((n) => titleKey(n) === key))
+      .sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0))[0];
 
   // On the right platform first, then anywhere (ports and re-releases are
   // often filed under another platform on IGDB).
@@ -93,6 +88,11 @@ export async function matchRaGame(title: string, consoleId: number | null): Prom
     // Same title on an unmapped console is as good as it gets.
     return { game: anyHit, confidence: platformId ? "LOW" : "HIGH" };
   }
+  // Japanese / regional titles ("Biohazard 2") that search misses.
+  const byAltName = await findByAlternativeName(clean, platformId);
+  const altHit = exact(byAltName) ?? byAltName[0];
+  if (altHit) return { game: altHit, confidence: platformId ? "HIGH" : "LOW" };
+
   const guess = onPlatform[0] ?? anywhere[0];
   return guess ? { game: guess, confidence: "LOW" } : { game: null, confidence: "NONE" };
 }

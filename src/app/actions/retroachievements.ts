@@ -117,6 +117,8 @@ async function matchPending(userId: string) {
   let lookups = 0;
   for (const [raGameId, rows] of byGame) {
     if (lookups >= MATCH_BATCH) break;
+    // Up to 3 IGDB requests per lookup; IGDB allows 4 per second.
+    if (lookups > 0) await new Promise((r) => setTimeout(r, 800));
     lookups++;
     const match = await matchRaGame(rows[0].title, rows[0].consoleId).catch((e) => {
       console.error("RA match failed:", e);
