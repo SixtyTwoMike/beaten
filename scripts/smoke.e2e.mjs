@@ -514,9 +514,17 @@ try {
   await page.fill("#chronicle-console", "genesis");
   check("console search finds the Mega Drive by 'genesis'",
     (await page.getByRole("option").first().textContent()).includes("Mega Drive"));
-  await addConsole("PlayStation 2", "2002", "zelda");
+  await page.fill("#chronicle-console", "Nintendo Switch");
+  await page.getByRole("option", { name: "Nintendo Switch", exact: true }).click();
+  check("diary suggestions are games logged on that console",
+    await page.getByText("From your diary").isVisible() && (await page.locator('button[title="Add The Legend of Zelda: Breath of the Wild"]').count()) === 1);
+  await page.fill("#chronicle-console", "Game Boy Advance");
+  await page.getByRole("option", { name: "Game Boy Advance", exact: true }).click();
+  check("no diary suggestions from other consoles", (await page.getByText("From your diary").count()) === 0);
+  await page.keyboard.press("Escape");
+  await addConsole("PlayStation 2", "2002", null);
   await addConsole("Game Boy Advance", "2001", null);
-  await addConsole("Nintendo Switch", "2017", null);
+  await addConsole("Nintendo Switch", "2017", "zelda");
   await addConsole("Xbox Series X", "2021", null);
   await addConsole("ZX Spectrum +2", "1988", null);
   await page.waitForTimeout(1000);
@@ -527,7 +535,7 @@ try {
   check("first home console and first handheld get badges",
     await stops.nth(2).getByText("First console").isVisible() && await stops.nth(1).getByText("First handheld").isVisible());
   check("console photos are shown", (await page.locator('ol img[src^="/consoles/"]').count()) >= 3);
-  check("favourite games appear on the map", (await stops.nth(2).locator('[title*="Zelda"]').count()) === 1);
+  check("favourite games appear on the map", (await stops.nth(3).locator('[title*="Zelda"]').count()) === 1);
   check("Xbox Series X is its own console with its own photo",
     (await page.locator('ol img[src="/consoles/169-series-x.webp"]').count()) === 1 &&
       (await stops.nth(4).textContent()).includes("Xbox Series X"));

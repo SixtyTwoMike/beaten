@@ -18,28 +18,20 @@ export default async function ChroniclesEditorPage() {
   ]);
   const [view, consoles] = await Promise.all([loadChronicle(profile!), consoleOptions()]);
 
-  // Diary games to suggest as favourites: those logged on each console, and
-  // the best-rated overall for consoles with none.
+  // Diary games to suggest as favourites: those logged on each console,
+  // best-rated first.
   const byPlatform: Record<number, SuggestedGame[]> = {};
-  const overall: SuggestedGame[] = [];
-  const seen = new Set<string>();
   for (const l of logs) {
-    if (l.platformId != null) {
-      const list = (byPlatform[l.platformId] ??= []);
-      if (list.length < 12 && !list.some((g) => g.igdbId === l.game.igdbId)) list.push(l.game);
-    }
-    const key = String(l.game.igdbId);
-    if (overall.length < 12 && !seen.has(key)) {
-      seen.add(key);
-      overall.push(l.game);
-    }
+    if (l.platformId == null) continue;
+    const list = (byPlatform[l.platformId] ??= []);
+    if (list.length < 12 && !list.some((g) => g.igdbId === l.game.igdbId)) list.push(l.game);
   }
 
   return (
     <ChronicleEditor
       view={view}
       consoles={consoles}
-      suggestions={{ byPlatform, overall }}
+      suggestions={{ byPlatform }}
       storyPages={Math.max(1, Math.ceil(view.stops.length / STORY_PER_PAGE))}
     />
   );

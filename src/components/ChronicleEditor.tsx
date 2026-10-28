@@ -70,17 +70,17 @@ function GamePicker({
   platformId: number | null;
   picked: SuggestedGame[];
   onChange: (games: SuggestedGame[]) => void;
-  suggestions: { byPlatform: Record<number, SuggestedGame[]>; overall: SuggestedGame[] };
+  suggestions: { byPlatform: Record<number, SuggestedGame[]> };
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SuggestedGame[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const full = picked.length >= 3;
-  const fromDiary = (platformId != null && suggestions.byPlatform[platformId]?.length
-    ? suggestions.byPlatform[platformId]
-    : suggestions.overall
-  ).filter((g) => !picked.some((p) => p.igdbId === g.igdbId));
+  // Only games logged on this console.
+  const fromDiary = (platformId != null ? suggestions.byPlatform[platformId] ?? [] : []).filter(
+    (g) => !picked.some((p) => p.igdbId === g.igdbId)
+  );
 
   async function search(e: React.FormEvent | React.MouseEvent) {
     e.preventDefault();
@@ -177,7 +177,7 @@ function EntryForm({
 }: {
   stop: ChronicleStop | null;
   consoles: ConsoleOption[];
-  suggestions: { byPlatform: Record<number, SuggestedGame[]>; overall: SuggestedGame[] };
+  suggestions: { byPlatform: Record<number, SuggestedGame[]> };
   birthYear: number | null;
   onDone: () => void;
 }) {
@@ -295,7 +295,9 @@ function EntryForm({
               </div>
             </div>
             <div>
-              <span className={label}>Top 3 games on it</span>
+              <span className={label}>
+                Top 3 games on it <span className="normal-case text-fog/85">(optional)</span>
+              </span>
               <GamePicker platformId={platformId ? Number(platformId) : null} picked={games} onChange={setGames} suggestions={suggestions} />
             </div>
           </div>
@@ -395,7 +397,7 @@ export function ChronicleEditor({
 }: {
   view: ChronicleView;
   consoles: ConsoleOption[];
-  suggestions: { byPlatform: Record<number, SuggestedGame[]>; overall: SuggestedGame[] };
+  suggestions: { byPlatform: Record<number, SuggestedGame[]> };
   storyPages: number;
 }) {
   const router = useRouter();
