@@ -20,24 +20,27 @@ const fieldClass =
 
 const labelClass = "mb-1 block text-xs font-medium uppercase tracking-wide text-fog";
 
+// `wrap`: two per row on phones (for four options).
 function Segmented<T extends string>({
   options,
   value,
   onChange,
+  wrap = false,
 }: {
   options: { value: T; label: string; activeClass: string }[];
   value: T;
   onChange: (v: T) => void;
+  wrap?: boolean;
 }) {
   return (
-    <div className="flex rounded-md border border-edge bg-canvas p-0.5">
+    <div className={`${wrap ? "grid grid-cols-2 gap-0.5 sm:flex" : "flex"} rounded-md border border-edge bg-canvas p-0.5`}>
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition ${
+          className={`flex-1 rounded px-2 py-1.5 text-sm font-medium transition ${
             value === o.value ? o.activeClass : "text-fog hover:text-white"
           }`}
         >
@@ -68,6 +71,8 @@ export function LogGameModal({
     existing && isPlayStatus(existing.status) ? existing.status : defaultStatus
   );
   const isPlaying = status === "PLAYING";
+  const isShelved = status === "SHELVED";
+  const isFinished = isFinishedStatus(status);
   const [platformId, setPlatformId] = useState<string>(
     existing?.platformId ? String(existing.platformId) : ""
   );
@@ -79,6 +84,8 @@ export function LogGameModal({
   const [dateUnknown, setDateUnknown] = useState(
     Boolean(existing && isFinishedStatus(existing.status) && !existing.finishedAt)
   );
+  const [stoppedAt, setStoppedAt] = useState(existing?.stoppedAt ?? todayDateInput());
+  const [notReturning, setNotReturning] = useState(existing?.notReturning ?? false);
   const [isReplay, setIsReplay] = useState<"first" | "replay">(
     existing?.isReplay ? "replay" : "first"
   );
@@ -153,9 +160,11 @@ export function LogGameModal({
         igdbId: game.igdbId,
         status,
         platformId: platformId ? Number(platformId) : null,
-        startedAt: !isPlaying && dateUnknown ? null : startedAt || null,
-        finishedAt: isPlaying || dateUnknown ? null : finishedAt,
-        finishedDateUnknown: !isPlaying && dateUnknown,
+        startedAt: isFinished && dateUnknown ? null : startedAt || null,
+        finishedAt: !isFinished || dateUnknown ? null : finishedAt,
+        finishedDateUnknown: isFinished && dateUnknown,
+        stoppedAt: isShelved ? stoppedAt || null : null,
+        notReturning: isShelved && notReturning,
         isReplay: isReplay === "replay",
         rating: rating || null,
         reviewText: reviewText || null,
@@ -218,6 +227,7 @@ export function LogGameModal({
             <Segmented
               value={status}
               onChange={setStatus}
+              wrap
               options={[
                 {
                   value: "PLAYING",
@@ -233,6 +243,11 @@ export function LogGameModal({
                   value: "MASTERED",
                   label: "★ Mastered",
                   activeClass: "bg-gold text-canvas",
+                },
+                {
+                  value: "SHELVED",
+                  label: "❚❚ Shelved",
+                  activeClass: "bg-fog text-canvas",
                 },
               ]}
             />
@@ -288,7 +303,7 @@ export function LogGameModal({
             </select>
           </div>
 
-          {(isPlaying || !dateUnknown) && (
+          {(!isFinished || !dateUnknown) && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="min-w-0">
                 <label className={labelClass} htmlFor="log-started">
@@ -299,12 +314,26 @@ export function LogGameModal({
                   id="log-started"
                   type="date"
                   value={startedAt}
-                  max={isPlaying ? undefined : finishedAt || undefined}
+                  max={isFinished ? finishedAt || undefined : isShelved ? stoppedAt || undefined : undefined}
                   onChange={(e) => setStartedAt(e.target.value)}
                   className={fieldClass}
                 />
               </div>
-              {!isPlaying && (
+              {isShelved && (
+                <div className="min-w-0">
+                  <label className={labelClass} htmlFor="log-stopped">
+                    Put down <span className="normal-case text-fog/85">(optional)</span>
+                  </label>
+                  <input
+                    id="log-stopped"
+                    type="date"
+                    value={stoppedAt}
+                    onChange={(e) => setStoppedAt(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+              )}
+              {isFinished && (
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="log-finished">
                     Finished
@@ -321,7 +350,19 @@ export function LogGameModal({
               )}
             </div>
           )}
-          {!isPlaying && (
+          {isShelved && (
+            <label className="-mt-1 flex items-center gap-2 text-sm text-fog">
+              <input
+                id="log-not-returning"
+                type="checkbox"
+                checked={notReturning}
+                onChange={(e) => setNotReturning(e.target.checked)}
+                className="accent-[var(--color-mint)]"
+              />
+              Not going back to it
+            </label>
+          )}
+          {isFinished && (
             <label className="-mt-1 flex items-center gap-2 text-sm text-fog">
               <input
                 id="log-date-unknown"

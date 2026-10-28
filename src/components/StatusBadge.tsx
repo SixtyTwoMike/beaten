@@ -13,6 +13,13 @@ export function StatusBadge({ status }: { status: string }) {
       </span>
     );
   }
+  if (status === "SHELVED") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-card-2 px-2 py-0.5 text-xs font-semibold text-fog">
+        ❚❚ Shelved
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-mint/15 px-2 py-0.5 text-xs font-semibold text-mint">
       ✓ Beaten

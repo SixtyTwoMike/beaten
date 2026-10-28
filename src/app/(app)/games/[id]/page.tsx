@@ -186,6 +186,9 @@ export default async function GamePage({
                           {platform.abbreviation ?? platform.name}
                         </span>
                       )}
+                      {log.notReturning && (
+                        <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs text-fog">Not going back</span>
+                      )}
                       <div className="ml-auto">
                         <LogEntryActions
                           game={modalGame}
@@ -199,6 +202,8 @@ export default async function GamePage({
                             finishedAt: log.finishedAt
                               ? toDateInput(log.finishedAt)
                               : null,
+                            stoppedAt: log.stoppedAt ? toDateInput(log.stoppedAt) : null,
+                            notReturning: log.notReturning,
                             isReplay: log.isReplay,
                             rating: log.rating,
                             reviewText: log.reviewText,

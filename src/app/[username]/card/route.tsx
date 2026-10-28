@@ -126,7 +126,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
       where: {
         userId: user.id,
         ...(played
-          ? { OR: [{ status: "PLAYING" }, { finishedAt: { not: null } }] }
+          ? { OR: [{ status: { in: ["PLAYING", "SHELVED"] } }, { finishedAt: { not: null } }] }
           : { finishedAt: { not: null } }),
       },
       orderBy: played ? [{ createdAt: "desc" }] : [{ finishedAt: "desc" }, { createdAt: "desc" }],
@@ -141,10 +141,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     prisma.playLog.count({ where: { userId: user.id, finishedAt: { gte: yearStart } } }),
   ]);
 
-  // "Played" orders by each log's latest date (finished, else started, else
-  // logged), so a game you've just picked up comes before an old finish.
+  // "Played" orders by each log's latest date (finished or put down, else
+  // started, else logged), so a game you've just picked up comes before an
+  // old finish.
   const lastActive = (l: (typeof rawLogs)[number]) =>
-    (l.finishedAt ?? l.startedAt ?? l.createdAt).getTime();
+    (l.finishedAt ?? l.stoppedAt ?? l.startedAt ?? l.createdAt).getTime();
   const logs = played ? [...rawLogs].sort((a, b) => lastActive(b) - lastActive(a)) : rawLogs;
 
   // Most recent log per game, newest first.
@@ -282,7 +283,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
                       letterSpacing: 1.5,
                     }}
                   >
-                    Playing
+                    {g.status === "SHELVED" ? "Shelved" : "Playing"}
                   </div>
                 )}
               </div>

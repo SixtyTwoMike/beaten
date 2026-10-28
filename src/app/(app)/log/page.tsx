@@ -61,10 +61,15 @@ export default async function LogPage({
     .filter((l) => isFinishedStatus(l.status) && !l.finishedAt)
     .sort((a, b) => a.game.name.localeCompare(b.game.name));
 
+  // Shelved games (put down unfinished) also get their own section, most
+  // recently put down first.
+  const shelvedAt = (l: (typeof rawLogs)[number]) => (l.stoppedAt ?? l.updatedAt).getTime();
+  const shelved = rawLogs.filter((l) => l.status === "SHELVED").sort((a, b) => shelvedAt(b) - shelvedAt(a));
+
   // Currently-playing entries (null finishedAt) sort to the top by start date;
   // finished entries follow, most-recently-finished first. A single Prisma
   // orderBy can't express this cleanly with nullable finishedAt.
-  const logs = rawLogs.filter((l) => !undated.includes(l)).sort((a, b) => {
+  const logs = rawLogs.filter((l) => !undated.includes(l) && !shelved.includes(l)).sort((a, b) => {
     const af = a.finishedAt?.getTime();
     const bf = b.finishedAt?.getTime();
     if (af == null && bf == null) {
@@ -134,6 +139,9 @@ export default async function LogPage({
                 {platform.abbreviation ?? platform.name}
               </span>
             )}
+            {log.notReturning && (
+              <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs">Not going back</span>
+            )}
           </p>
           {log.rating != null && (
             <div className="mt-1.5">
@@ -161,6 +169,8 @@ export default async function LogPage({
               platformId: log.platformId,
               startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
               finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
+              stoppedAt: log.stoppedAt ? toDateInput(log.stoppedAt) : null,
+              notReturning: log.notReturning,
               isReplay: log.isReplay,
               rating: log.rating,
               reviewText: log.reviewText,
@@ -184,6 +194,7 @@ export default async function LogPage({
             <option value="PLAYING">Playing</option>
             <option value="BEATEN">Beaten</option>
             <option value="MASTERED">Mastered</option>
+            <option value="SHELVED">Shelved</option>
           </select>
           <select
             name="platform"
@@ -228,9 +239,24 @@ export default async function LogPage({
           </Link>
         </div>
       ) : (
-        <ul className="mt-6 space-y-3">
-          {logs.map(entry)}
-        </ul>
+        logs.length > 0 && (
+          <ul className="mt-6 space-y-3">
+            {logs.map(entry)}
+          </ul>
+        )
+      )}
+
+      {shelved.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold">
+            Shelved <span className="font-normal text-fog">· {shelved.length}</span>
+          </h2>
+          <p className="mt-1 text-sm text-fog">
+            Games you&apos;ve put down without finishing. Pick one back up by
+            editing it and setting it to Playing.
+          </p>
+          <ul className="mt-4 space-y-3">{shelved.map(entry)}</ul>
+        </section>
       )}
 
       {undated.length > 0 && (

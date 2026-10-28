@@ -68,6 +68,9 @@ export async function buildExport(userId: string) {
       platformId: log.platformId,
       startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
       finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
+      // Shelved entries: when it was put down, and whether for good.
+      stoppedAt: log.stoppedAt ? toDateInput(log.stoppedAt) : null,
+      notReturning: log.notReturning,
       isReplay: log.isReplay,
       // 1-10 half-star steps; ratingStars is the same on a 0.5-5 scale.
       rating: log.rating,
@@ -103,11 +106,11 @@ function csvField(value: unknown): string {
 export function diaryCsv(data: BeatenExport): string {
   const header = [
     "Game", "Release year", "IGDB ID", "Status", "Platform", "Started",
-    "Finished", "Rating (stars)", "Replay", "Review", "Shelves",
+    "Finished", "Put down", "Not going back", "Rating (stars)", "Replay", "Review", "Shelves",
   ];
   const rows = data.logs.map((log) => [
     log.game.name, log.game.releaseYear, log.game.igdbId, log.status, log.platform,
-    log.startedAt, log.finishedAt, log.ratingStars, log.isReplay ? "yes" : "no",
+    log.startedAt, log.finishedAt, log.stoppedAt, log.notReturning ? "yes" : "", log.ratingStars, log.isReplay ? "yes" : "no",
     log.review, log.shelves.join("; "),
   ]);
   // BOM so Excel opens UTF-8 (accented game names) correctly.

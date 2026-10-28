@@ -9,7 +9,7 @@ import {
   skipRetroAchievements,
 } from "@/app/actions/retroachievements";
 import { safeAction } from "@/lib/safe-action";
-import { STATUS_LABELS, type PlayStatus } from "@/lib/status";
+import { STATUS_LABELS, STATUS_RANK, type PlayStatus } from "@/lib/status";
 import { Poster } from "./Poster";
 import { StatusBadge } from "./StatusBadge";
 
@@ -29,12 +29,11 @@ export type RaReviewRow = {
   match: MatchedGame | null;
 };
 
-const RANK: Record<string, number> = { PLAYING: 0, BEATEN: 1, MASTERED: 2 };
 
 // What importing this row will do to the diary.
 function effect(kind: string, existing: string | undefined): string {
   if (!existing) return "Adds a new diary entry";
-  if (RANK[existing] >= RANK[kind]) return `Already logged as ${STATUS_LABELS[existing as PlayStatus]} — will just link`;
+  if (STATUS_RANK[existing] >= STATUS_RANK[kind]) return `Already logged as ${STATUS_LABELS[existing as PlayStatus]} — will just link`;
   return `Upgrades your ${STATUS_LABELS[existing as PlayStatus]} entry to ${STATUS_LABELS[kind as PlayStatus]}`;
 }
 

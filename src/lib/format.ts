@@ -25,12 +25,20 @@ export function ratingToStars(rating: number): string {
 }
 
 // One-line dates for a log entry: "Jan 2, 2026 – Feb 3, 2026", "Playing
-// since …", or "Finished, date unknown" for games beaten long ago.
+// since …", "Shelved Mar 4, 2026", or "Finished, date unknown" for games
+// beaten long ago.
 export function logDates(log: {
   status: string;
   startedAt: Date | null;
   finishedAt: Date | null;
+  stoppedAt?: Date | null;
 }): string {
+  if (log.status === "SHELVED") {
+    if (log.stoppedAt) {
+      return `${log.startedAt ? `${formatDate(log.startedAt)} – ` : "Shelved "}${formatDate(log.stoppedAt)}`;
+    }
+    return log.startedAt ? `Started ${formatDate(log.startedAt)}` : "Shelved";
+  }
   if (log.finishedAt) {
     return `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`;
   }

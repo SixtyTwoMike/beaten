@@ -240,6 +240,32 @@ try {
   check("undated finish isn't counted for this year",
     (await page.locator("div", { hasText: new RegExp(`^2Finished in ${new Date().getUTCFullYear()}$`) }).count()) > 0);
 
+  // 7c. Putting a game down: Shelved (not going back) leaves Playing and the
+  // totals alone and gets its own diary section
+  await page.goto(`${BASE}/search`);
+  await page.fill('input[type="search"]', "celeste");
+  await page.waitForSelector("text=Celeste");
+  await page.locator("div.group", { hasText: "Celeste" }).first()
+    .getByRole("button", { name: "Playing", exact: true }).click();
+  await page.waitForSelector("text=Add to your played log");
+  await page.getByRole("button", { name: "❚❚ Shelved" }).click();
+  check("shelving asks when it was put down, not finished",
+    (await page.locator("#log-stopped").count()) === 1 && (await page.locator("#log-finished").count()) === 0);
+  await page.fill("#log-stopped", "2026-03-04");
+  await page.check("#log-not-returning");
+  await page.getByRole("button", { name: "Save log" }).click();
+  await page.waitForSelector("text=Add to your played log", { state: "detached" });
+  await page.goto(`${BASE}/log`);
+  const shelvedSection = page.locator("section", { has: page.getByRole("heading", { name: /^Shelved/ }) });
+  const shelvedRow = shelvedSection.locator("li", { hasText: "Celeste" });
+  check("diary lists shelved games separately",
+    await shelvedRow.getByText("Shelved Mar 4, 2026").isVisible());
+  check("shelved game shows 'Not going back'", await shelvedRow.getByText("Not going back").isVisible());
+  await page.goto(`${BASE}/log?status=SHELVED`);
+  check("status filter finds shelved games", await page.getByText("Celeste").first().isVisible());
+  await page.goto(`${BASE}/`);
+  check("shelved game isn't counted as beaten", (await page.locator("div", { hasText: /^3Games beaten$/ }).count()) > 0);
+
   // 8. Edit a log (change rating)
   await page.goto(`${BASE}/log`);
   const entry = page.locator("li", { hasText: "Breath of the Wild" }).first();

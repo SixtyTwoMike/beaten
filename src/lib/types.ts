@@ -21,7 +21,9 @@ export type ExistingLog = {
   status: string;
   platformId: number | null;
   startedAt: string | null; // YYYY-MM-DD
-  finishedAt: string | null; // YYYY-MM-DD; null while PLAYING, or finished on an unknown date
+  finishedAt: string | null; // YYYY-MM-DD; null while PLAYING or SHELVED, or finished on an unknown date
+  stoppedAt?: string | null; // YYYY-MM-DD; SHELVED only
+  notReturning?: boolean; // SHELVED only
   isReplay: boolean;
   rating: number | null;
   reviewText: string | null;

@@ -20,6 +20,8 @@ export type SaveLogInput = {
   startedAt?: string | null; // YYYY-MM-DD
   finishedAt?: string | null; // YYYY-MM-DD; null while status is PLAYING
   finishedDateUnknown?: boolean; // finished, but they don't remember when
+  stoppedAt?: string | null; // YYYY-MM-DD; SHELVED only, optional
+  notReturning?: boolean; // SHELVED only
   isReplay: boolean;
   rating?: number | null; // 1-10 half-star steps
   reviewText?: string | null;
@@ -58,6 +60,13 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
         return { ok: false, error: "Start date must be before the finish date" };
       }
     }
+    // Shelved: when it was put down (optional), and whether for good.
+    const shelved = input.status === "SHELVED";
+    const stoppedAt = shelved ? parseDate(input.stoppedAt) : null;
+    if (shelved && input.stoppedAt && !stoppedAt) return { ok: false, error: "Invalid date" };
+    if (stoppedAt && startedAt && startedAt > stoppedAt) {
+      return { ok: false, error: "Start date must be before the date you stopped" };
+    }
     let rating: number | null = null;
     if (input.rating != null && input.rating !== 0) {
       rating = Math.round(input.rating);
@@ -88,6 +97,8 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
       platformId,
       startedAt,
       finishedAt,
+      stoppedAt,
+      notReturning: shelved && input.notReturning === true,
       isReplay: Boolean(input.isReplay),
       rating,
       reviewText,

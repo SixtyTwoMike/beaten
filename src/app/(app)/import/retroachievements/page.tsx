@@ -3,11 +3,10 @@ import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { raGameUrl, raIconUrl } from "@/lib/retroachievements";
 import { requireUser } from "@/lib/session";
+import { STATUS_RANK } from "@/lib/status";
 import { RaReviewList, type RaReviewRow } from "@/components/RaReviewList";
 
 export const metadata = { title: "Import from RetroAchievements — Beaten" };
-
-const RANK: Record<string, number> = { PLAYING: 0, BEATEN: 1, MASTERED: 2 };
 
 export default async function RaImportPage() {
   const user = await requireUser();
@@ -27,7 +26,7 @@ export default async function RaImportPage() {
     const row = rows.get(a.raGameId);
     if (row) {
       row.awardIds.push(a.id);
-      if (RANK[a.kind] > RANK[row.kind]) {
+      if (STATUS_RANK[a.kind] > STATUS_RANK[row.kind]) {
         row.kind = a.kind as RaReviewRow["kind"];
         row.date = formatDate(a.awardedAt);
       }
@@ -63,7 +62,7 @@ export default async function RaImportPage() {
   const diary: Record<number, string> = {};
   for (const l of logs) {
     const prev = diary[l.game.igdbId];
-    if (!prev || RANK[l.status] > RANK[prev]) diary[l.game.igdbId] = l.status;
+    if (!prev || STATUS_RANK[l.status] > STATUS_RANK[prev]) diary[l.game.igdbId] = l.status;
   }
 
   return (

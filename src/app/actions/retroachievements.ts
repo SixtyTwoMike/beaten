@@ -7,6 +7,7 @@ import { isIgdbId } from "@/lib/limits";
 import { RA_TO_IGDB_PLATFORM, matchRaGame } from "@/lib/ra-match";
 import { getRaAwards, getRaProfile, isRaUsername, raConfigured } from "@/lib/retroachievements";
 import { requireUserId } from "@/lib/session";
+import { STATUS_RANK } from "@/lib/status";
 import type { ActionResult } from "./logs";
 
 // RetroAchievements import: link a public RA username, sync its beaten /
@@ -21,7 +22,6 @@ const MATCH_BATCH = 40;
 // Most awards one import request may touch.
 const MAX_IMPORT = 300;
 
-const RANK: Record<string, number> = { PLAYING: 0, BEATEN: 1, MASTERED: 2 };
 
 export type SyncResult = ActionResult & { added?: number; unmatched?: number };
 
@@ -172,7 +172,7 @@ export async function importRetroAchievements(
     let failed = 0;
     for (const [igdbId, rows] of byGame) {
       const top = rows.reduce((best, a) =>
-        RANK[a.kind] > RANK[best.kind] || (RANK[a.kind] === RANK[best.kind] && a.awardedAt > best.awardedAt) ? a : best
+        STATUS_RANK[a.kind] > STATUS_RANK[best.kind] || (STATUS_RANK[a.kind] === STATUS_RANK[best.kind] && a.awardedAt > best.awardedAt) ? a : best
       );
       // A game IGDB can't return (removed, or a bad id) stays pending.
       const game = await ensureGame(igdbId).catch((e) => {
@@ -193,17 +193,17 @@ export async function importRetroAchievements(
 
       let playLogId: string;
       let state: "IMPORTED" | "LINKED";
-      const atLeast = logs.find((l) => RANK[l.status] >= RANK[top.kind]);
+      const atLeast = logs.find((l) => STATUS_RANK[l.status] >= STATUS_RANK[top.kind]);
       if (atLeast) {
         playLogId = atLeast.id;
         state = "LINKED";
         linked++;
       } else if (logs.length > 0) {
-        // Upgrade the latest entry (Playing → Beaten, Beaten → Mastered).
+        // Upgrade the latest entry (Playing/Shelved → Beaten, Beaten → Mastered).
         const log = logs[0];
         await prisma.playLog.update({
           where: { id: log.id },
-          data: { status: top.kind, finishedAt: log.finishedAt ?? finishedAt },
+          data: { status: top.kind, finishedAt: log.finishedAt ?? finishedAt, stoppedAt: null, notReturning: false },
         });
         playLogId = log.id;
         state = "IMPORTED";
