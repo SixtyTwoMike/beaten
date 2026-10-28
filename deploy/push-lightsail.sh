@@ -33,7 +33,7 @@ ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p ~/beaten-upload"
 scp -q "${SSH_OPTS[@]}" "$TARBALL" deploy/lightsail/install-from-bundle.sh \
   "$TARGET:beaten-upload/"
 
-# Merge IGDB + Resend credentials into /etc/beaten.env when they're set locally.
+# Merge IGDB, Resend + Google credentials into /etc/beaten.env when they're set locally.
 # Last assignment wins; surrounding quotes are stripped (.env.example ships "").
 env_value() {
   sed -n "s/^$1=//p" .env 2>/dev/null | tail -1 | sed -E 's/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/'
@@ -51,6 +51,12 @@ RESEND=$(env_value RESEND_API_KEY)
 if [ -n "$RESEND" ]; then
   echo "==> setting Resend API key"
   ENV_UPDATES+="RESEND_API_KEY=$RESEND"$'\n'
+fi
+GID=$(env_value GOOGLE_CLIENT_ID)
+GSECRET=$(env_value GOOGLE_CLIENT_SECRET)
+if [ -n "$GID" ] && [ -n "$GSECRET" ]; then
+  echo "==> setting Google sign-in credentials"
+  ENV_UPDATES+="GOOGLE_CLIENT_ID=$GID"$'\n'"GOOGLE_CLIENT_SECRET=$GSECRET"$'\n'
 fi
 # BEATEN_DOMAIN=new.host moves the site (users sign in again on the new origin).
 if [ -n "${BEATEN_DOMAIN:-}" ]; then

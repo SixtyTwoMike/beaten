@@ -55,6 +55,11 @@ fi
 echo "Resend key: resend.com > API Keys (Sending access, beaten.games)"
 ask RESEND_API_KEY "Resend API key" hidden
 
+echo "Google sign-in: console.cloud.google.com > APIs & Services > Credentials"
+echo "  (OAuth client, Web application; redirect URI https://beaten.games/api/auth/callback/google)"
+ask GOOGLE_CLIENT_ID "Google client ID"
+ask GOOGLE_CLIENT_SECRET "Google client secret" hidden
+
 (( ${#keys[@]} )) || { echo "Nothing to change."; exit 0; }
 
 # Live IGDB once both Twitch keys exist.
