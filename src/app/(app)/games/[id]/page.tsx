@@ -178,7 +178,7 @@ export default async function GamePage({
                           ↻ Replay
                         </span>
                       )}
-                      <span className="text-sm text-fog">
+                      <span className="whitespace-nowrap text-sm text-fog">
                         {logDates(log)}
                       </span>
                       {platform && (

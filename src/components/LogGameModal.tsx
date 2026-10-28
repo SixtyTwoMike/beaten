@@ -290,7 +290,7 @@ export function LogGameModal({
 
           {(isPlaying || !dateUnknown) && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <label className={labelClass} htmlFor="log-started">
                   {isPlaying ? "Playing since" : "Started"}{" "}
                   <span className="normal-case text-fog/85">(optional)</span>
@@ -305,7 +305,7 @@ export function LogGameModal({
                 />
               </div>
               {!isPlaying && (
-                <div>
+                <div className="min-w-0">
                   <label className={labelClass} htmlFor="log-finished">
                     Finished
                   </label>

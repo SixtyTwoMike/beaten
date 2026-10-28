@@ -90,7 +90,7 @@ export default async function LogPage({
   const platformById = new Map(platforms.map((p) => [p.id, p]));
 
   const selectClass =
-    "rounded-md border border-edge bg-card px-3 py-2 text-sm outline-none focus:border-mint/60";
+    "min-w-0 max-w-full rounded-md border border-edge bg-card px-3 py-2 text-sm outline-none focus:border-mint/60";
 
   function entry(log: (typeof rawLogs)[number]) {
     const platform = log.platformId
@@ -127,10 +127,10 @@ export default async function LogPage({
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-fog">
-            {logDates(log)}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fog">
+            <span className="whitespace-nowrap">{logDates(log)}</span>
             {platform && (
-              <span className="ml-2 rounded bg-card-2 px-1.5 py-0.5 text-xs">
+              <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs">
                 {platform.abbreviation ?? platform.name}
               </span>
             )}
@@ -178,7 +178,7 @@ export default async function LogPage({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Diary</h1>
-        <form method="GET" className="flex flex-wrap items-center gap-2">
+        <form method="GET" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <select name="status" aria-label="Filter by status" defaultValue={params.status ?? ""} className={selectClass}>
             <option value="">Any status</option>
             <option value="PLAYING">Playing</option>

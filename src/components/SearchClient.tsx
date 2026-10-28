@@ -120,7 +120,7 @@ export function SearchClient({
           value={platformId}
           onChange={(e) => setPlatformId(e.target.value)}
           aria-label="Filter by platform"
-          className="rounded-lg border border-edge bg-card px-3 py-3 text-sm outline-none focus:border-mint/60 sm:w-64"
+          className="min-w-0 max-w-full rounded-lg border border-edge bg-card px-3 py-3 text-sm outline-none focus:border-mint/60 sm:w-64"
         >
           <option value="">All platforms</option>
           {platforms.map((p) => (
