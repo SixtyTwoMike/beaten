@@ -31,7 +31,7 @@ export function Nav({
     <header className="sticky top-0 z-40 border-b border-edge bg-canvas/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <Logo href="/" />
-        <nav className="order-last -ml-3 flex w-full items-center gap-1 overflow-x-auto text-sm lg:order-none lg:ml-0 lg:w-auto">
+        <nav className="order-last flex w-full items-center gap-1 overflow-x-auto text-sm lg:order-none lg:w-auto">
           {links.map((l) => {
             const active =
               l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
@@ -52,7 +52,7 @@ export function Nav({
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <Link
-            href={username ? `/u/${username}` : "/settings"}
+            href={username ? `/${username}` : "/settings"}
             className="flex items-center gap-2 text-fog hover:text-white"
             title={username ? "Your public profile" : "Set up your public profile"}
           >

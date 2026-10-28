@@ -8,13 +8,16 @@ const nextConfig: NextConfig = {
   // The share card reads its fonts from disk at runtime; the standalone
   // trace doesn't see readFile paths, so bundle them explicitly.
   outputFileTracingIncludes: {
-    "/u/*/card": ["./src/assets/fonts/**/*"],
+    "/*/card": ["./src/assets/fonts/**/*"],
   },
   // Lets password managers jump straight to the change-password form
   // (https://w3c.github.io/webappsec-change-password-url/).
   async redirects() {
     return [
       { source: "/.well-known/change-password", destination: "/settings#password", permanent: false },
+      // Profiles moved from /u/<username> to /<username>.
+      { source: "/u/:username", destination: "/:username", permanent: true },
+      { source: "/u/:username/card", destination: "/:username/card", permanent: true },
     ];
   },
 };

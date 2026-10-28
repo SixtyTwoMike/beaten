@@ -27,7 +27,7 @@ const TOGGLES = [
 // card per click.
 export function ShareCardBuilder({ username }: { username: string }) {
   const [opts, setOpts] = useState<CardOptions>(DEFAULT_CARD);
-  const path = `/u/${username}/card${cardQuery(opts)}`;
+  const path = `/${username}/card${cardQuery(opts)}`;
   const [preview, setPreview] = useState(path);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);

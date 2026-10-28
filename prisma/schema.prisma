@@ -12,11 +12,14 @@ datasource db {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
-  // Public handle for /u/<username>; lowercase a-z, 0-9, _ (null until chosen)
+  // Public handle for /<username>; lowercase a-z, 0-9, _ (null until chosen)
   username     String?   @unique
   // Username chosen at sign-up, claimed only once the email is confirmed, so
   // unconfirmed sign-ups can't squat names or reveal which emails exist.
   pendingUsername String?
+  // Last time the username was changed (null: never, so the first change is
+  // free). Changes are limited to one per USERNAME_CHANGE_DAYS.
+  usernameChangedAt DateTime?
   name         String?
   passwordHash String?
   image        String?
@@ -188,4 +191,18 @@ model RaAward {
 
   @@unique([userId, raGameId, kind])
   @@index([userId, state])
+}
+
+// Usernames nobody can take without an invite: names set aside for someone
+// (`beaten-admin reserve`), and a user's previous username, held for them
+// for a while after they change it.
+model ReservedUsername {
+  username      String    @id
+  note          String?
+  // sha256 of the invite code; whoever has the code may take the name.
+  inviteHash    String?   @unique
+  // A previous username, held for its old owner until expiresAt.
+  heldForUserId String?
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
 }

@@ -58,7 +58,7 @@ export default function PrivacyPage() {
       <Section title="What's public">
         <p>
           Once you choose a username, your profile at{" "}
-          <span className="text-white">/u/your-username</span> shows your display
+          <span className="text-white">beaten.games/your-username</span> shows your display
           name, username, profile picture, join date, the games you&apos;ve logged
           with their ratings and reviews, and your shelves. Anyone can see it
           without signing in. Your email address is never shown.

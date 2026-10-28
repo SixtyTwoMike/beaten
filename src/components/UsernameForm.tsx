@@ -4,11 +4,23 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setUsername } from "@/app/actions/auth";
+import { USERNAME_CHANGE_DAYS } from "@/lib/limits";
 import { safeAction } from "@/lib/safe-action";
 
-export function UsernameForm({ current }: { current: string | null }) {
+// `nextChange`: formatted date the username can next be changed, if it's
+// still within the wait. `invite`: a code for a reserved name, from
+// /settings?invite=… (skips the wait).
+export function UsernameForm({
+  current,
+  nextChange,
+  invite,
+}: {
+  current: string | null;
+  nextChange: string | null;
+  invite: { code: string; username: string } | null;
+}) {
   const router = useRouter();
-  const [value, setValue] = useState(current ?? "");
+  const [value, setValue] = useState(invite?.username ?? current ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -18,7 +30,7 @@ export function UsernameForm({ current }: { current: string | null }) {
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const result = await safeAction(() => setUsername(value));
+      const result = await safeAction(() => setUsername(value, invite?.code));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -55,13 +67,25 @@ export function UsernameForm({ current }: { current: string | null }) {
           {pending ? "Saving…" : "Save"}
         </button>
       </div>
+      {invite && invite.username !== current && (
+        <p className="text-sm text-mint">
+          You&apos;ve been invited to take <span className="font-semibold">@{invite.username}</span> — press Save to claim it.
+        </p>
+      )}
+      {!invite && current && (
+        <p className="text-xs text-fog">
+          {nextChange
+            ? `You can change it again on ${nextChange}.`
+            : `You can change your username once every ${USERNAME_CHANGE_DAYS} days.`}
+        </p>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
       {saved && <p className="text-sm text-mint">Saved.</p>}
       {current && (
         <p className="text-sm text-fog">
           Your profile:{" "}
-          <Link href={`/u/${current}`} className="text-mint hover:underline">
-            /u/{current}
+          <Link href={`/${current}`} className="text-mint hover:underline">
+            beaten.games/{current}
           </Link>
         </p>
       )}

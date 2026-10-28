@@ -39,8 +39,8 @@ export default async function SharePage() {
       {profile?.username && (
         <p className="mt-4 text-sm text-fog">
           Your profile:{" "}
-          <Link href={`/u/${profile.username}`} className="text-mint hover:underline">
-            beaten.games/u/{profile.username}
+          <Link href={`/${profile.username}`} className="text-mint hover:underline">
+            beaten.games/{profile.username}
           </Link>{" "}
           — links to it show the link-preview card automatically.
         </p>

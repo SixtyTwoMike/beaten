@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/session";
 import { isAvatarSource } from "@/lib/avatar";
 import { FINISHED_STATUSES } from "@/lib/status";
 import { formatDate } from "@/lib/format";
+import { usernameForInvite } from "@/lib/reserved-usernames";
+import { nextUsernameChange } from "@/lib/username";
 import { raConfigured, raProfileUrl } from "@/lib/retroachievements";
 import { RetroAchievementsLink } from "@/components/RetroAchievementsLink";
 import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
@@ -31,13 +33,20 @@ function Section({
   );
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ invite?: string }>;
+}) {
+  const { invite: inviteCode } = await searchParams;
   const user = await requireUser();
+  const invitedUsername = await usernameForInvite(inviteCode);
   const [profile, finishedLogs, raAccount, raPending] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
         username: true,
+        usernameChangedAt: true,
         name: true,
         email: true,
         passwordHash: true,
@@ -96,7 +105,11 @@ export default async function SettingsPage() {
           reviews, and shelves. Your email is never shown.
         </p>
         <div className="mt-4">
-          <UsernameForm current={profile?.username ?? null} />
+          <UsernameForm
+            current={profile?.username ?? null}
+            nextChange={profile ? formatDate(nextUsernameChange(profile)) || null : null}
+            invite={inviteCode && invitedUsername ? { code: inviteCode, username: invitedUsername } : null}
+          />
         </div>
       </Section>
 

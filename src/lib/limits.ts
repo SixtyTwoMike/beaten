@@ -18,3 +18,6 @@ export function isIgdbId(value: unknown): value is number {
 // Diary year filter range.
 export const MIN_YEAR = 1950;
 export const MAX_YEAR = 2100;
+
+// Days between username changes (the first change after sign-up is free).
+export const USERNAME_CHANGE_DAYS = 60;

@@ -22,7 +22,10 @@ import {
   recordAttempt,
 } from "@/lib/rate-limit";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
-import { normalizeUsername, usernameError } from "@/lib/username";
+import { formatDate } from "@/lib/format";
+import { holdPreviousUsername, reservationError, usernameForInvite } from "@/lib/reserved-usernames";
+import { USERNAME_CHANGE_DAYS } from "@/lib/limits";
+import { nextUsernameChange, normalizeUsername, usernameError } from "@/lib/username";
 import type { ActionResult } from "./logs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,6 +44,7 @@ export async function registerUser(input: {
   name: string;
   username: string;
   password: string;
+  invite?: string | null;
 }): Promise<ActionResult> {
   try {
     const email = input.email.trim().toLowerCase();
@@ -54,7 +58,8 @@ export async function registerUser(input: {
     }
     const badName = displayNameError(name);
     if (badName) return { ok: false, error: badName };
-    const badUsername = usernameError(username);
+    const badUsername =
+      usernameError(username) ?? (await reservationError(username, { invite: input.invite }));
     if (badUsername) return { ok: false, error: badUsername };
     const badPassword = passwordError(password);
     if (badPassword) return { ok: false, error: badPassword };
@@ -112,18 +117,34 @@ export async function registerUser(input: {
   }
 }
 
-export async function setUsername(input: string): Promise<ActionResult> {
+export async function setUsername(input: string, invite?: string | null): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
     const username = normalizeUsername(input);
-    const badUsername = usernameError(username);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true, usernameChangedAt: true },
+    });
+    if (!user) return { ok: false, error: "Something went wrong saving your username" };
+    if (user.username === username) return { ok: true };
+
+    // An invite for this name (beaten-admin reserve) skips the wait.
+    const invited = Boolean(invite) && (await usernameForInvite(invite)) === username;
+    const next = invited ? null : nextUsernameChange(user);
+    if (next) {
+      return { ok: false, error: `You can change your username once every ${USERNAME_CHANGE_DAYS} days — next on ${formatDate(next)}` };
+    }
+    const badUsername = usernameError(username) ?? (await reservationError(username, { userId, invite }));
     if (badUsername) return { ok: false, error: badUsername };
 
     const taken = await prisma.user.findUnique({ where: { username } });
-    if (taken && taken.id !== userId) {
-      return { ok: false, error: "That username is taken" };
-    }
-    await prisma.user.update({ where: { id: userId }, data: { username } });
+    if (taken) return { ok: false, error: "That username is taken" };
+    await prisma.user.update({
+      where: { id: userId },
+      // Picking a first username (Google sign-ups) doesn't start the clock.
+      data: { username, usernameChangedAt: user.username ? new Date() : null },
+    });
+    if (user.username) await holdPreviousUsername(user.username, userId);
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {

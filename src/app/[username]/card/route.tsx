@@ -302,7 +302,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
 
   const footer = (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: wide ? 18 : story ? 28 : 22, color: FOG }}>
-      <div>{`beaten.games/u/${user.username}`}</div>
+      <div>{`beaten.games/${user.username}`}</div>
       {!wide && logo}
     </div>
   );

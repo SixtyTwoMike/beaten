@@ -53,6 +53,25 @@ the account has no username and they pick one in Settings.
 | "Correct my name/username" | — | Username: Settings → Public profile. Anything else, edit by hand only if it's reasonable. |
 | Data protection request (access / erasure) | Sender matches? | Same as export / delete above. Reply within a month. |
 
+## Usernames
+
+Profiles live at `beaten.games/<username>` (old `/u/<username>` links
+redirect). Usernames can change once every 60 days (the first change after
+sign-up is free), and a previous name is held for its old owner for 60 days.
+
+- **Blocked:** names that are pages (`settings`, `login`, …), and swearing and
+  slurs. The lists are in `src/lib/username-rules.ts`. **Add any new top-level
+  page to `ROUTE_NAMES` before it ships**, or it could clash with a username.
+- **Reserved:** well-known people, companies and games (built-in list in the
+  same file), plus names you set aside yourself.
+- **Saving a name for someone:** `./deploy/admin.sh reserve tolkoto "Mike Minotti"`
+  prints an invite link. Send it to them. Only someone with the link can take
+  the name, whether they sign up by email or Google, or already have an
+  account. Running it again replaces the link.
+- `reservations` lists reserved and held names; `unreserve <name>` releases one.
+- `check-usernames` lists accounts whose names break the rules, and
+  `rename <who> <username>` fixes one (no wait, and the old name isn't held).
+
 ## Things to avoid
 
 - Don't paste exports, emails or account details into chats, issues or AI

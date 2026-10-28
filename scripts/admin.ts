@@ -11,7 +11,9 @@ import { markEmailVerified } from "../src/lib/accounts";
 import { issueToken, revokeTokens } from "../src/lib/tokens";
 import { buildExport } from "../src/lib/export";
 import { MAX_EMAIL } from "../src/lib/limits";
-import { normalizeUsername } from "../src/lib/username";
+import { normalizeUsername, usernameError } from "../src/lib/username";
+import { isBuiltInReserved } from "../src/lib/username-rules";
+import { reserveUsername } from "../src/lib/reserved-usernames";
 import {
   sendAccountDeletedEmail,
   sendEmailChangedEmail,
@@ -31,6 +33,13 @@ const USAGE = `Usage: beaten-admin <command> <email | username>
   change-email <who> <new>       move to a new address (re-confirm required)
   export <who>                   print the account's data export (JSON)
   delete <who> --yes             permanently delete the account
+  rename <who> <username>        change the username (no wait; old name not held)
+
+  reserve <username> [note]      set a username aside; prints an invite link
+                                 for the one person who should get it
+  unreserve <username>           release a reserved username
+  reservations                   list reserved and held usernames
+  check-usernames                list accounts whose username breaks the rules
 
 Only act on requests sent from the account's own email address.`;
 
@@ -152,9 +161,73 @@ async function deleteUser(user: User, flag: string | undefined) {
   log(`Deleted ${label(user)}; confirmation emailed.`);
 }
 
+async function rename(user: User, raw: string | undefined) {
+  const username = normalizeUsername(raw ?? "");
+  const bad = usernameError(username);
+  if (bad) throw new Fail(bad);
+  if (await prisma.user.findUnique({ where: { username } })) throw new Fail(`@${username} is taken.`);
+  await prisma.user.update({ where: { id: user.id }, data: { username } });
+  log(`Renamed ${label(user)} to @${username}.`);
+}
+
+function siteUrl() {
+  return (process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://beaten.games").replace(/\/$/, "");
+}
+
+async function reserve(raw: string | undefined, note: string[]) {
+  const username = normalizeUsername(raw ?? "");
+  if (!username) throw new Fail("Usage: reserve <username> [note]");
+  const bad = usernameError(username);
+  if (bad) throw new Fail(`Can't reserve @${username}: ${bad}`);
+  const owner = await prisma.user.findUnique({ where: { username } });
+  if (owner) throw new Fail(`@${username} already belongs to ${owner.email}.`);
+  const code = await reserveUsername(username, note.join(" ") || null);
+  log(`Reserved @${username}${isBuiltInReserved(username) ? " (also on the built-in list)" : ""}.`);
+  log("Send this link to the person it's for. It works once they sign up (email or Google)");
+  log("or, if they already have an account, it lets them switch to the name in Settings:");
+  process.stdout.write(`${siteUrl()}/register?invite=${code}\n`);
+  log("Running reserve again for the same name replaces the link.");
+}
+
+async function unreserve(raw: string | undefined) {
+  const username = normalizeUsername(raw ?? "");
+  const { count } = await prisma.reservedUsername.deleteMany({ where: { username } });
+  if (!count) throw new Fail(`@${username} isn't in the reserved list${isBuiltInReserved(username) ? " (it's on the built-in list in username-rules.ts)" : ""}.`);
+  log(`Released @${username}.`);
+}
+
+async function reservations() {
+  const rows = await prisma.reservedUsername.findMany({ orderBy: { createdAt: "desc" } });
+  if (!rows.length) return log("No reserved usernames (besides the built-in list).");
+  for (const r of rows) {
+    const what = r.inviteHash
+      ? `invite${r.note ? ` — ${r.note}` : ""}`
+      : `held for previous owner until ${r.expiresAt?.toISOString().slice(0, 10) ?? "?"}`;
+    process.stdout.write(`@${r.username}  ${what}\n`);
+  }
+}
+
+async function checkUsernames() {
+  const users = await prisma.user.findMany({ where: { username: { not: null } }, select: { email: true, username: true } });
+  let found = 0;
+  for (const u of users) {
+    const problem = usernameError(u.username!) ?? (isBuiltInReserved(u.username!) ? "on the reserved list" : null);
+    if (problem) {
+      found++;
+      process.stdout.write(`@${u.username}  ${u.email}  ${problem}\n`);
+    }
+  }
+  log(found ? `${found} of ${users.length} usernames need a look (fix with: rename <who> <username>).` : `All ${users.length} usernames pass.`);
+}
+
 async function main(argv: string[]) {
   const [command, who, extra] = argv;
   switch (command) {
+    case "rename": return rename(await findUser(who), extra);
+    case "reserve": return reserve(who, argv.slice(2));
+    case "unreserve": return unreserve(who);
+    case "reservations": return reservations();
+    case "check-usernames": return checkUsernames();
     case "find": return find(await findUser(who));
     case "send-reset": return sendReset(await findUser(who));
     case "send-verify": return sendVerify(await findUser(who));

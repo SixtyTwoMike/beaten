@@ -1,5 +1,6 @@
 // End-to-end smoke test against the dev server (IGDB_MOCK=1).
 // Emails are read from the dev outbox the app writes in development.
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
@@ -118,7 +119,7 @@ try {
   await page.waitForSelector("text=Check your email");
   check("register asks to confirm email", true);
   check("unconfirmed sign-up doesn't claim its username",
-    (await page.request.get(`${BASE}/u/${username}`)).status() === 404);
+    (await page.request.get(`${BASE}/${username}`)).status() === 404);
 
   // 2b. Can't sign in until the address is confirmed
   await page.goto(`${BASE}/login`);
@@ -140,7 +141,7 @@ try {
   await dup.waitForSelector("text=Check your email");
   check("duplicate email registration gives the same response", true);
   check("duplicate registration leaves no public trace",
-    (await page.request.get(`${BASE}/u/${username}_2`)).status() === 404);
+    (await page.request.get(`${BASE}/${username}_2`)).status() === 404);
   await dupContext.close();
   await waitForEmail(email, "already have a Beaten account", registeredAt);
   check("existing owner is emailed about the attempt", true);
@@ -331,7 +332,7 @@ try {
   // 12. Nav links to the user's public profile
   check(
     "nav links to public profile",
-    (await page.locator(`header a[href="/u/${username}"]`).count()) === 1
+    (await page.locator(`header a[href="/${username}"]`).count()) === 1
   );
 
   // 12b. Social links: pasted URLs are normalised; junk is rejected
@@ -361,7 +362,7 @@ try {
   await page.getByRole("button", { name: "Save picture" }).click();
   await page.getByText("Saved.").first().waitFor();
   check("avatar saved", true);
-  const navAvatar = page.locator(`header a[href="/u/${username}"] img[src^="data:image/png"]`);
+  const navAvatar = page.locator(`header a[href="/${username}"] img[src^="data:image/png"]`);
   check("nav shows the game avatar", await navAvatar.waitFor({ timeout: 5000 }).then(() => true, () => false));
   await page.screenshot({ path: `${shots}/smoke-settings-profile.png`, fullPage: true });
 
@@ -441,7 +442,9 @@ try {
 
   // 14. Public profile is viewable signed out, without leaking the email
   await page.goto(`${BASE}/u/${username.toUpperCase()}`);
-  check("public profile loads signed out", page.url().includes(`/u/`) && !page.url().includes("/login"));
+  check("old /u/ profile links redirect to /<username>",
+    new URL(page.url()).pathname === `/${username.toUpperCase()}`);
+  check("public profile loads signed out", !page.url().includes("/login"));
   check("public profile shows name", await page.getByRole("heading", { name: "Smoke Tester" }).isVisible());
   check("public profile shows a finished game", await page.getByText("Breath of the Wild").first().isVisible());
   check("public profile hides email", !(await page.content()).includes(email));
@@ -453,24 +456,52 @@ try {
     (await page.locator('a[href="https://bsky.app/profile/smoketester.bsky.social"]').count()) === 1);
   check("public profile shows the game avatar", (await page.locator('main img[src^="data:image/png"]').count()) >= 1);
   const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
-  check("public profile has a share card og:image", Boolean(ogImage?.endsWith(`/u/${username}/card?format=wide`)));
+  check("public profile has a share card og:image", Boolean(ogImage?.endsWith(`/${username}/card?format=wide`)));
 
   // 14a. Share cards render signed out at each size; options are whitelisted
   for (const [format, w, h] of [["square", 1080, 1080], ["story", 1080, 1920], ["wide", 1200, 630]]) {
-    const res = await page.request.get(`${BASE}/u/${username}/card?format=${format}&accent=gold&bg=plain&stats=0`);
+    const res = await page.request.get(`${BASE}/${username}/card?format=${format}&accent=gold&bg=plain&stats=0`);
     const png = await res.body();
     check(`share card ${format} is a ${w}x${h} PNG`,
       res.headers()["content-type"] === "image/png" && png.readUInt32BE(16) === w && png.readUInt32BE(20) === h);
   }
-  const playedCard = await page.request.get(`${BASE}/u/${username}/card?games=played&heading=playing`);
+  const playedCard = await page.request.get(`${BASE}/${username}/card?games=played&heading=playing`);
   check("played share card renders", playedCard.headers()["content-type"] === "image/png");
-  const bogus = await page.request.get(`${BASE}/u/${username}/card?format=<script>&heading=pwned`);
+  const bogus = await page.request.get(`${BASE}/${username}/card?format=<script>&heading=pwned`);
   check("share card ignores unknown options", bogus.ok() && (await bogus.body()).readUInt32BE(16) === 1080);
   check("share card for unknown user is a 404",
-    (await page.request.get(`${BASE}/u/no_such_user_xyz/card`)).status() === 404);
+    (await page.request.get(`${BASE}/no_such_user_xyz/card`)).status() === 404);
 
-  const missing = await page.goto(`${BASE}/u/no_such_user_xyz`);
+  const missing = await page.goto(`${BASE}/no_such_user_xyz`);
   check("unknown profile is a 404", missing?.status() === 404);
+
+  // 14a2. Usernames: pages, swearing and reserved names are refused; an
+  // admin invite unlocks a reserved name for one person
+  const regContext = await browser.newContext();
+  const reg = await regContext.newPage();
+  async function tryRegister(handle, invite) {
+    await reg.goto(`${BASE}/register${invite ? `?invite=${invite}` : ""}`);
+    await reg.fill("#register-name", "Name Test");
+    if (!invite) await reg.fill("#register-username", handle);
+    await reg.fill("#register-email", `${handle}_${Date.now().toString(36)}@example.com`);
+    await reg.fill("#register-password", `Name#${Date.now()}q`);
+    await reg.click('button[type="submit"]');
+    await reg.waitForSelector("text=/Check your email|isn't available|different username/");
+    return (await reg.getByText("Check your email").count()) > 0;
+  }
+  check("username matching a page is refused", !(await tryRegister("settings")));
+  check("swear word username is refused", !(await tryRegister("sh1t_lord")));
+  check("built-in reserved username is refused", !(await tryRegister("nintendo")));
+  check("innocent word containing a swear is allowed", await tryRegister(`scunthorpe_${Date.now().toString(36).slice(-4)}`));
+  const reserved = `vip_${Date.now().toString(36)}`;
+  const inviteLink = execFileSync("npx", ["tsx", "scripts/admin.ts", "reserve", reserved, "smoke test"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  const inviteCode = new URL(inviteLink).searchParams.get("invite");
+  check("admin-reserved username is refused without the invite", !(await tryRegister(reserved)));
+  await reg.goto(`${BASE}/register?invite=${inviteCode}`);
+  check("invite link pre-fills the reserved username",
+    (await reg.inputValue("#register-username")) === reserved && (await reg.getByText("is saved for you").isVisible()));
+  check("invite link lets that person sign up with it", await tryRegister(reserved, inviteCode));
+  await regContext.close();
 
   // 14b. Support and privacy pages are public and linked from sign-in
   await page.goto(`${BASE}/login`);
@@ -638,6 +669,33 @@ try {
   check("export requires sign-in", anonRes.status() === 401);
   await anonContext.close();
 
+  // 19b. Username changes: the first is free, then once per 60 days; the
+  // old name is held so nobody else can take it
+  const renamed = `${username}_r`;
+  await page.goto(`${BASE}/settings`);
+  await page.fill("#settings-username", renamed);
+  await page.getByRole("button", { name: "Save", exact: true }).first().click();
+  await page.waitForSelector("text=Saved.");
+  check("first username change is allowed", (await page.request.get(`${BASE}/${renamed}`)).status() === 200);
+  check("old profile URL is gone after a rename", (await page.request.get(`${BASE}/${username}`)).status() === 404);
+  await page.reload();
+  check("settings says when the username can change again", await page.getByText("You can change it again on").isVisible());
+  await page.fill("#settings-username", `${username}_s`);
+  await page.getByRole("button", { name: "Save", exact: true }).first().click();
+  await page.waitForSelector("text=once every 60 days");
+  check("second username change within 60 days is refused", true);
+  const heldContext = await browser.newContext();
+  const held = await heldContext.newPage();
+  await held.goto(`${BASE}/register`);
+  await held.fill("#register-name", "Squatter");
+  await held.fill("#register-username", username);
+  await held.fill("#register-email", `squat_${Date.now().toString(36)}@example.com`);
+  await held.fill("#register-password", `Squat#${Date.now()}q`);
+  await held.click('button[type="submit"]');
+  await held.waitForSelector("text=/isn't available|Check your email/");
+  check("a previous username is held from other people", (await held.getByText("isn't available").count()) === 1);
+  await heldContext.close();
+
   // 20. Delete account: needs the password; removes profile and sign-in
   const deleteAskedAt = new Date().toISOString();
   await page.goto(`${BASE}/settings`);
@@ -650,7 +708,7 @@ try {
   await page.getByRole("button", { name: "Permanently delete account" }).click();
   await page.waitForURL("**/login?deleted=1");
   check("deleting the account signs out with notice", await page.getByText("account has been deleted").isVisible());
-  const goneProfile = await page.goto(`${BASE}/u/${username}`);
+  const goneProfile = await page.goto(`${BASE}/${renamed}`);
   check("deleted user's public profile is gone", goneProfile?.status() === 404);
   await page.goto(`${BASE}/login`);
   await page.fill("#login-email", email);

@@ -15,11 +15,11 @@ export const inputClass =
 export const buttonClass =
   "w-full rounded-md bg-mint px-3 py-2 text-sm font-semibold text-canvas hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition";
 
-function GoogleButton() {
+function GoogleButton({ callbackUrl = "/" }: { callbackUrl?: string }) {
   return (
     <button
       type="button"
-      onClick={() => signIn("google", { callbackUrl: "/" })}
+      onClick={() => signIn("google", { callbackUrl })}
       className="w-full rounded-md border border-edge bg-card-2 px-3 py-2 text-sm font-medium hover:border-fog/50 transition"
     >
       Continue with Google
@@ -166,10 +166,18 @@ export function LoginForm({
   );
 }
 
-export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
+// `invite` is a code for a reserved username (from /register?invite=…);
+// the username is then fixed to the one it was issued for.
+export function RegisterForm({
+  googleEnabled,
+  invite,
+}: {
+  googleEnabled: boolean;
+  invite?: { code: string; username: string } | null;
+}) {
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(invite?.username ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +187,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await safeAction(() => registerUser({ name, username, email, password }));
+      const result = await safeAction(() => registerUser({ name, username, email, password, invite: invite?.code }));
       if (!result.ok) {
         setError(result.error);
         return;
@@ -210,6 +218,11 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
   return (
     <div className="w-full max-w-sm rounded-xl border border-edge bg-card p-6 shadow-xl">
       <h1 className="mb-4 text-lg font-semibold">Create your account</h1>
+      {invite && (
+        <p className="mb-4 rounded-md bg-mint/10 px-3 py-2 text-sm text-mint">
+          You&apos;ve been invited — <span className="font-semibold">@{invite.username}</span> is saved for you.
+        </p>
+      )}
       <form onSubmit={submit} className="space-y-3">
         <input
           type="text"
@@ -239,10 +252,11 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className={inputClass}
+            readOnly={Boolean(invite)}
+            className={`${inputClass} read-only:opacity-70`}
           />
           <p className="mt-1 text-xs text-fog/85">
-            Your public profile: /u/{username.trim().replace(/^@/, "").toLowerCase() || "username"}
+            Your public profile: beaten.games/{username.trim().replace(/^@/, "").toLowerCase() || "username"}
           </p>
         </div>
         <input
@@ -275,7 +289,7 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
       {googleEnabled && (
         <div className="mt-4 space-y-4">
           <Divider />
-          <GoogleButton />
+          <GoogleButton callbackUrl={invite ? `/settings?invite=${encodeURIComponent(invite.code)}` : "/"} />
         </div>
       )}
       <p className="mt-5 text-sm text-fog">

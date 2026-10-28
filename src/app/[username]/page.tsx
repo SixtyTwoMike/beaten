@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const display = user.name || `@${user.username}`;
   const title = `${display} (@${user.username}) — Beaten`;
   const description = `Games ${display} is playing, has beaten, and mastered.`;
-  const card = { url: `/u/${user.username}/card?format=wide`, width: 1200, height: 630 };
+  const card = { url: `/${user.username}/card?format=wide`, width: 1200, height: 630 };
   return {
     title,
     description,
