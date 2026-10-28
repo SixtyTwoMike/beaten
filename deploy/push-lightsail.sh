@@ -51,8 +51,12 @@ scp -q "${SSH_OPTS[@]}" "$TARBALL" deploy/lightsail/install-from-bundle.sh \
   "$TARGET:beaten-upload/"
 
 # Merge IGDB credentials into /etc/beaten.env when they're set locally.
-CID=$(sed -n 's/^TWITCH_CLIENT_ID=//p' .env 2>/dev/null | tail -1)
-CSECRET=$(sed -n 's/^TWITCH_CLIENT_SECRET=//p' .env 2>/dev/null | tail -1)
+# Last assignment wins; surrounding quotes are stripped (.env.example ships "").
+env_value() {
+  sed -n "s/^$1=//p" .env 2>/dev/null | tail -1 | sed -E 's/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/'
+}
+CID=$(env_value TWITCH_CLIENT_ID)
+CSECRET=$(env_value TWITCH_CLIENT_SECRET)
 if [ -n "$CID" ] && [ -n "$CSECRET" ]; then
   echo "==> setting IGDB credentials"
   printf 'TWITCH_CLIENT_ID=%s\nTWITCH_CLIENT_SECRET=%s\nIGDB_MOCK=0\n' "$CID" "$CSECRET" |

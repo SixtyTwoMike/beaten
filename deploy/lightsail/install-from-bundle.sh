@@ -33,6 +33,8 @@ rm -rf "$TMP"
 # Apply schema migrations (creates the database on first install). Runs as
 # the app user so the db stays owned by it; existing data is never dropped.
 set -a; . /etc/beaten.env; set +a
+# npx resolves from the working directory, which must be readable by beaten.
+cd /opt/beaten/home
 sudo -u beaten -H env DATABASE_URL="$DATABASE_URL" \
   npx --yes "prisma@$PRISMA_VERSION" migrate deploy --schema "$APP.new/prisma/schema.prisma"
 chmod 600 "$DATA"/beaten.db*
