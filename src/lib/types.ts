@@ -20,9 +20,9 @@ export type ExistingLog = {
   logId: string;
   status: string;
   platformId: number | null;
-  startedAt: string | null; // YYYY-MM-DD
+  startedAt: string | null; // YYYY-MM-DD, YYYY-MM or YYYY
   finishedAt: string | null; // YYYY-MM-DD; null while PLAYING or SHELVED, or finished on an unknown date
-  stoppedAt?: string | null; // YYYY-MM-DD; SHELVED only
+  stoppedAt?: string | null; // YYYY-MM-DD, YYYY-MM or YYYY; SHELVED only
   notReturning?: boolean; // SHELVED only
   isReplay: boolean;
   rating: number | null;

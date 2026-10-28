@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
+import { formatPartialDate } from "@/lib/format";
 import { normalizeUsername } from "@/lib/username";
 import { AVATAR_SELECT, avatarLayout, resolveAvatar } from "@/lib/avatar";
 import {
@@ -97,6 +97,7 @@ type CardGame = {
   coverUrl: string | null;
   rating: number | null;
   finishedAt: Date | null;
+  finishedPrecision: string | null;
   status: string;
 };
 
@@ -196,7 +197,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   for (const log of logs) {
     if (seen.has(log.game.id)) continue;
     seen.add(log.game.id);
-    games.push({ ...log.game, rating: log.rating, finishedAt: log.finishedAt, status: log.status });
+    games.push({ ...log.game, rating: log.rating, finishedAt: log.finishedAt, finishedPrecision: log.finishedPrecision, status: log.status });
 
     if (games.length === CARD_GAMES) break;
   }
@@ -312,7 +313,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
                   <Stars rating={g.rating} size={wide ? 15 : story ? 26 : 20} color={accent} />
                 )}
                 {opts.dates && g.finishedAt && (
-                  <div style={{ fontSize: wide ? 15 : story ? 24 : 18, color: FOG }}>{formatDate(g.finishedAt)}</div>
+                  <div style={{ fontSize: wide ? 15 : story ? 24 : 18, color: FOG }}>{formatPartialDate(g.finishedAt, g.finishedPrecision)}</div>
                 )}
                 {!g.finishedAt && (
                   <div

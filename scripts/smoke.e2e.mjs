@@ -251,6 +251,10 @@ try {
   await page.getByRole("button", { name: "❚❚ Shelved" }).click();
   check("shelving asks when it was put down, not finished",
     (await page.locator("#log-stopped").count()) === 1 && (await page.locator("#log-finished").count()) === 0);
+  // Started: just a month
+  await page.locator('[aria-label="How exact"]').first().getByRole("button", { name: "Month" }).click();
+  await page.selectOption("#log-started", "02");
+  await page.selectOption('select[aria-label="Year"]', "2026");
   await page.fill("#log-stopped", "2026-03-04");
   await page.check("#log-not-returning");
   await page.getByRole("button", { name: "Save log" }).click();
@@ -259,12 +263,33 @@ try {
   const shelvedSection = page.locator("section", { has: page.getByRole("heading", { name: /^Shelved/ }) });
   const shelvedRow = shelvedSection.locator("li", { hasText: "Celeste" });
   check("diary lists shelved games separately",
-    await shelvedRow.getByText("Shelved Mar 4, 2026").isVisible());
+    await shelvedRow.getByText("Mar 4, 2026").isVisible());
+  check("a month-only start date shows as just the month",
+    await shelvedRow.getByText("Feb 2026 – Mar 4, 2026").isVisible());
   check("shelved game shows 'Not going back'", await shelvedRow.getByText("Not going back").isVisible());
   await page.goto(`${BASE}/log?status=SHELVED`);
   check("status filter finds shelved games", await page.getByText("Celeste").first().isVisible());
   await page.goto(`${BASE}/`);
   check("shelved game isn't counted as beaten", (await page.locator("div", { hasText: /^3Games beaten$/ }).count()) > 0);
+
+  // 7d. Finished, but only the year remembered: still counts for that year
+  const thisYear = String(new Date().getUTCFullYear());
+  await page.goto(`${BASE}/search`);
+  await page.fill('input[type="search"]', "hollow");
+  await page.waitForSelector("text=Hollow Knight");
+  await page.locator("div.group", { hasText: "Hollow Knight" }).first()
+    .getByRole("button", { name: "Beaten", exact: true }).click();
+  await page.waitForSelector("text=Add to your played log");
+  await page.locator('[aria-label="How exact"]').nth(1).getByRole("button", { name: "Year" }).click();
+  check("finish date can be just a year", (await page.locator("select#log-finished").inputValue()) === thisYear);
+  await page.getByRole("button", { name: "Save log" }).click();
+  await page.waitForSelector("text=Add to your played log", { state: "detached" });
+  await page.goto(`${BASE}/log`);
+  check("year-only finish shows as just the year",
+    await page.locator("li", { hasText: "Hollow Knight" }).locator("span.whitespace-nowrap", { hasText: new RegExp(`^${thisYear}$`) }).isVisible());
+  await page.goto(`${BASE}/`);
+  check("year-only finish counts towards that year",
+    (await page.locator("div", { hasText: new RegExp(`^3Finished in ${thisYear}$`) }).count()) > 0);
 
   // 8. Edit a log (change rating)
   await page.goto(`${BASE}/log`);

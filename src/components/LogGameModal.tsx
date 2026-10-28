@@ -11,6 +11,7 @@ import type {
   ShelfOption,
 } from "@/lib/types";
 import { isFinishedStatus, isPlayStatus, type PlayStatus } from "@/lib/status";
+import { PartialDateField } from "./PartialDateField";
 import { Poster } from "./Poster";
 import { StarRatingInput } from "./StarRatingInput";
 import { safeAction } from "@/lib/safe-action";
@@ -310,27 +311,14 @@ export function LogGameModal({
                   {isPlaying ? "Playing since" : "Started"}{" "}
                   <span className="normal-case text-fog/85">(optional)</span>
                 </label>
-                <input
-                  id="log-started"
-                  type="date"
-                  value={startedAt}
-                  max={isFinished ? finishedAt || undefined : isShelved ? stoppedAt || undefined : undefined}
-                  onChange={(e) => setStartedAt(e.target.value)}
-                  className={fieldClass}
-                />
+                <PartialDateField id="log-started" value={startedAt} onChange={setStartedAt} fieldClass={fieldClass} />
               </div>
               {isShelved && (
                 <div className="min-w-0">
                   <label className={labelClass} htmlFor="log-stopped">
                     Put down <span className="normal-case text-fog/85">(optional)</span>
                   </label>
-                  <input
-                    id="log-stopped"
-                    type="date"
-                    value={stoppedAt}
-                    onChange={(e) => setStoppedAt(e.target.value)}
-                    className={fieldClass}
-                  />
+                  <PartialDateField id="log-stopped" value={stoppedAt} onChange={setStoppedAt} fieldClass={fieldClass} />
                 </div>
               )}
               {isFinished && (
@@ -338,13 +326,12 @@ export function LogGameModal({
                   <label className={labelClass} htmlFor="log-finished">
                     Finished
                   </label>
-                  <input
+                  <PartialDateField
                     id="log-finished"
-                    type="date"
                     required
                     value={finishedAt}
-                    onChange={(e) => setFinishedAt(e.target.value)}
-                    className={fieldClass}
+                    onChange={setFinishedAt}
+                    fieldClass={fieldClass}
                   />
                 </div>
               )}

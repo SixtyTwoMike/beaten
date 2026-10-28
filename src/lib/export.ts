@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { ratingToStars, toDateInput } from "./format";
+import { ratingToStars, toDateInput, toPartialInput } from "./format";
 import { getPlatforms } from "./platforms";
 
 // Everything a user has put into Beaten, for the "Download your data"
@@ -66,10 +66,11 @@ export async function buildExport(userId: string) {
       status: log.status,
       platform: log.platformId ? (platformName.get(log.platformId) ?? null) : null,
       platformId: log.platformId,
-      startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
-      finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
+      // YYYY-MM-DD, or YYYY-MM / YYYY when only the month or year was given.
+      startedAt: log.startedAt ? toPartialInput(log.startedAt, log.startedPrecision) : null,
+      finishedAt: log.finishedAt ? toPartialInput(log.finishedAt, log.finishedPrecision) : null,
       // Shelved entries: when it was put down, and whether for good.
-      stoppedAt: log.stoppedAt ? toDateInput(log.stoppedAt) : null,
+      stoppedAt: log.stoppedAt ? toPartialInput(log.stoppedAt, log.stoppedPrecision) : null,
       notReturning: log.notReturning,
       isReplay: log.isReplay,
       // 1-10 half-star steps; ratingStars is the same on a 0.5-5 scale.

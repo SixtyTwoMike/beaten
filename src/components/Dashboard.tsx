@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
+import { formatPartialDate } from "@/lib/format";
 import type { SessionUser } from "@/lib/session";
 import { FINISHED_STATUSES } from "@/lib/status";
 import { Poster } from "@/components/Poster";
@@ -120,7 +120,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
                   <StatusBadge status={log.status} />
                   {log.startedAt && (
                     <p className="text-xs text-fog">
-                      Since {formatDate(log.startedAt)}
+                      Since {formatPartialDate(log.startedAt, log.startedPrecision)}
                     </p>
                   )}
                 </div>
@@ -170,7 +170,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
                 <div className="mt-1.5 space-y-1">
                   <StatusBadge status={log.status} />
                   {log.rating && <Stars rating={log.rating} />}
-                  <p className="text-xs text-fog">{formatDate(log.finishedAt)}</p>
+                  <p className="text-xs text-fog">{formatPartialDate(log.finishedAt, log.finishedPrecision)}</p>
                 </div>
               </Link>
             ))}

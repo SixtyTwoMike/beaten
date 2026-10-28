@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { logDates, toDateInput } from "@/lib/format";
+import { logDates, toDateInput, toPartialInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
@@ -197,12 +197,12 @@ export default async function GamePage({
                             status: log.status,
                             platformId: log.platformId,
                             startedAt: log.startedAt
-                              ? toDateInput(log.startedAt)
+                              ? toPartialInput(log.startedAt, log.startedPrecision)
                               : null,
                             finishedAt: log.finishedAt
-                              ? toDateInput(log.finishedAt)
+                              ? toPartialInput(log.finishedAt, log.finishedPrecision)
                               : null,
-                            stoppedAt: log.stoppedAt ? toDateInput(log.stoppedAt) : null,
+                            stoppedAt: log.stoppedAt ? toPartialInput(log.stoppedAt, log.stoppedPrecision) : null,
                             notReturning: log.notReturning,
                             isReplay: log.isReplay,
                             rating: log.rating,

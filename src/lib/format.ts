@@ -15,6 +15,31 @@ export function toDateInput(d: Date | null | undefined): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Start and put-down dates may be just a month or a year ("I started it in
+// March"). Stored as the first day of that period plus a precision.
+export type DatePrecision = "DAY" | "MONTH" | "YEAR";
+
+export function precisionOf(value: string | null | undefined): DatePrecision {
+  return value === "MONTH" || value === "YEAR" ? value : "DAY";
+}
+
+// "YYYY", "YYYY-MM" or "YYYY-MM-DD" for the date field and exports.
+export function toPartialInput(d: Date | null | undefined, precision: string | null | undefined): string {
+  if (!d) return "";
+  const full = toDateInput(d);
+  const p = precisionOf(precision);
+  return p === "YEAR" ? full.slice(0, 4) : p === "MONTH" ? full.slice(0, 7) : full;
+}
+
+// "Mar 4, 2026", "Mar 2026" or "2026".
+export function formatPartialDate(d: Date | null | undefined, precision: string | null | undefined): string {
+  if (!d) return "";
+  const p = precisionOf(precision);
+  if (p === "YEAR") return String(d.getUTCFullYear());
+  if (p === "MONTH") return d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+  return formatDate(d);
+}
+
 export function todayDateInput(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -30,18 +55,22 @@ export function ratingToStars(rating: number): string {
 export function logDates(log: {
   status: string;
   startedAt: Date | null;
+  startedPrecision?: string | null;
   finishedAt: Date | null;
+  finishedPrecision?: string | null;
   stoppedAt?: Date | null;
+  stoppedPrecision?: string | null;
 }): string {
+  const started = formatPartialDate(log.startedAt, log.startedPrecision);
   if (log.status === "SHELVED") {
     if (log.stoppedAt) {
-      return `${log.startedAt ? `${formatDate(log.startedAt)} – ` : "Shelved "}${formatDate(log.stoppedAt)}`;
+      return `${started ? `${started} – ` : "Shelved "}${formatPartialDate(log.stoppedAt, log.stoppedPrecision)}`;
     }
-    return log.startedAt ? `Started ${formatDate(log.startedAt)}` : "Shelved";
+    return started ? `Started ${started}` : "Shelved";
   }
   if (log.finishedAt) {
-    return `${log.startedAt ? `${formatDate(log.startedAt)} – ` : ""}${formatDate(log.finishedAt)}`;
+    return `${started ? `${started} – ` : ""}${formatPartialDate(log.finishedAt, log.finishedPrecision)}`;
   }
   if (log.status !== "PLAYING") return "Finished, date unknown";
-  return log.startedAt ? `Playing since ${formatDate(log.startedAt)}` : "Currently playing";
+  return started ? `Playing since ${started}` : "Currently playing";
 }

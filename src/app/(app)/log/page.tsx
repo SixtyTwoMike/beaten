@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { logDates, toDateInput } from "@/lib/format";
+import { logDates, toDateInput, toPartialInput } from "@/lib/format";
 import { MAX_YEAR, MIN_YEAR, isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
@@ -167,9 +167,9 @@ export default async function LogPage({
               logId: log.id,
               status: log.status,
               platformId: log.platformId,
-              startedAt: log.startedAt ? toDateInput(log.startedAt) : null,
-              finishedAt: log.finishedAt ? toDateInput(log.finishedAt) : null,
-              stoppedAt: log.stoppedAt ? toDateInput(log.stoppedAt) : null,
+              startedAt: log.startedAt ? toPartialInput(log.startedAt, log.startedPrecision) : null,
+              finishedAt: log.finishedAt ? toPartialInput(log.finishedAt, log.finishedPrecision) : null,
+              stoppedAt: log.stoppedAt ? toPartialInput(log.stoppedAt, log.stoppedPrecision) : null,
               notReturning: log.notReturning,
               isReplay: log.isReplay,
               rating: log.rating,

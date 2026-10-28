@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPartialDate } from "@/lib/format";
 import { normalizeUsername } from "@/lib/username";
 import { isFinishedStatus } from "@/lib/status";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
@@ -260,7 +260,7 @@ export default async function ProfilePage({ params }: Params) {
                   <div className="mt-1.5 space-y-1">
                     <StatusBadge status={log.status} />
                     {log.rating != null && <Stars rating={log.rating} />}
-                    <p className="text-xs text-fog">{formatDate(log.finishedAt)}</p>
+                    <p className="text-xs text-fog">{formatPartialDate(log.finishedAt, log.finishedPrecision)}</p>
                   </div>
                 </GameLink>
               ))}
@@ -285,7 +285,7 @@ export default async function ProfilePage({ params }: Params) {
                       <StatusBadge status={log.status} />
                       {log.rating != null && <Stars rating={log.rating} />}
                     </div>
-                    <p className="mt-0.5 text-xs text-fog">{formatDate(log.finishedAt)}</p>
+                    <p className="mt-0.5 text-xs text-fog">{formatPartialDate(log.finishedAt, log.finishedPrecision)}</p>
                     <p className="mt-2 whitespace-pre-line break-words text-sm text-fog/90">
                       {log.reviewText}
                     </p>

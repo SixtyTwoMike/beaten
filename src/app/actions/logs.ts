@@ -10,6 +10,7 @@ import {
   MAX_SHELVES_PER_LOG,
   isIgdbId,
 } from "@/lib/limits";
+import type { DatePrecision } from "@/lib/format";
 import { isFinishedStatus, isPlayStatus } from "@/lib/status";
 
 export type SaveLogInput = {
@@ -17,10 +18,10 @@ export type SaveLogInput = {
   igdbId: number;
   status: string;
   platformId?: number | null;
-  startedAt?: string | null; // YYYY-MM-DD
-  finishedAt?: string | null; // YYYY-MM-DD; null while status is PLAYING
+  startedAt?: string | null; // YYYY-MM-DD, or YYYY-MM / YYYY when that's all they remember
+  finishedAt?: string | null; // YYYY-MM-DD / YYYY-MM / YYYY; null unless finished
   finishedDateUnknown?: boolean; // finished, but they don't remember when
-  stoppedAt?: string | null; // YYYY-MM-DD; SHELVED only, optional
+  stoppedAt?: string | null; // YYYY-MM-DD / YYYY-MM / YYYY; SHELVED only, optional
   notReturning?: boolean; // SHELVED only
   isReplay: boolean;
   rating?: number | null; // 1-10 half-star steps
@@ -39,6 +40,32 @@ function parseDate(value: string | null | undefined): Date | null {
   return isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value ? null : d;
 }
 
+// A date given as just "YYYY-MM" or "YYYY": the first day of that period,
+// and how precise it is.
+function parsePartialDate(value: string | null | undefined): { date: Date; precision: DatePrecision } | null {
+  if (typeof value !== "string") return null;
+  if (/^\d{4}$/.test(value)) {
+    const date = parseDate(`${value}-01-01`);
+    return date ? { date, precision: "YEAR" } : null;
+  }
+  if (/^\d{4}-\d{2}$/.test(value)) {
+    const date = parseDate(`${value}-01`);
+    return date ? { date, precision: "MONTH" } : null;
+  }
+  const date = parseDate(value);
+  return date ? { date, precision: "DAY" } : null;
+}
+
+// The last day of a partial date's period, for "start before end" checks:
+// a game started in March 2026 can be finished "in 2026".
+function periodEnd(d: { date: Date; precision: DatePrecision }): Date {
+  const y = d.date.getUTCFullYear();
+  const m = d.date.getUTCMonth();
+  if (d.precision === "YEAR") return new Date(Date.UTC(y, 11, 31));
+  if (d.precision === "MONTH") return new Date(Date.UTC(y, m + 1, 0));
+  return d.date;
+}
+
 export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
@@ -49,22 +76,26 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
     }
     const dateUnknown = isFinishedStatus(input.status) && input.finishedDateUnknown === true;
     // Without a finish date a start date means little; drop it.
-    const startedAt = dateUnknown ? null : parseDate(input.startedAt);
+    const started = dateUnknown ? null : parsePartialDate(input.startedAt);
+    if (!dateUnknown && input.startedAt && !started) return { ok: false, error: "Invalid start date" };
+    const startedAt = started?.date ?? null;
     // Finished statuses need a finish date unless it's unknown; a game still
     // being played has none.
-    let finishedAt: Date | null = null;
+    let finished: { date: Date; precision: DatePrecision } | null = null;
     if (isFinishedStatus(input.status) && !dateUnknown) {
-      finishedAt = parseDate(input.finishedAt);
-      if (!finishedAt) return { ok: false, error: "A finish date is required" };
-      if (startedAt && startedAt > finishedAt) {
+      finished = parsePartialDate(input.finishedAt);
+      if (!finished) return { ok: false, error: "A finish date is required" };
+      if (startedAt && startedAt > periodEnd(finished)) {
         return { ok: false, error: "Start date must be before the finish date" };
       }
     }
+    const finishedAt = finished?.date ?? null;
     // Shelved: when it was put down (optional), and whether for good.
     const shelved = input.status === "SHELVED";
-    const stoppedAt = shelved ? parseDate(input.stoppedAt) : null;
-    if (shelved && input.stoppedAt && !stoppedAt) return { ok: false, error: "Invalid date" };
-    if (stoppedAt && startedAt && startedAt > stoppedAt) {
+    const stopped = shelved ? parsePartialDate(input.stoppedAt) : null;
+    if (shelved && input.stoppedAt && !stopped) return { ok: false, error: "Invalid date" };
+    const stoppedAt = stopped?.date ?? null;
+    if (stopped && startedAt && startedAt > periodEnd(stopped)) {
       return { ok: false, error: "Start date must be before the date you stopped" };
     }
     let rating: number | null = null;
@@ -96,8 +127,12 @@ export async function saveLog(input: SaveLogInput): Promise<ActionResult> {
       status: input.status,
       platformId,
       startedAt,
+      // null = exact day
+      startedPrecision: started && started.precision !== "DAY" ? started.precision : null,
       finishedAt,
+      finishedPrecision: finished && finished.precision !== "DAY" ? finished.precision : null,
       stoppedAt,
+      stoppedPrecision: stopped && stopped.precision !== "DAY" ? stopped.precision : null,
       notReturning: shelved && input.notReturning === true,
       isReplay: Boolean(input.isReplay),
       rating,
