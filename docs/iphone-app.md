@@ -1,6 +1,6 @@
 # Beaten for iPhone — plan
 
-Status: **built, not yet deployed**, branch `feature/ios-app`. v1 is the
+Status: **built; API live on beaten.games (179cdcb, 2026-10-29)**, branch `feature/ios-app`. v1 is the
 logging app: sign in, search, log, diary, shelves, your own profile. Social
 (feed, following, people), imports (Steam, RetroAchievements) and Console
 Chronicles stay web-only for now. iOS 26+, iPhone only.
@@ -154,11 +154,12 @@ Store/TestFlight pipeline.
 3. ✅ `/api/v1` endpoints; `scripts/api.smoke.mjs`.
 4. ✅ App: sign-in, Home, Search, Log sheet, Game, Diary, Shelves, Profile,
    devices, export, delete account; UI walkthrough test.
-5. Deploy the server (runs the `api_tokens` migration and rewrites nginx).
+5. ✅ Deploy the server (`api_tokens` migration applied, nginx `-t` passes).
 6. Developer portal: App ID `games.beaten.app` with Sign in with Apple,
    grouped with the web Services ID; App Store Connect record; real app
    icon (the current one is a placeholder).
-7. TestFlight (fastlane as in eist), then App Store review.
+7. TestFlight: copy `ios/fastlane/.env.example` to `.env` (same API key as
+   éist), then `cd ios && fastlane beta`. Then App Store review.
 
 ## Later
 
