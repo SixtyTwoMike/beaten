@@ -64,6 +64,11 @@ if [ -n "$RA_KEY" ]; then
   echo "==> setting RetroAchievements API key"
   ENV_UPDATES+="RA_API_KEY=$RA_KEY"$'\n'"RA_MOCK=0"$'\n'
 fi
+STEAM_KEY=$(env_value STEAM_API_KEY)
+if [ -n "$STEAM_KEY" ]; then
+  echo "==> setting Steam Web API key"
+  ENV_UPDATES+="STEAM_API_KEY=$STEAM_KEY"$'\n'"STEAM_MOCK=0"$'\n'
+fi
 # BEATEN_DOMAIN=new.host moves the site (users sign in again on the new origin).
 if [ -n "${BEATEN_DOMAIN:-}" ]; then
   echo "==> setting domain $BEATEN_DOMAIN"

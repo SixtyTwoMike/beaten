@@ -45,6 +45,8 @@ model User {
   authTokens   AuthToken[]
   raAccount    RaAccount?
   raAwards     RaAward[]
+  steamAccount SteamAccount?
+  steamGames   SteamGame[]
   chronicle    Chronicle?
   following    Follow[]    @relation("Follower")
   followers    Follow[]    @relation("Followee")
@@ -135,6 +137,7 @@ model PlayLog {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   game       Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
   raAwards   RaAward[]
+  steamGames SteamGame[]
   activities Activity[]
   // Reviews with plot details are blurred in feeds and on profiles.
   containsSpoilers Boolean @default(false)
@@ -219,6 +222,62 @@ model RaAward {
   playLog     PlayLog?  @relation(fields: [playLogId], references: [id], onDelete: SetNull)
 
   @@unique([userId, raGameId, kind])
+  @@index([userId, state])
+}
+
+// A linked Steam account, proven with "Sign in through Steam" (OpenID): we
+// only ever learn the SteamID. Requests use the site-wide STEAM_API_KEY.
+model SteamAccount {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  // 64-bit SteamID; one Steam account links to one Beaten account
+  steamId       String    @unique
+  personaName   String?
+  avatarUrl     String?
+  lastSyncedAt  DateTime?
+  // Any sync attempt (successful or not), for the per-user rate limit
+  lastAttemptAt DateTime?
+  // Steam returned no games at the last sync: "Game details" is private
+  privateLibrary Boolean  @default(false)
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per played Steam game. Steam has no "beaten" signal, so the
+// review page proposes a status from achievements and last played date
+// (lib/steam-import.ts) and the user confirms or changes it.
+model SteamGame {
+  id              String    @id @default(cuid())
+  userId          String
+  appId           Int
+  name            String
+  playtimeMinutes Int
+  lastPlayedAt    DateTime?
+  // Steam says the game has stats/achievements worth asking about
+  hasStats        Boolean   @default(false)
+  // Achievements: null until checked; achTotal 0 means the game has none
+  achTotal        Int?
+  achUnlocked     Int?
+  firstUnlockAt   DateTime?
+  lastUnlockAt    DateTime?
+  statsCheckedAt  DateTime?
+  // "PENDING" | "IMPORTED" | "LINKED" (already in the diary) | "SKIPPED"
+  state           String    @default("PENDING")
+  // IGDB match by Steam app id (exact when found); null until looked up
+  matchCheckedAt  DateTime?
+  igdbId          Int?
+  matchName       String?
+  matchCoverUrl   String?
+  matchYear       Int?
+  // The status it was imported at, to spot a later 100% (→ Mastered)
+  importedStatus  String?
+  playLogId       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playLog         PlayLog?  @relation(fields: [playLogId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, appId])
   @@index([userId, state])
 }
 

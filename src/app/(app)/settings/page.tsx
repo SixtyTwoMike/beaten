@@ -7,6 +7,9 @@ import { usernameForInvite } from "@/lib/reserved-usernames";
 import { nextUsernameChange } from "@/lib/username";
 import { raConfigured, raProfileUrl } from "@/lib/retroachievements";
 import { RetroAchievementsLink } from "@/components/RetroAchievementsLink";
+import { steamConfigured, steamPrivacyUrl, steamProfileUrl } from "@/lib/steam";
+import { MIN_MINUTES } from "@/lib/steam-import";
+import { SteamLink } from "@/components/SteamLink";
 import { AvatarPicker, type AvatarGame } from "@/components/AvatarPicker";
 import { BlockedList } from "@/components/BlockedList";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
@@ -37,9 +40,9 @@ function Section({
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite?: string }>;
+  searchParams: Promise<{ invite?: string; steam?: string }>;
 }) {
-  const { invite: inviteCode } = await searchParams;
+  const { invite: inviteCode, steam: steamResult } = await searchParams;
   const user = await requireUser();
   const invitedUsername = await usernameForInvite(inviteCode);
   const blocked = await prisma.block.findMany({
@@ -47,6 +50,12 @@ export default async function SettingsPage({
     orderBy: { createdAt: "desc" },
     select: { blocked: { select: { username: true, name: true } } },
   });
+  const [steamAccount, steamPending] = await Promise.all([
+    prisma.steamAccount.findUnique({ where: { userId: user.id } }),
+    prisma.steamGame.count({
+      where: { userId: user.id, state: "PENDING", matchCheckedAt: { not: null }, playtimeMinutes: { gte: MIN_MINUTES } },
+    }),
+  ]);
   const [profile, finishedLogs, raAccount, raPending] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
@@ -151,6 +160,37 @@ export default async function SettingsPage({
         </div>
       </Section>
 
+
+      {steamConfigured() && (
+        <Section id="steam" title="Steam">
+          <p className="mt-1 text-sm text-fog">
+            Bring in the games you&apos;ve played on Steam. You sign in on
+            Steam&apos;s own site, so we never see your password; we only get
+            your Steam ID, then read your games, playtime and achievement dates.
+            Steam doesn&apos;t know when you&apos;ve beaten a game, so you review
+            each one (Playing, Beaten, Mastered or Shelved) before it&apos;s added.
+          </p>
+          <div className="mt-4">
+            <SteamLink
+              account={
+                steamAccount
+                  ? {
+                      personaName: steamAccount.personaName,
+                      profileUrl: steamProfileUrl(steamAccount.steamId),
+                      privacyUrl: steamPrivacyUrl(steamAccount.steamId),
+                      lastSynced: steamAccount.lastSyncedAt ? formatDate(steamAccount.lastSyncedAt) : null,
+                      neverSynced: !steamAccount.lastAttemptAt,
+                      privateLibrary: steamAccount.privateLibrary,
+                    }
+                  : null
+              }
+              reviewCount={steamPending}
+              linkResult={typeof steamResult === "string" ? steamResult : null}
+            />
+          </div>
+          <p className="mt-3 text-xs text-fog/70">Not affiliated with Valve. Steam is a trademark of Valve Corporation.</p>
+        </Section>
+      )}
 
       {raConfigured() && (
         <Section id="retroachievements" title="RetroAchievements">

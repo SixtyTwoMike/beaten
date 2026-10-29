@@ -220,6 +220,51 @@ export async function getGame(igdbId: number): Promise<IgdbGame | null> {
   return raw.length ? toIgdbGame(raw[0]) : null;
 }
 
+// Games for Steam app ids, via IGDB's external_games (source 1 = Steam).
+// An app that is an edition of another game resolves to that game.
+// Up to 500 ids per call.
+const STEAM_SOURCE = 1;
+export async function findBySteamAppIds(appIds: number[]): Promise<Map<number, IgdbGame>> {
+  const found = new Map<number, IgdbGame>();
+  const ids = [...new Set(appIds.filter((id) => Number.isInteger(id) && id > 0))].slice(0, 500);
+  if (ids.length === 0) return found;
+  if (mockEnabled()) {
+    for (const id of ids) {
+      const game = MOCK_STEAM[id] ? mockGetGame(MOCK_STEAM[id]) : null;
+      if (game) found.set(id, game);
+    }
+    return found;
+  }
+  const links = await igdbQuery<{ uid?: string; game?: number }>(
+    "external_games",
+    `fields uid,game; where external_game_source = ${STEAM_SOURCE} & uid = (${ids.map((i) => `"${i}"`).join(",")}); limit 500;`
+  );
+  const gameFor = new Map<number, number>();
+  for (const l of links) {
+    const appId = Number(l.uid);
+    if (l.game && ids.includes(appId) && !gameFor.has(appId)) gameFor.set(appId, l.game);
+  }
+  if (gameFor.size === 0) return found;
+  const raw = await igdbQuery<RawGame>("games", `${GAME_FIELDS} where id = (${[...new Set(gameFor.values())].join(",")}); limit 500;`);
+  const byId = new Map(raw.map((g) => [g.id, g]));
+  const parents = [...new Set(raw.flatMap((g) => (g.version_parent && !byId.has(g.version_parent) ? [g.version_parent] : [])))];
+  if (parents.length) {
+    for (const g of await igdbQuery<RawGame>("games", `${GAME_FIELDS} where id = (${parents.join(",")}); limit 500;`)) byId.set(g.id, g);
+  }
+  for (const [appId, gameId] of gameFor) {
+    let g = byId.get(gameId);
+    if (g?.version_parent && byId.has(g.version_parent)) g = byId.get(g.version_parent);
+    if (g) found.set(appId, toIgdbGame(g));
+  }
+  return found;
+}
+
+// Steam app id → mock catalog id (lib/steam.ts's sample library).
+const MOCK_STEAM: Record<number, number> = {
+  1245620: 900002, 1145360: 900003, 367520: 900004, 220: 900007, 620: 900008,
+  570940: 900009, 1593500: 900010, 504230: 900011, 413150: 900012, 292030: 900015,
+};
+
 export async function fetchPlatforms(): Promise<IgdbPlatform[]> {
   if (mockEnabled()) return mockPlatforms;
   type RawPlatform = {

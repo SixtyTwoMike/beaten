@@ -20,6 +20,7 @@ export async function buildExport(userId: string) {
         instagram: true,
         bluesky: true,
         raAccount: { select: { raUsername: true } },
+        steamAccount: { select: { steamId: true } },
         following: { orderBy: { createdAt: "asc" }, select: { createdAt: true, followee: { select: { username: true } } } },
       },
     }),
@@ -66,6 +67,7 @@ export async function buildExport(userId: string) {
       instagram: user.instagram,
       bluesky: user.bluesky,
       retroAchievements: user.raAccount?.raUsername ?? null,
+      steamId: user.steamAccount?.steamId ?? null,
     },
     following: user.following
       .filter((f) => f.followee.username)

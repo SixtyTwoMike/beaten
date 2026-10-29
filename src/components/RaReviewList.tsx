@@ -13,7 +13,7 @@ import { STATUS_LABELS, STATUS_RANK, type PlayStatus } from "@/lib/status";
 import { Poster } from "./Poster";
 import { StatusBadge } from "./StatusBadge";
 
-type MatchedGame = { igdbId: number; name: string; coverUrl: string | null; year: number | null };
+export type MatchedGame = { igdbId: number; name: string; coverUrl: string | null; year: number | null };
 
 export type RaReviewRow = {
   key: string;
@@ -37,7 +37,7 @@ function effect(kind: string, existing: string | undefined): string {
   return `Upgrades your ${STATUS_LABELS[existing as PlayStatus]} entry to ${STATUS_LABELS[kind as PlayStatus]}`;
 }
 
-function MatchSearch({ initial, onPick }: { initial: string; onPick: (g: MatchedGame) => void }) {
+export function MatchSearch({ initial, onPick }: { initial: string; onPick: (g: MatchedGame) => void }) {
   const [q, setQ] = useState(initial);
   const [results, setResults] = useState<MatchedGame[] | null>(null);
   const [error, setError] = useState<string | null>(null);

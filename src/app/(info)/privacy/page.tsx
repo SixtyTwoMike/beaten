@@ -6,7 +6,7 @@ export const metadata = {
   description: "What Beaten stores, what's public, and how to get or delete your data.",
 };
 
-const LAST_UPDATED = "28 October 2026";
+const LAST_UPDATED = "29 October 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -53,6 +53,16 @@ export default function PrivacyPage() {
             give it, the year you were born. The birth year is used only to work out
             how old you were for each console and is never shown; you can turn ages
             off or clear it at any time.
+          </li>
+          <li>
+            <strong className="text-white">Linked game accounts:</strong> if you
+            link Steam, your Steam ID and display name, and for each game
+            you&apos;ve played: its name, your playtime, when you last played it,
+            and how many achievements you&apos;ve unlocked and when the first and
+            last were. If you link RetroAchievements, your RetroAchievements
+            username and the beaten and mastered awards it shows publicly. We
+            fetch these only when you sync, nothing goes into your diary until
+            you import it, and unlinking deletes them (imported diary entries stay).
           </li>
           <li>
             <strong className="text-white">Security records:</strong> one-time
@@ -103,6 +113,12 @@ export default function PrivacyPage() {
             warn you off passwords that have appeared in data breaches. Only the
             first five characters of a hash of the password are sent, so neither
             the password nor its full hash ever leaves our server.
+          </li>
+          <li>
+            <strong className="text-white">Valve (Steam)</strong> and{" "}
+            <strong className="text-white">RetroAchievements</strong>, only if you
+            link those accounts. Signing in through Steam happens on Steam&apos;s
+            own site; we never see your Steam password.
           </li>
           <li>
             <strong className="text-white">Google</strong>, only if you choose

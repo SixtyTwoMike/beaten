@@ -33,7 +33,16 @@ export default async function CreditsPage() {
           <a href="https://www.igdb.com" className="text-mint hover:underline" target="_blank" rel="noopener noreferrer">
             IGDB
           </a>
-          .
+          . Imports use the{" "}
+          <a href="https://steamcommunity.com/dev" className="text-mint hover:underline" target="_blank" rel="noopener noreferrer">
+            Steam Web API
+          </a>{" "}
+          and the{" "}
+          <a href="https://api-docs.retroachievements.org" className="text-mint hover:underline" target="_blank" rel="noopener noreferrer">
+            RetroAchievements API
+          </a>
+          . Beaten isn&apos;t affiliated with or endorsed by Valve; Steam and the Steam logo
+          are trademarks of Valve Corporation.
         </p>
       </section>
 

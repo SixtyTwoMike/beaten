@@ -486,6 +486,44 @@ try {
   check("game page links the RA set",
     await page.getByRole("link", { name: "Super Metroid on RetroAchievements" }).waitFor({ timeout: 10000 }).then(() => true, () => false));
 
+  // 12e2. Steam import (STEAM_MOCK sample library): sign in through Steam
+  // (mocked), sync, review suggested statuses, import.
+  const forged = await page.request.get(`${BASE}/api/steam/callback?n=forged&mock=1`, { maxRedirects: 0 });
+  check("Steam callback without this browser's nonce is refused",
+    forged.status() === 307 && /steam=expired/.test(forged.headers()["location"] ?? ""));
+  await page.goto(`${BASE}/settings#steam`);
+  await page.getByRole("link", { name: "Sign in through Steam" }).click();
+  await page.waitForURL("**/settings?steam=linked**");
+  await page.getByText(/7 new games/).waitFor({ timeout: 20000 });
+  check("Steam sign-in links the account and syncs", true);
+  await page.getByRole("link", { name: /Review 6 to import/ }).click();
+  await page.waitForURL("**/import/steam");
+  const stRow = (name) => page.locator(`li[data-steam-row="${name}"]`);
+  const stStatus = (name) => stRow(name).locator("select");
+  check("Steam: 100% achievements suggests Mastered", (await stStatus("ELDEN RING").inputValue()) === "MASTERED");
+  check("Steam: played recently suggests Playing", (await stStatus("Hades").inputValue()) === "PLAYING");
+  check("Steam: not played lately suggests Shelved", (await stStatus("Hollow Knight").inputValue()) === "SHELVED");
+  check("Steam: non-games aren't matched", await stRow("Wallpaper Engine").getByRole("checkbox").isDisabled());
+  check("Steam: unplayed games aren't listed", (await stRow("The Witcher 3: Wild Hunt").count()) === 0);
+  check("Steam: games played under an hour are hidden", (await stRow("Celeste").count()) === 0);
+  await page.getByRole("button", { name: /Show 1 game played for under an hour/ }).click();
+  check("Steam: hidden games can be shown, unticked", !(await stRow("Celeste").getByRole("checkbox").isChecked()));
+  await stStatus("Portal 2").selectOption("BEATEN");
+  check("Steam: choosing Beaten dates it by month", await stRow("Portal 2").getByText("finished Sep 2020").isVisible());
+  await stRow("Stardew Valley").getByRole("checkbox").uncheck();
+  await page.getByRole("button", { name: "Import 4 games" }).click();
+  await page.getByText(/^Imported \d/).waitFor({ timeout: 15000 });
+  check("Steam import reports what it did", true);
+  check("Steam review keeps unticked games for later",
+    await stRow("Stardew Valley").isVisible() && (await stRow("ELDEN RING").count()) === 0);
+  await page.screenshot({ path: `${shots}/smoke-steam-review.png`, fullPage: true });
+  await page.goto(`${BASE}/log`);
+  const erImported = page.locator("li", { hasText: "Elden Ring" }).first();
+  check("Steam import adds a mastered entry dated by the last achievement",
+    await erImported.getByText("★ Mastered").isVisible() && await erImported.getByText("Aug 8, 2022").isVisible());
+  check("Steam import adds a beaten entry with a month-only date",
+    await page.locator("li", { hasText: "Portal 2" }).first().getByText("Sep 2020").isVisible());
+
   // 12f. Console chronicles (Extras): consoles with dates, ages, badges
   // and favourite games, drawn as a zig-zag map
   await page.goto(`${BASE}/extras`);

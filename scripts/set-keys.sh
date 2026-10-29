@@ -63,6 +63,9 @@ ask GOOGLE_CLIENT_SECRET "Google client secret" hidden
 echo "RetroAchievements key: retroachievements.org > Settings > Keys (Web API Key)"
 ask RA_API_KEY "RetroAchievements web API key" hidden
 
+echo "Steam key: steamcommunity.com/dev/apikey (domain name: beaten.games)"
+ask STEAM_API_KEY "Steam Web API key" hidden
+
 (( ${#keys[@]} )) || { echo "Nothing to change."; exit 0; }
 
 # Live IGDB once both Twitch keys exist; live RetroAchievements once its key does.
@@ -71,6 +74,9 @@ for i in "${!keys[@]}"; do
 done
 for i in "${!keys[@]}"; do
   if [[ ${keys[$i]} == RA_API_KEY ]]; then keys+=(RA_MOCK); vals+=(0); break; fi
+done
+for i in "${!keys[@]}"; do
+  if [[ ${keys[$i]} == STEAM_API_KEY ]]; then keys+=(STEAM_MOCK); vals+=(0); break; fi
 done
 
 # Rewrite .env with the changed keys replaced (values never hit argv).
