@@ -153,9 +153,13 @@ NGINX
 
 # For an apex domain (beaten.games), www.<domain> is served as a redirect
 # once the certificate covers it.
+# chronicles.<domain> is a short link to /chronicles (guest Console
+# Chronicles), likewise once DNS points here and the certificate covers it.
 WWW_DOMAIN=""
+CHRONICLES_DOMAIN=""
 if [ -n "$BEATEN_DOMAIN" ] && [ "$(tr -cd . <<<"$BEATEN_DOMAIN" | wc -c)" -eq 1 ]; then
   WWW_DOMAIN="www.$BEATEN_DOMAIN"
+  CHRONICLES_DOMAIN="chronicles.$BEATEN_DOMAIN"
 fi
 CERT="/etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem"
 
@@ -167,6 +171,8 @@ write_nginx() {
   local cert="$CERT"
   local www=""
   if [ -n "$WWW_DOMAIN" ] && cert_covers "$WWW_DOMAIN"; then www="$WWW_DOMAIN"; fi
+  local chron=""
+  if [ -n "$CHRONICLES_DOMAIN" ] && cert_covers "$CHRONICLES_DOMAIN"; then chron="$CHRONICLES_DOMAIN"; fi
   {
     cat <<'NGINX'
 limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
@@ -201,6 +207,14 @@ server {
     location / { return 301 https://$BEATEN_DOMAIN\$request_uri; }
 }
 
+# Lets certbot validate chronicles.<domain> before the certificate covers it.
+server {
+    listen 80;
+    server_name ${CHRONICLES_DOMAIN:-chronicles.invalid};
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 302 https://$BEATEN_DOMAIN/chronicles; }
+}
+
 server {
     listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates 'http2 on;'
     server_name $BEATEN_DOMAIN;
@@ -222,6 +236,20 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     add_header Strict-Transport-Security "max-age=31536000" always;
     return 301 https://$BEATEN_DOMAIN\$request_uri;
+}
+NGINX
+      fi
+      if [ -n "$chron" ]; then
+        cat <<NGINX
+
+server {
+    listen 443 ssl http2;
+    server_name $chron;
+    ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    return 302 https://$BEATEN_DOMAIN/chronicles;
 }
 NGINX
       fi
@@ -257,11 +285,14 @@ if [ -n "$BEATEN_DOMAIN" ]; then
   if points_here "$BEATEN_DOMAIN"; then
     names+=(-d "$BEATEN_DOMAIN")
     if [ -n "$WWW_DOMAIN" ] && points_here "$WWW_DOMAIN"; then names+=(-d "$WWW_DOMAIN"); fi
+    if [ -n "$CHRONICLES_DOMAIN" ] && points_here "$CHRONICLES_DOMAIN"; then names+=(-d "$CHRONICLES_DOMAIN"); fi
   fi
-  want_www=$([ "${#names[@]}" -gt 2 ] && echo 1 || echo 0)
+  # A name that resolves here but isn't on the certificate yet.
+  missing=0
+  for ((i = 1; i < ${#names[@]}; i += 2)); do cert_covers "${names[$i]}" || missing=1; done
   if [ "${#names[@]}" -eq 0 ]; then
     echo "DNS for $BEATEN_DOMAIN doesn't point at $MY_IP yet — serving HTTP only"
-  elif [ ! -f "$CERT" ] || { [ "$want_www" = 1 ] && ! cert_covers "$WWW_DOMAIN"; }; then
+  elif [ ! -f "$CERT" ] || [ "$missing" = 1 ]; then
     if certbot certonly --webroot -w /var/www/certbot --cert-name "$BEATEN_DOMAIN" \
         "${names[@]}" --expand --non-interactive --agree-tos \
         --register-unsafely-without-email --deploy-hook "systemctl reload nginx"; then
