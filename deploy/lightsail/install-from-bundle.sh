@@ -128,6 +128,22 @@ location ~ ^/(register|login|forgot-password|reset-password|verify-email|setting
     proxy_pass http://127.0.0.1:3000;
 }
 
+# iPhone app API. Sign-in checks passwords and Apple tokens: same per-IP limit
+# as the web sign-in. The rest is limited per IP on every method (the posts
+# zone only counts POSTs; the API also edits with PATCH and DELETE), loosely
+# enough for search-as-you-type.
+location /api/v1/auth/ {
+    limit_req zone=auth burst=5 nodelay;
+    include snippets/beaten-proxy.conf;
+    proxy_pass http://127.0.0.1:3000;
+}
+
+location /api/v1/ {
+    limit_req zone=api burst=60 nodelay;
+    include snippets/beaten-proxy.conf;
+    proxy_pass http://127.0.0.1:3000;
+}
+
 # Share-card PNGs are the most expensive thing the app renders. Cache them
 # (the URL fully determines the image; no cookies are involved) and rate
 # limit misses-and-hits alike so query-string variations can't pin the CPU.
@@ -183,6 +199,7 @@ map $request_method $auth_post_key {
 limit_req_zone $auth_post_key zone=register:10m rate=10r/m;
 limit_req_zone $auth_post_key zone=posts:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=cardrate:10m rate=30r/m;
+limit_req_zone $binary_remote_addr zone=api:10m rate=120r/m;
 proxy_cache_path /var/cache/nginx/beaten-cards levels=1:2 keys_zone=cardcache:10m max_size=200m inactive=1h use_temp_path=off;
 limit_req_status 429;
 server_tokens off;

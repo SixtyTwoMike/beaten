@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
-import { ensureGame } from "@/lib/games";
 import { requireUserId } from "@/lib/session";
-import { MAX_SHELF_DESCRIPTION, MAX_SHELF_NAME, isIgdbId } from "@/lib/limits";
+import {
+  addGameToShelfForUser,
+  createShelfForUser,
+  deleteShelfForUser,
+  removeGameFromShelfForUser,
+} from "@/lib/shelves";
 import type { ActionResult } from "./logs";
 
 export async function createShelf(
@@ -13,24 +16,8 @@ export async function createShelf(
 ): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const trimmed = name.trim();
-    if (!trimmed) return { ok: false, error: "Shelf name is required" };
-    if (trimmed.length > MAX_SHELF_NAME) {
-      return { ok: false, error: `Shelf name must be ${MAX_SHELF_NAME} characters or fewer` };
-    }
-    if ((description?.trim().length ?? 0) > MAX_SHELF_DESCRIPTION) {
-      return {
-        ok: false,
-        error: `Description must be ${MAX_SHELF_DESCRIPTION} characters or fewer`,
-      };
-    }
-    const existing = await prisma.shelf.findUnique({
-      where: { userId_name: { userId, name: trimmed } },
-    });
-    if (existing) return { ok: false, error: "You already have a shelf with that name" };
-    await prisma.shelf.create({
-      data: { userId, name: trimmed, description: description?.trim() || null },
-    });
+    const result = await createShelfForUser(userId, name, description);
+    if (!result.ok) return result;
     revalidatePath("/shelves");
     return { ok: true };
   } catch (e) {
@@ -42,11 +29,8 @@ export async function createShelf(
 export async function deleteShelf(shelfId: string): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const shelf = await prisma.shelf.findUnique({ where: { id: shelfId } });
-    if (!shelf || shelf.userId !== userId) {
-      return { ok: false, error: "Shelf not found" };
-    }
-    await prisma.shelf.delete({ where: { id: shelfId } });
+    const error = await deleteShelfForUser(userId, shelfId);
+    if (error) return { ok: false, error };
     revalidatePath("/shelves");
     return { ok: true };
   } catch (e) {
@@ -61,17 +45,8 @@ export async function addGameToShelf(
 ): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    if (!isIgdbId(igdbId)) return { ok: false, error: "Invalid game" };
-    const shelf = await prisma.shelf.findUnique({ where: { id: shelfId } });
-    if (!shelf || shelf.userId !== userId) {
-      return { ok: false, error: "Shelf not found" };
-    }
-    const game = await ensureGame(igdbId);
-    await prisma.shelfItem.upsert({
-      where: { shelfId_gameId: { shelfId, gameId: game.id } },
-      update: {},
-      create: { shelfId, gameId: game.id },
-    });
+    const error = await addGameToShelfForUser(userId, shelfId, igdbId);
+    if (error) return { ok: false, error };
     revalidatePath("/shelves");
     revalidatePath(`/shelves/${shelfId}`);
     return { ok: true };
@@ -87,11 +62,8 @@ export async function removeGameFromShelf(
 ): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const shelf = await prisma.shelf.findUnique({ where: { id: shelfId } });
-    if (!shelf || shelf.userId !== userId) {
-      return { ok: false, error: "Shelf not found" };
-    }
-    await prisma.shelfItem.deleteMany({ where: { shelfId, gameId } });
+    const error = await removeGameFromShelfForUser(userId, shelfId, gameId);
+    if (error) return { ok: false, error };
     revalidatePath("/shelves");
     revalidatePath(`/shelves/${shelfId}`);
     return { ok: true };

@@ -1,100 +1,167 @@
-# Beaten for iPhone — architecture sketch
+# Beaten for iPhone — plan
 
-Status: **plan / scaffold**. Nothing here is built yet. The auth section waits
-on the security review of the web login before any code lands.
+Status: **built, not yet deployed**, branch `feature/ios-app`. v1 is the
+logging app: sign in, search, log, diary, shelves, your own profile. Social
+(feed, following, people), imports (Steam, RetroAchievements) and Console
+Chronicles stay web-only for now. iOS 26+, iPhone only.
+
+## Running it
+
+```bash
+# server: the dev server must be running (npm run dev)
+node scripts/api.smoke.mjs              # every /api/v1 endpoint, throwaway account
+
+# app (XcodeGen: edit ios/project.yml, never the .xcodeproj)
+cd ios && xcodegen generate && open Beaten.xcodeproj
+```
+
+Debug builds talk to `http://localhost:3000`, Release to `https://beaten.games`
+(`BEATEN_API_BASE` in `project.yml`). The UI walkthrough test signs in with
+a dev-database account and logs, checks and deletes a game:
+
+```bash
+cd ios && TEST_RUNNER_BEATEN_TEST_EMAIL=you@example.com TEST_RUNNER_BEATEN_TEST_PASSWORD=… \
+  xcodebuild test -project Beaten.xcodeproj -scheme Beaten \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
+```
 
 ## Shape
 
 ```
-iPhone (SwiftUI) ──HTTPS──▶ /api/v1/*  (Next.js route handlers, JSON)
-                                │
-                                ├─ src/lib/* (same Prisma models, IGDB client,
-                                │             validation as the web app)
-                                └─ SQLite on the Lightsail box
+iPhone (SwiftUI) ──HTTPS + bearer token──▶ beaten.games/api/v1/*  (route handlers, JSON)
+                                                │
+                                                ├─ src/lib/* (same Prisma models, IGDB client,
+                                                │             validation as the web app)
+                                                └─ SQLite on the Lightsail box
 ```
 
-The web app currently mutates data via **server actions**, which are not a
-stable API for a native client. The plan is to pull the logic out of
-`src/app/actions/{logs,shelves}.ts` into plain functions in `src/lib/`
-(`saveLogForUser(userId, input)`, etc.). Server actions and `/api/v1` route
-handlers then become thin wrappers around them, so validation and ownership
-checks live in one place.
+The web app writes through **server actions**, which aren't a stable API for
+a native client. The logic in `src/app/actions/{logs,shelves}.ts` (and
+`deleteAccount` in `account.ts`) moves into plain functions in `src/lib/`
+that take a `userId`, e.g. `saveLogForUser(userId, input)`. Server actions
+and `/api/v1` handlers become thin wrappers, so validation, ownership checks
+and side effects such as `recordLogActivity` live in one place. Logs made on
+the phone still show in followers' web feeds.
 
-Prerequisite: **HTTPS**. A phone app must not send passwords or tokens over
-the plain-HTTP deploy. Point a domain at the Lightsail static IP and run
-certbot (see `deploy/README.md`) before shipping the app.
+The Swift code lives in this repo at `ios/`, so API and app changes land in
+the same commits.
 
-## Auth (pending security review)
+## Identifiers
 
-Use bearer tokens, not the web's Auth.js cookie session.
+| What | Value |
+| --- | --- |
+| App bundle ID | `games.beaten.app` |
+| Web Sign in with Apple (Services ID, `APPLE_CLIENT_ID`) | `games.beaten.web` (existing) |
+| Widget / extensions (later) | `games.beaten.app.<name>` |
 
-- `POST /api/v1/auth/login` `{email, password}` → `{token, user}`
-- `POST /api/v1/auth/register` → same, reusing `registerUser` validation
-- `POST /api/v1/auth/logout` revokes the current token
-- Tokens: 32 random bytes, returned once. Only a SHA-256 hash is stored in a
-  new `ApiToken {id, userId, tokenHash, name, createdAt, lastUsedAt, expiresAt}`
-  table, so a leaked DB doesn't leak usable tokens, and tokens can be revoked
-  one device at a time ("Signed-in devices" in Settings).
-- iOS stores the token in the **Keychain**
+These don't clash. In the developer portal the App ID `games.beaten.app`
+needs the Sign in with Apple capability, **grouped with the same primary App
+ID as the `games.beaten.web` Services ID**. Apple then gives a user the same
+`sub` and the same private-relay email on the web and in the app. Accounts
+are matched by verified email (`src/lib/auth.ts`), so without the grouping a
+"Hide My Email" user would get a second account in the app.
+
+## Auth
+
+Bearer tokens, not the web's Auth.js cookie session.
+
+- `POST /api/v1/auth/login` `{email, password}` → `{token, user}`. Same
+  bcrypt, attempt limiting (`rate-limit.ts`) and unverified-email rule as
+  the web Credentials provider.
+- `POST /api/v1/auth/apple` `{identityToken, name?}` → `{token, user}`. The
+  server checks the JWT against Apple's JWKS: `iss`, `aud` (bundle ID,
+  `APPLE_APP_BUNDLE_ID`), `exp`, and a nonce the app sent. It then uses
+  the same verified-email rules as the web `signIn` callback, shared from
+  one function.
+- `POST /api/v1/auth/logout` revokes the current token.
+- Registration and password reset stay on the web for v1. The app links to
+  them, then you sign in.
+- Tokens: 32 random bytes, returned once. Only a SHA-256 hash is stored in
+  `ApiToken {id, userId, tokenHash, name, createdAt, lastUsedAt, expiresAt}`.
+  Tokens expire after 90 days of no use. "Sign out everywhere" (the
+  `tokenVersion` bump) voids them too. A user can have 20 at most; signing in
+  on another drops the least recently used. The app lists signed-in devices.
+- `requireApiUser(request)` in `src/lib/session.ts` resolves the token,
+  like `requireUserId()` does for actions.
+- iOS keeps the token in the **Keychain**
   (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`), never UserDefaults.
-- Later: Sign in with Apple (required by App Store review if Google sign-in is
-  offered in the app), and passkeys via the web's associated domain.
-
-`requireApiUser(request)` in `src/lib/session.ts` resolves the bearer token,
-which mirrors `requireUserId()` for actions.
+- nginx rate-limits all of `/api/v1/*`, tighter on `/api/v1/auth/*`. This
+  avoids the gap from review finding #1, where only some paths were
+  limited.
 
 ## API surface (v1)
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/v1/me` | profile + stats (same numbers as dashboard) |
-| GET | `/api/v1/logs?status=&platform=&year=&cursor=` | diary, paginated |
-| POST | `/api/v1/logs` | create; body = `SaveLogInput` |
+| GET | `/api/v1/me` | profile, avatar, stats (same numbers as the dashboard) |
+| GET | `/api/v1/logs` | the whole diary; the app filters and groups locally |
+| POST | `/api/v1/logs` | create; body = `SaveLogInput` + client `id` |
 | PATCH | `/api/v1/logs/:id` | edit |
 | DELETE | `/api/v1/logs/:id` | |
-| GET | `/api/v1/games/search?q=&platform=` | wraps existing IGDB search |
-| GET | `/api/v1/games/:igdbId` | details + artwork + the user's logs for it |
+| GET | `/api/v1/games/search?q=&platform=` | wraps the IGDB search |
+| GET | `/api/v1/games/:igdbId` | details, artwork, the user's logs for it |
 | GET/POST | `/api/v1/shelves` | list / create |
+| DELETE | `/api/v1/shelves/:id` | |
 | POST/DELETE | `/api/v1/shelves/:id/games/:igdbId` | add / remove |
 | GET | `/api/v1/platforms` | for pickers; cacheable |
-| GET | `/api/v1/users/:username` | public profile JSON, no auth |
+| GET | `/api/v1/account/export` | same JSON as the web export |
+| DELETE | `/api/v1/account` | App Store requires in-app deletion |
+| GET | `/api/v1/devices` | signed-in devices, this one marked |
+| DELETE | `/api/v1/devices/:id` | sign a device out |
+| POST | `/api/v1/auth/login`, `/auth/apple`, `/auth/logout` | see Auth |
 
-JSON uses ISO dates (`YYYY-MM-DD` for start/finish), ratings as 1–10 half
-stars, and the status strings from `src/lib/status.ts`. Errors use
-`{error: string}` with a proper HTTP status.
+JSON uses partial ISO dates (`YYYY-MM-DD`, `YYYY-MM` or `YYYY`, as
+`parsePartialDate` accepts), ratings as 1–10 half stars, and the status
+strings from `src/lib/status.ts`. Errors use `{error: string}` with a proper
+HTTP status.
 
-## iOS app (SwiftUI, iOS 18+)
+**Idempotent creates:** `POST /logs` takes a client-generated cuid/UUID as
+the id. A retry after a dropped connection returns the existing log instead
+of making a duplicate, so an offline queue can be added later without
+changing the API.
+
+## iOS app (SwiftUI)
 
 ```
 ios/Beaten/
-  BeatenApp.swift
+  App/      BeatenApp.swift (tabs), AppModel.swift (@Observable session,
+            diary, shelves, platforms; every write goes through it)
   API/      APIClient.swift (async/await URLSession, bearer header,
-            401 → sign-out), Endpoints.swift, Models.swift (Codable)
-  Auth/     KeychainStore.swift, SessionStore.swift (@Observable)
+            401 → sign-out), Models.swift (Codable, PartialDate)
+  Auth/     Keychain.swift, SignInView (email/password + Sign in with Apple)
   Features/
     Home/     stats + Currently playing + Recently finished
     Search/   debounced search, platform filter, quick-log buttons
-    Log/      LogSheet: Playing/Beaten/Mastered, dates, half-star
-              rating, review, shelves (mirrors LogGameModal)
+    Log/      LogSheet: Playing / Beaten / Mastered / Shelved, partial
+              dates, half-star rating, review, spoilers, shelves
+              (mirrors LogGameModal)
     Diary/    filters, swipe to edit/delete
     Shelves/
-    Profile/  own public profile + share link (/u/<username>)
+    Profile/  own profile, avatar, share link to beaten.games/<username>
+    Settings/ devices, export, delete account, links to privacy/terms/support
   Design/   Logo (Futura, tracked caps), colours from globals.css @theme
 ```
 
-Good fits for a native app once the basics work:
-- **Share sheet / universal links**: `/u/<username>` and `/games/<id>` open
-  in the app.
-- **Widget**: Currently playing (cover art + "since" date).
-- **App Intent / Siri**: "Mark Hades as beaten".
-- **Offline queue**: logs made without signal sync later (the API should
-  accept a client-generated id to make retries idempotent).
+Reuse from eist where it fits: Keychain helper, Futura type setup, App
+Store/TestFlight pipeline.
 
 ## Build order
 
-1. HTTPS on the deploy.
-2. Extract action logic into `src/lib`; add `ApiToken` + `requireApiUser`.
-3. `/api/v1` read endpoints + public profile JSON; extend the smoke test with
-   API calls.
-4. Xcode project: auth + Home + Search + Log sheet (the core loop).
-5. Diary, Shelves, Profile, then widget and share-link handling.
+1. ✅ Extract log/shelf/account/sign-in logic into `src/lib`; actions are
+   wrappers. Web smoke test passes.
+2. ✅ `ApiToken` migration, `requireApiUser`, `/api/v1/auth/*` (password +
+   Apple), nginx limits (not yet tested on a real nginx).
+3. ✅ `/api/v1` endpoints; `scripts/api.smoke.mjs`.
+4. ✅ App: sign-in, Home, Search, Log sheet, Game, Diary, Shelves, Profile,
+   devices, export, delete account; UI walkthrough test.
+5. Deploy the server (runs the `api_tokens` migration and rewrites nginx).
+6. Developer portal: App ID `games.beaten.app` with Sign in with Apple,
+   grouped with the web Services ID; App Store Connect record; real app
+   icon (the current one is a placeholder).
+7. TestFlight (fastlane as in eist), then App Store review.
+
+## Later
+
+Activity feed and following (needs report/block in-app for review),
+universal links, Currently Playing widget, Siri ("Mark Hades as beaten"),
+native share cards, offline queue, Steam/RA import, Console Chronicles.

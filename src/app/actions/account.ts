@@ -13,14 +13,8 @@ import {
 import { MAX_EMAIL } from "@/lib/limits";
 import { passwordError } from "@/lib/password";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
-import { markEmailVerified } from "@/lib/accounts";
-import {
-  PASSWORD_ATTEMPTS,
-  TOO_MANY_ATTEMPTS,
-  clearAttempts,
-  isLimited,
-  recordAttempt,
-} from "@/lib/rate-limit";
+import { deleteAccountForUser, markEmailVerified } from "@/lib/accounts";
+import { clearAttempts } from "@/lib/rate-limit";
 import { requireUserId } from "@/lib/session";
 import { consumeToken, issueToken } from "@/lib/tokens";
 import type { ActionResult } from "./logs";
@@ -119,35 +113,13 @@ export async function resendVerification(input: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-// Permanently deletes the signed-in account; logs, shelves and tokens go with
-// it via ON DELETE CASCADE. Password accounts must re-enter their password;
-// Google accounts type their username (or email) to confirm.
+// Permanently deletes the signed-in account (see deleteAccountForUser).
 export async function deleteAccount(input: { confirmation: string }): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return { ok: false, error: "Account not found" };
-
-    const confirmation = input.confirmation.slice(0, 254);
-    const attemptKey = `password:${userId}`;
-    if (user.passwordHash && isLimited(attemptKey, PASSWORD_ATTEMPTS)) {
-      return { ok: false, error: TOO_MANY_ATTEMPTS };
-    }
-    const typed = confirmation.trim().toLowerCase();
-    const confirmed = user.passwordHash
-      ? await bcrypt.compare(confirmation, user.passwordHash)
-      : Boolean(typed) && [user.username, user.email].includes(typed);
-    if (!confirmed) {
-      if (user.passwordHash) recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
-      return {
-        ok: false,
-        error: user.passwordHash
-          ? "Password is incorrect"
-          : "Type your username or email exactly to confirm",
-      };
-    }
-
-    await prisma.user.delete({ where: { id: userId } });
+    const result = await deleteAccountForUser(userId, input.confirmation);
+    if (!result.ok) return result;
+    const { user } = result;
     inBackground("account deleted email", () => sendAccountDeletedEmail(user));
     return { ok: true };
   } catch (e) {

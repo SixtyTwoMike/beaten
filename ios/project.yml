@@ -1,0 +1,82 @@
+name: Beaten
+options:
+  bundleIdPrefix: games.beaten
+  deploymentTarget:
+    iOS: "26.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    # Everything is main-actor unless marked otherwise; the app is small and
+    # all its work is UI plus awaited network calls.
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: "YES"
+    DEVELOPMENT_TEAM: V5TAX8Q2R8
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+  configs:
+    # Debug talks to the local dev server (the simulator shares the Mac's
+    # localhost); Release to the live site.
+    Debug:
+      BEATEN_API_BASE: http://localhost:3000
+    Release:
+      BEATEN_API_BASE: https://beaten.games
+
+targets:
+  Beaten:
+    type: application
+    platform: iOS
+    sources:
+      - path: Beaten
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: games.beaten.app
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Beaten/Beaten.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+    info:
+      path: Beaten/Info.plist
+      properties:
+        CFBundleDisplayName: Beaten
+        CFBundleName: Beaten
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        BeatenAPIBase: $(BEATEN_API_BASE)
+        UILaunchScreen:
+          UIColorName: Canvas
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIUserInterfaceStyle: Dark
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          # Plain http only to localhost, for the Debug build's dev server.
+          NSAllowsLocalNetworking: true
+
+  BeatenUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: BeatenUITests
+    dependencies:
+      - target: Beaten
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: games.beaten.app.uitests
+        GENERATE_INFOPLIST_FILE: "YES"
+        # XCTest's overrides are nonisolated; keep the test target on the
+        # ordinary defaults.
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+        SWIFT_VERSION: "5.0"
+
+schemes:
+  Beaten:
+    build:
+      targets:
+        Beaten: all
+        BeatenUITests: [test]
+    test:
+      targets:
+        - BeatenUITests

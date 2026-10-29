@@ -43,6 +43,7 @@ model User {
   playLogs     PlayLog[]
   shelves      Shelf[]
   authTokens   AuthToken[]
+  apiTokens    ApiToken[]
   raAccount    RaAccount?
   raAwards     RaAward[]
   steamAccount SteamAccount?
@@ -71,6 +72,23 @@ model AuthToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, purpose, createdAt])
+}
+
+// Bearer tokens for the iPhone app, one per signed-in device. Only a SHA-256
+// of the token is stored. tokenVersion is copied from the user when issued,
+// so "sign out everywhere" (which bumps the user's) voids them too.
+model ApiToken {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique
+  // Device name the app sent, shown under Settings > Signed-in devices.
+  name         String?
+  tokenVersion Int
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Local cache of IGDB game data, populated when a game is first logged or shelved.
