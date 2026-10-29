@@ -1,0 +1,99 @@
+# Beaten — iOS build/upload automation (modelled on éist's).
+#
+# Auth uses the App Store Connect API key from fastlane/.env (see .env.example).
+# Needs the App ID games.beaten.app and an App Store Connect app record first.
+#
+#   fastlane beta                    → build + upload to TestFlight
+#   fastlane distribute group:"…"    → give the latest processed build to an external group
+#   fastlane builds                  → recent TestFlight builds
+#   fastlane submit build:"N"        → submit an uploaded build for App Store review
+
+default_platform(:ios)
+
+API_KEY_ID    = ENV.fetch("ASC_KEY_ID")
+API_ISSUER_ID = ENV.fetch("ASC_ISSUER_ID")
+API_KEY_PATH  = File.expand_path(ENV.fetch("ASC_KEY_PATH"))
+
+BUNDLE_ID = "games.beaten.app"
+PROJECT   = "Beaten.xcodeproj"
+SCHEME    = "Beaten"
+
+platform :ios do
+  before_all do
+    app_store_connect_api_key(
+      key_id: API_KEY_ID,
+      issuer_id: API_ISSUER_ID,
+      key_filepath: API_KEY_PATH,
+      in_house: false
+    )
+  end
+
+  def connect
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: API_KEY_ID, issuer_id: API_ISSUER_ID, filepath: API_KEY_PATH
+    )
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    UI.user_error!("No App Store Connect app for #{BUNDLE_ID} yet") unless app
+    app
+  end
+
+  desc "Build and upload to TestFlight. Pass version:\"1.0.1\" to override MARKETING_VERSION."
+  lane :beta do |options|
+    # The .xcodeproj is generated from project.yml.
+    sh("cd .. && xcodegen generate")
+    build_number = latest_testflight_build_number(app_identifier: BUNDLE_ID, initial_build_number: 0) + 1
+    version_args = options[:version] ? "MARKETING_VERSION=#{options[:version]} " : ""
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      xcargs: "CURRENT_PROJECT_VERSION=#{build_number} #{version_args}-allowProvisioningUpdates",
+      output_directory: "build",
+      clean: true
+    )
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      uses_non_exempt_encryption: false
+    )
+  end
+
+  desc "Give the latest processed build to an external TestFlight group (no rebuild)"
+  lane :distribute do |options|
+    app = connect
+    build = Spaceship::ConnectAPI::Build.all(app_id: app.id, processing_states: "VALID", sort: "-uploadedDate", limit: 1).first
+    UI.user_error!("No processed build yet") unless build
+    group = app.get_beta_groups(filter: { name: options[:group] || "Friends" }).first
+    UI.user_error!("TestFlight group not found") unless group
+    build.add_beta_groups(beta_groups: [group])
+    UI.success("Build #{build.version} (#{build.app_version}) → #{group.name} ✅")
+  end
+
+  desc "Recent TestFlight builds"
+  lane :builds do
+    app = connect
+    Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 10).each do |b|
+      UI.message("#{b.app_version} (#{b.version}) — #{b.processing_state}")
+    end
+  end
+
+  desc "Submit an already-uploaded build for App Store review: build:\"N\" version:\"1.0.0\""
+  lane :submit do |options|
+    UI.user_error!("Pass build:\"N\"") unless options[:build]
+    upload_to_app_store(
+      app_identifier: BUNDLE_ID,
+      build_number: options[:build].to_s,
+      app_version: options[:version],
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: { export_compliance_uses_encryption: false, add_id_info_uses_idfa: false }
+    )
+  end
+end
