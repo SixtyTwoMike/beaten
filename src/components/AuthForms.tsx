@@ -15,24 +15,36 @@ export const inputClass =
 export const buttonClass =
   "w-full rounded-md bg-mint px-3 py-2 text-sm font-semibold text-canvas hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition";
 
+// Plain forms: the server redirects straight to the provider
+// (app/api/sign-in), which iOS Safari follows reliably.
+function ProviderForm({ provider, callbackUrl, children }: { provider: string; callbackUrl: string; children: React.ReactNode }) {
+  return (
+    <form method="post" action={`/api/sign-in/${provider}`}>
+      <input type="hidden" name="callbackUrl" value={callbackUrl} />
+      {children}
+    </form>
+  );
+}
+
 function GoogleButton({ callbackUrl = "/" }: { callbackUrl?: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => signIn("google", { callbackUrl })}
-      className="w-full rounded-md border border-edge bg-card-2 px-3 py-2 text-sm font-medium hover:border-fog/50 transition"
-    >
-      Continue with Google
-    </button>
+    <ProviderForm provider="google" callbackUrl={callbackUrl}>
+      <button
+        type="submit"
+        className="w-full rounded-md border border-edge bg-card-2 px-3 py-2 text-sm font-medium hover:border-fog/50 transition"
+      >
+        Continue with Google
+      </button>
+    </ProviderForm>
   );
 }
 
 // Apple's guidelines: black button, Apple logo, "Continue with Apple".
 function AppleButton({ callbackUrl = "/" }: { callbackUrl?: string }) {
   return (
+    <ProviderForm provider="apple" callbackUrl={callbackUrl}>
     <button
-      type="button"
-      onClick={() => signIn("apple", { callbackUrl })}
+      type="submit"
       className="flex w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-black px-3 py-2 text-sm font-medium text-white hover:border-white/40 transition"
     >
       <svg aria-hidden="true" viewBox="0 0 17 20" className="h-4 w-4 fill-current">
@@ -40,6 +52,7 @@ function AppleButton({ callbackUrl = "/" }: { callbackUrl?: string }) {
       </svg>
       Continue with Apple
     </button>
+    </ProviderForm>
   );
 }
 

@@ -25,16 +25,21 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
   return (
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold">Find people</h1>
-      <form method="GET" className="mt-4 flex gap-2">
+      <form method="GET" role="search" className="mt-4 flex gap-2">
         <input
+          // A search box, not a login: type/autocomplete (and no "username"
+          // in the label) stop iOS offering saved accounts here.
+          type="search"
           name="q"
           defaultValue={q}
           autoFocus
+          autoComplete="off"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          placeholder="Username or name"
-          aria-label="Username or name"
+          enterKeyHint="search"
+          placeholder="Search people by name"
+          aria-label="Search people"
           className="w-full rounded-md border border-edge bg-card px-3 py-2 text-sm outline-none focus:border-mint/60"
         />
         <button type="submit" className="rounded-md bg-mint px-4 py-2 text-sm font-semibold text-canvas hover:brightness-110">
