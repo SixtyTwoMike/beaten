@@ -514,6 +514,7 @@ try {
   await page.getByRole("button", { name: "Import 4 games" }).click();
   await page.getByText(/^Imported \d/).waitFor({ timeout: 15000 });
   check("Steam import reports what it did", true);
+  await stRow("ELDEN RING").waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
   check("Steam review keeps unticked games for later",
     await stRow("Stardew Valley").isVisible() && (await stRow("ELDEN RING").count()) === 0);
   await page.screenshot({ path: `${shots}/smoke-steam-review.png`, fullPage: true });
@@ -529,6 +530,8 @@ try {
   await page.goto(`${BASE}/extras`);
   await page.getByRole("link", { name: /Console chronicles/ }).click();
   await page.waitForURL("**/extras/chronicles");
+  await page.goto(`${BASE}/chronicles`);
+  check("signed-in visitors to /chronicles get their own editor", page.url().endsWith("/extras/chronicles"));
   await page.fill("#chronicle-birth", "1990");
   async function addConsole(platform, year, gameQuery) {
     if (!(await page.locator("#chronicle-console").count())) await page.getByRole("button", { name: "+ Add a console" }).click();
@@ -849,6 +852,43 @@ try {
   const friendContext = await browser.newContext();
   const friend = await friendContext.newPage();
   const friendSince = new Date().toISOString();
+
+  // 18b. Console chronicles without an account: built in the browser,
+  // brought into the account on sign-up
+  await friend.goto(`${BASE}/chronicles`);
+  await friend.getByText("Saved on this device only.").waitFor({ timeout: 15000 });
+  check("guest chronicles editor works signed out", true);
+  await friend.fill("#chronicle-name", "Pal");
+  for (const [platform, year, gameQuery] of [["Nintendo Switch", "2018", "celeste"], ["Game Boy Advance", "2003", null]]) {
+    await friend.getByRole("button", { name: "+ Add a console" }).click();
+    await friend.fill("#chronicle-console", platform);
+    await friend.getByRole("option", { name: platform, exact: true }).click();
+    await friend.locator('[aria-label="How exact"]').first().getByRole("button", { name: "Year" }).click();
+    await friend.selectOption("#chronicle-got", year);
+    if (gameQuery) {
+      await friend.getByRole("button", { name: "Choose game 1" }).click();
+      await friend.fill('input[aria-label="Search for a game"]', gameQuery);
+      await friend.locator('button[title^="Add "]').first().click({ timeout: 10000 });
+    }
+    await friend.getByRole("button", { name: "Add to timeline" }).click();
+    await friend.waitForSelector("#chronicle-console", { state: "detached" });
+  }
+  check("guests can search for games", (await friend.locator('img[alt="Celeste"], [title="Celeste"]').count()) > 0);
+  await friend.waitForTimeout(900);
+  await friend.reload();
+  await friend.getByText("Saved on this device only.").waitFor();
+  const guestStops = await friend.locator("ol > li").allTextContents();
+  check("guest chronicle survives a reload, in date order",
+    guestStops.length === 2 && guestStops[0].includes("Game Boy Advance") && guestStops[1].includes("Nintendo Switch"));
+  check("guest chronicle uses the name typed", await friend.getByText(/^Pal · 2 consoles/).isVisible());
+  check("guests can make the story video", await friend.getByRole("button", { name: "Make story video" }).isVisible());
+  const limitedIp = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+  let lastStatus = 0;
+  for (let i = 0; i < 151; i++) {
+    lastStatus = (await friendContext.request.get(`${BASE}/api/igdb/search?q=zelda`, { headers: { "X-Forwarded-For": limitedIp } })).status();
+  }
+  check("guest game search is limited per IP address", lastStatus === 429);
+
   await friend.goto(`${BASE}/register`);
   await friend.fill("#register-name", "Pal Tester");
   await friend.fill("#register-username", friendName);
@@ -863,6 +903,14 @@ try {
   await friend.fill("#login-password", friendPassword);
   await friend.getByRole("button", { name: "Sign in" }).click();
   await friend.waitForSelector("text=Welcome back");
+  await friend.getByRole("link", { name: "Add it to your account →" }).click();
+  await friend.getByText(/now in your account \(2 consoles\)/).waitFor({ timeout: 15000 });
+  await friend.locator("ol > li", { hasText: "Nintendo Switch" }).first().waitFor();
+  check("signing up brings the guest chronicle into the account",
+    (await friend.locator("ol > li").count()) === 2 && (await friend.locator('[title="Celeste"], img[alt="Celeste"]').count()) > 0);
+  await friend.goto(`${BASE}/`);
+  await friend.waitForSelector("text=Welcome back");
+  check("the browser copy is cleared once imported", (await friend.getByText("before signing in").count()) === 0);
   await friend.goto(`${BASE}/games/900011`);
   await friend.getByRole("button", { name: "✓ I've beaten this" }).click();
   await friend.waitForSelector("text=Add to your played log");

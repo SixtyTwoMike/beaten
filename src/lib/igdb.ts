@@ -265,6 +265,15 @@ const MOCK_STEAM: Record<number, number> = {
   570940: 900009, 1593500: 900010, 504230: 900011, 413150: 900012, 292030: 900015,
 };
 
+// Several games by id in one request (up to 500).
+export async function getGames(igdbIds: number[]): Promise<IgdbGame[]> {
+  const ids = [...new Set(igdbIds)].slice(0, 500);
+  if (ids.length === 0) return [];
+  if (mockEnabled()) return ids.flatMap((id) => mockGetGame(id) ?? []);
+  const raw = await igdbQuery<RawGame>("games", `${GAME_FIELDS} where id = (${ids.join(",")}); limit 500;`);
+  return raw.map(toIgdbGame);
+}
+
 export async function fetchPlatforms(): Promise<IgdbPlatform[]> {
   if (mockEnabled()) return mockPlatforms;
   type RawPlatform = {

@@ -2,13 +2,30 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { igdbConfigured, searchGames } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
+import { isLimited, recordAttempt, type Limit } from "@/lib/rate-limit";
 
 const MAX_QUERY = 100;
+
+// Signed-out visitors can search too (the guest Console Chronicles editor),
+// up to this many searches per IP address. Search-as-you-type sends a few
+// per game.
+const GUEST_SEARCHES: Limit = { max: 150, windowMs: 10 * 60 * 1000 };
+
+// nginx appends the address it saw to X-Forwarded-For, so the last entry is
+// the one a client can't fake.
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  return forwarded?.split(",").pop()?.trim() || "local";
+}
 
 export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const key = `guest-search:${clientIp(request)}`;
+    if (isLimited(key, GUEST_SEARCHES)) {
+      return NextResponse.json({ error: "Too many searches — try again in a few minutes, or sign in" }, { status: 429 });
+    }
+    recordAttempt(key, GUEST_SEARCHES);
   }
 
   if (!igdbConfigured()) {

@@ -1,11 +1,15 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/email";
 import { linkSteamAccount } from "@/lib/steam-link";
 import { mockEnabled, verifySteamLogin } from "@/lib/steam";
 
-const MOCK_STEAM_ID = "76561197960287930";
+// STEAM_MOCK: a made-up SteamID per account, so test accounts never clash.
+function mockSteamId(userId: string): string {
+  const n = parseInt(createHash("sha256").update(userId).digest("hex").slice(0, 8), 16);
+  return `7656119${String(n).padStart(10, "0")}`;
+}
 
 function sameNonce(a: string | undefined, b: string | null): boolean {
   if (!a || !b || a.length !== b.length) return false;
@@ -33,7 +37,7 @@ export async function GET(request: NextRequest) {
   try {
     steamId =
       mockEnabled() && params.get("mock") === "1"
-        ? MOCK_STEAM_ID
+        ? mockSteamId(session.user.id)
         : await verifySteamLogin(params, `${appUrl()}/api/steam/callback?n=${nonce}`);
   } catch (e) {
     console.error("Steam sign-in check failed:", e);

@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- console photos are static files */
 import { useId, useMemo, useRef, useState } from "react";
-import type { ConsoleOption } from "@/lib/chronicle";
+import type { ConsoleOption } from "@/lib/chronicle-core";
 
 // Type-to-search console picker (the full IGDB list is hundreds long). The
 // list opens in the flow rather than floating, so it can't be clipped by

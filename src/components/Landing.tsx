@@ -104,6 +104,12 @@ export async function Landing() {
             <p className="mt-4 text-xs text-fog/85">
               No ads, no tracking. Export or delete your data any time.
             </p>
+            <p className="mt-6 text-sm text-fog">
+              <Link href="/chronicles" className="text-mint hover:underline">
+                Map every console you&apos;ve owned →
+              </Link>{" "}
+              Try Console Chronicles, no account needed.
+            </p>
           </div>
         </section>
       </main>

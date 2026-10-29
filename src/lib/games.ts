@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { getGame, type IgdbGame } from "./igdb";
+import { getGame, getGames, type IgdbGame } from "./igdb";
 
 // Ensure a local Game row exists for an IGDB game, refreshing cached fields.
 // Game data is always re-fetched server-side from IGDB (or the mock catalog)
@@ -37,4 +37,34 @@ export async function ensureGame(igdbId: number) {
       platformIds: JSON.stringify(igdbGame.platformIds),
     },
   });
+}
+
+// Local Game rows for many IGDB ids at once: cached rows as they are, the
+// rest fetched from IGDB in one request. Ids IGDB doesn't know are left out.
+export async function ensureGames(igdbIds: number[]) {
+  const ids = [...new Set(igdbIds)];
+  const rows = await prisma.game.findMany({ where: { igdbId: { in: ids } } });
+  const have = new Set(rows.map((g) => g.igdbId));
+  const missing = ids.filter((id) => !have.has(id));
+  if (missing.length) {
+    for (const g of await getGames(missing)) {
+      rows.push(
+        await prisma.game.upsert({
+          where: { igdbId: g.igdbId },
+          update: {},
+          create: {
+            igdbId: g.igdbId,
+            name: g.name,
+            slug: g.slug,
+            coverUrl: g.coverUrl,
+            artworkUrl: g.artworkUrl,
+            releaseYear: g.releaseYear,
+            summary: g.summary,
+            platformIds: JSON.stringify(g.platformIds),
+          },
+        })
+      );
+    }
+  }
+  return new Map(rows.map((g) => [g.igdbId, g]));
 }

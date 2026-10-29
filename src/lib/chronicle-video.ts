@@ -8,8 +8,8 @@
 // zig-zag road, each console sliding in as the road reaches it.
 
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
-import type { ChronicleStop, ChronicleView } from "./chronicle";
-import { BADGE_LABELS } from "./chronicle";
+import type { ChronicleStop, ChronicleView } from "./chronicle-core";
+import { BADGE_LABELS } from "./chronicle-core";
 
 const W = 1080;
 const H = 1920;

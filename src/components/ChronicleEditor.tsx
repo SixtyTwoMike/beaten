@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteChronicleEntry, saveChronicleEntry, saveChronicleSettings } from "@/app/actions/chronicle";
+import type { ActionResult } from "@/app/actions/logs";
 import {
   CHRONICLE_BACKGROUNDS,
   CHRONICLE_PATHS,
@@ -17,7 +18,7 @@ import {
   type ChronicleStop,
   type ChronicleView,
   type ConsoleOption,
-} from "@/lib/chronicle";
+} from "@/lib/chronicle-core";
 import { safeAction } from "@/lib/safe-action";
 import { CARD_ACCENTS, type CardAccent } from "@/lib/share-card";
 import { ChronicleMap } from "./ChronicleMap";
@@ -26,6 +27,55 @@ import { PartialDateField } from "./PartialDateField";
 import { Poster } from "./Poster";
 
 export type SuggestedGame = { igdbId: number; name: string; coverUrl: string | null };
+
+export type EntryInput = {
+  id?: string | null;
+  platformId: number;
+  variant: string | null;
+  model: string;
+  gotAt: string;
+  age: number | null;
+  note: string;
+  games: SuggestedGame[];
+};
+
+export type SettingsInput = {
+  title: string;
+  name: string;
+  birthYear: number | null;
+  showAges: boolean;
+  accent: CardAccent;
+  background: ChronicleBackground;
+  path: ChroniclePath;
+};
+
+// Where the editor saves: the account (server actions) or, for guests, this
+// browser (components/GuestChronicle). Each refreshes `view` once saved.
+export type ChronicleStore = {
+  saveSettings: (s: SettingsInput) => Promise<ActionResult>;
+  saveEntry: (e: EntryInput) => Promise<ActionResult>;
+  deleteEntry: (id: string) => Promise<ActionResult>;
+};
+
+function useAccountStore(): ChronicleStore {
+  const router = useRouter();
+  return useMemo(() => {
+    const refreshing = async (r: Promise<ActionResult>) => {
+      const result = await r;
+      if (result.ok) router.refresh();
+      return result;
+    };
+    return {
+      // The name comes from the account; only guests type one.
+      saveSettings: (s) =>
+        refreshing(
+          saveChronicleSettings({ title: s.title, birthYear: s.birthYear, showAges: s.showAges, accent: s.accent, background: s.background, path: s.path })
+        ),
+      saveEntry: ({ games, ...e }) => refreshing(saveChronicleEntry({ ...e, games: games.map((g) => g.igdbId) })),
+      deleteEntry: (id) => refreshing(deleteChronicleEntry(id)),
+    };
+  }, [router]);
+}
 
 const field =
   "w-full rounded-md border border-edge bg-canvas px-3 py-2 text-sm outline-none placeholder:text-fog/70 focus:border-mint/60 focus:ring-1 focus:ring-mint/40";
@@ -39,6 +89,7 @@ const quiet =
 
 type Settings = {
   title: string;
+  name: string;
   birthYear: string;
   showAges: boolean;
   accent: CardAccent;
@@ -98,11 +149,11 @@ function GamePicker({
         const params = new URLSearchParams({ q: term });
         if (platformId) params.set("platform", String(platformId));
         const res = await fetch(`/api/igdb/search?${params}`);
-        const data = (await res.json()) as { results?: SuggestedGame[] };
-        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { results?: SuggestedGame[]; error?: string };
+        if (!res.ok) throw new Error(res.status === 429 ? data.error : undefined);
         if (!cancelled) setResults((data.results ?? []).slice(0, 10).map((g) => ({ igdbId: g.igdbId, name: g.name, coverUrl: g.coverUrl })));
-      } catch {
-        if (!cancelled) setError("Search failed — try again");
+      } catch (e) {
+        if (!cancelled) setError((e instanceof Error && e.message) || "Search failed — try again");
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -212,15 +263,16 @@ function EntryForm({
   consoles,
   suggestions,
   birthYear,
+  store,
   onDone,
 }: {
   stop: ChronicleStop | null;
   consoles: ConsoleOption[];
   suggestions: { byPlatform: Record<number, SuggestedGame[]> };
   birthYear: number | null;
+  store: ChronicleStore;
   onDone: () => void;
 }) {
-  const router = useRouter();
   const thisYear = String(new Date().getUTCFullYear());
   // "<platformId>" or "<platformId>:<variant>", as ConsoleOption.value.
   const [choice, setChoice] = useState<string>(stop ? `${stop.platformId}${stop.variant ? `:${stop.variant}` : ""}` : "");
@@ -240,7 +292,7 @@ function EntryForm({
     setError(null);
     startTransition(async () => {
       const result = await safeAction(() =>
-        saveChronicleEntry({
+        store.saveEntry({
           id: stop?.id,
           platformId: Number(platformId),
           variant: variantPart ?? null,
@@ -248,11 +300,10 @@ function EntryForm({
           gotAt,
           age: age.trim() ? Number(age) : null,
           note,
-          games: games.map((g) => g.igdbId),
+          games,
         })
       );
       if (!result.ok) return setError(result.error);
-      router.refresh();
       onDone();
     });
   }
@@ -446,18 +497,26 @@ function VideoShare({ view }: { view: ChronicleView }) {
   );
 }
 
+// `guest`: no account; `store` saves to this browser, and the Share panel
+// offers the video plus an invitation to sign up.
 export function ChronicleEditor({
   view,
   consoles,
   suggestions,
+  store: guestStore,
+  guest = false,
 }: {
   view: ChronicleView;
   consoles: ConsoleOption[];
   suggestions: { byPlatform: Record<number, SuggestedGame[]> };
+  store?: ChronicleStore;
+  guest?: boolean;
 }) {
-  const router = useRouter();
+  const accountStore = useAccountStore();
+  const store = guestStore ?? accountStore;
   const [settings, setSettings] = useState<Settings>({
     title: view.title === DEFAULT_TITLE ? "" : view.title,
+    name: guest && view.name !== "Me" ? view.name : "",
     birthYear: view.birthYear ? String(view.birthYear) : "",
     showAges: view.showAges,
     accent: view.accent,
@@ -479,13 +538,12 @@ export function ChronicleEditor({
       setSaveState("saving");
       startTransition(async () => {
         const birthYear = settings.birthYear.trim() ? Number(settings.birthYear) : null;
-        const result = await safeAction(() => saveChronicleSettings({ ...settings, birthYear }));
+        const result = await safeAction(() => store.saveSettings({ ...settings, birthYear }));
         setSaveState(result.ok ? "saved" : result.error);
-        if (result.ok) router.refresh();
       });
     }, 700);
     return () => clearTimeout(t);
-  }, [settings, router]);
+  }, [settings, store]);
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setSettings((s) => ({ ...s, [k]: v }));
 
@@ -494,6 +552,7 @@ export function ChronicleEditor({
   const preview: ChronicleView = {
     ...view,
     title: settings.title.trim() || DEFAULT_TITLE,
+    name: guest ? settings.name.trim() || "Me" : view.name,
     showAges: settings.showAges,
     accent: settings.accent,
     accentHex: CARD_ACCENTS[settings.accent],
@@ -507,8 +566,7 @@ export function ChronicleEditor({
 
   function remove(id: string) {
     startTransition(async () => {
-      const result = await safeAction(() => deleteChronicleEntry(id));
-      if (result.ok) router.refresh();
+      await safeAction(() => store.deleteEntry(id));
     });
   }
 
@@ -548,6 +606,7 @@ export function ChronicleEditor({
               consoles={consoles}
               suggestions={suggestions}
               birthYear={birthYear}
+              store={store}
               onDone={() => setEditing(null)}
             />
           ) : (
@@ -557,6 +616,20 @@ export function ChronicleEditor({
 
         <Panel title="Details">
           <div className="space-y-3">
+            {guest && (
+              <div>
+                <label className={label} htmlFor="chronicle-name">Your name</label>
+                <input
+                  id="chronicle-name"
+                  value={settings.name}
+                  maxLength={40}
+                  autoComplete="off"
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="Shown under the title"
+                  className={field}
+                />
+              </div>
+            )}
             <div>
               <label className={label} htmlFor="chronicle-title">Title</label>
               <input id="chronicle-title" value={settings.title} maxLength={MAX_TITLE} onChange={(e) => set("title", e.target.value)} placeholder={DEFAULT_TITLE} className={field} />
@@ -615,7 +688,22 @@ export function ChronicleEditor({
         </Panel>
 
         <Panel title="Share">
-          {view.username ? (
+          {guest ? (
+            <div className="space-y-4">
+              {view.stops.length > 0 ? (
+                <VideoShare key={version} view={preview} />
+              ) : (
+                <p className="text-sm text-fog">Add a console to make a story video.</p>
+              )}
+              <p className="text-sm text-fog">
+                Want a link to share too?{" "}
+                <Link href="/register?from=chronicles" className="text-mint hover:underline">
+                  Make a free account
+                </Link>{" "}
+                and your chronicle comes with you.
+              </p>
+            </div>
+          ) : view.username ? (
             <div className="space-y-4">
               <p className="text-sm">
                 <Link href={`/${view.username}/chronicles`} className="text-mint hover:underline">

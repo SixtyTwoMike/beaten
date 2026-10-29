@@ -1,24 +1,28 @@
 import { prisma } from "./db";
-import { CONSOLE_VARIANTS, consoleArt, variantOf, type ConsoleArt } from "./console-art";
-import { formatPartialDate } from "./format";
+import { CONSOLE_VARIANTS, consoleArt, variantOf } from "./console-art";
+import {
+  CONSOLE_TYPES,
+  COMPUTERS,
+  DEFAULT_TITLE,
+  HANDHELDS,
+  NOT_HOME_COMPUTERS,
+  PCS,
+  buildStops,
+  consoleKind,
+  isAccent,
+  isBackground,
+  isPath,
+  type ChronicleView,
+  type ConsoleOption,
+} from "./chronicle-core";
 import { getPlatforms } from "./platforms";
-import { CARD_ACCENTS, type CardAccent } from "./share-card";
+import { CARD_ACCENTS } from "./share-card";
+
+export * from "./chronicle-core";
 
 // Console Chronicles: someone's consoles in the order they got them, drawn
 // as a zig-zag road. Shared by the editor, the public page and the story
 // images, which all render the same ChronicleView.
-
-export const CHRONICLE_BACKGROUNDS = { glow: "Glow", plain: "Plain", grid: "Retro grid" } as const;
-export type ChronicleBackground = keyof typeof CHRONICLE_BACKGROUNDS;
-
-export const CHRONICLE_PATHS = { dotted: "Dotted trail", neon: "Neon", pixel: "Pixel road" } as const;
-export type ChroniclePath = keyof typeof CHRONICLE_PATHS;
-
-export const MAX_ENTRIES = 40;
-export const MAX_NOTE = 80;
-export const MAX_MODEL = 30;
-export const MAX_TITLE = 40;
-export const DEFAULT_TITLE = "My console chronicles";
 
 // The best-sellers, pinned above the full list in the picker (IGDB has no
 // popularity for platforms).
@@ -26,34 +30,6 @@ export const POPULAR_CONSOLES = [
   8, 20, 130, 33, 7, 48, 5, 37, 12, 9, 24, 38, 18, 19, 167, 49, 169, 4, 29, 21, 11, 22, 41, 46, 508, 59, 64,
   35, 32, 23, 6, 15, 26, 16, 25,
 ];
-
-// IGDB platform types offered: consoles, handhelds and home computers,
-// plus Windows, Mac and DOS PCs (filed as operating systems).
-const CONSOLE_TYPES = new Set([1, 5, 6]);
-const HANDHELD_TYPE = 5;
-const COMPUTER_TYPE = 6;
-const PCS = new Set([6, 14, 13]);
-// Mainframes, lab machines and chips IGDB files as computers.
-const NOT_HOME_COMPUTERS = new Set([85, 95, 96, 97, 101, 102, 104, 105, 106, 107, 108, 109, 110, 140, 141, 409]);
-// Known computers, for a platform list synced before IGDB types were stored.
-const COMPUTERS = new Set([6, 14, 13, 15, 16, 25, 26, 27, 53, 63, 65, 69, 71, 75, 115, 116, 134, 154, 373, 406, 126, 129]);
-// IGDB files the Switches as home consoles; they're handhelds too.
-const HYBRIDS = new Set([130, 508]);
-// Known handhelds, for a platform list synced before IGDB types were stored.
-const HANDHELDS = new Set([33, 22, 24, 20, 159, 37, 137, 38, 46, 35, 61, 119, 120, 57]);
-
-// `value` is "<platformId>" or "<platformId>:<variant>". `search` holds
-// extra words it can be found by (abbreviation, other regions' names).
-export type ConsoleOption = {
-  value: string;
-  platformId: number;
-  variant: string | null;
-  name: string;
-  search: string;
-  thumb: string | null;
-  popular: boolean;
-  rank: number; // position in POPULAR_CONSOLES (best-sellers first)
-};
 
 // Names people search by that IGDB's name or abbreviation don't cover.
 const ALIASES: Record<number, string> = {
@@ -101,64 +77,30 @@ export async function consoleOptions(): Promise<ConsoleOption[]> {
     )
     .flatMap((p): ConsoleOption[] => {
       const at = POPULAR_CONSOLES.indexOf(p.id);
-      const base = { platformId: p.id, popular: at >= 0, rank: at >= 0 ? at : POPULAR_CONSOLES.length };
+      const base = {
+        platformId: p.id,
+        popular: at >= 0,
+        rank: at >= 0 ? at : POPULAR_CONSOLES.length,
+        kind: consoleKind(p.id, p.category),
+      };
       const words = [p.abbreviation, ALIASES[p.id]].filter(Boolean).join(" ");
       const thumb = (variant: string | null) => {
         const art = consoleArt(p.id, null, variant);
         return art?.kind === "photo" ? art.src : null;
       };
       return CONSOLE_VARIANTS[p.id]
-        ? CONSOLE_VARIANTS[p.id].map((v) => ({ ...base, value: `${p.id}:${v.key}`, variant: v.key, name: v.name, search: words, thumb: thumb(v.key) }))
-        : [{ ...base, value: String(p.id), variant: null, name: p.name, search: words, thumb: thumb(null) }];
+        ? CONSOLE_VARIANTS[p.id].map((v) => ({
+            ...base,
+            value: `${p.id}:${v.key}`,
+            variant: v.key,
+            name: v.name,
+            search: words,
+            thumb: thumb(v.key),
+            art: consoleArt(p.id, p.logoImageId, v.key),
+          }))
+        : [{ ...base, value: String(p.id), variant: null, name: p.name, search: words, thumb: thumb(null), art: consoleArt(p.id, p.logoImageId, null) }];
     });
 }
-
-export function isAccent(v: unknown): v is CardAccent {
-  return typeof v === "string" && v in CARD_ACCENTS;
-}
-export function isBackground(v: unknown): v is ChronicleBackground {
-  return typeof v === "string" && v in CHRONICLE_BACKGROUNDS;
-}
-export function isPath(v: unknown): v is ChroniclePath {
-  return typeof v === "string" && v in CHRONICLE_PATHS;
-}
-
-export type ChronicleBadge = "FIRST_CONSOLE" | "FIRST_HANDHELD" | "FIRST_COMPUTER";
-export const BADGE_LABELS: Record<ChronicleBadge, string> = {
-  FIRST_CONSOLE: "First console",
-  FIRST_HANDHELD: "First handheld",
-  FIRST_COMPUTER: "First computer",
-};
-
-export type ChronicleStop = {
-  id: string;
-  platformId: number;
-  variant: string | null;
-  platformName: string;
-  model: string | null;
-  gotAt: string; // YYYY, YYYY-MM or YYYY-MM-DD, for the editor
-  gotLabel: string; // "2004", "Mar 2004"
-  year: number;
-  age: number | null;
-  ageTyped: number | null;
-  note: string | null;
-  badges: ChronicleBadge[];
-  art: ConsoleArt | null;
-  games: { igdbId: number; name: string; coverUrl: string | null }[];
-};
-
-export type ChronicleView = {
-  title: string;
-  name: string;
-  username: string | null;
-  birthYear: number | null;
-  showAges: boolean;
-  accent: CardAccent;
-  accentHex: string;
-  background: ChronicleBackground;
-  path: ChroniclePath;
-  stops: ChronicleStop[];
-};
 
 export async function loadChronicle(user: { id: string; name: string | null; username: string | null }): Promise<ChronicleView> {
   const [chronicle, platforms] = await Promise.all([
@@ -178,48 +120,26 @@ export async function loadChronicle(user: { id: string; name: string | null; use
   const byId = new Map(platforms.map((p) => [p.id, p]));
   const birthYear = chronicle?.birthYear ?? null;
 
-  let firstConsole = false;
-  let firstHandheld = false;
-  let firstComputer = false;
-  const stops: ChronicleStop[] = (chronicle?.entries ?? []).map((e) => {
-    const platform = byId.get(e.platformId);
-    const pureHandheld = platform?.category === HANDHELD_TYPE || HANDHELDS.has(e.platformId);
-    const handheld = pureHandheld || HYBRIDS.has(e.platformId);
-    const computer = platform?.category === COMPUTER_TYPE || COMPUTERS.has(e.platformId);
-    const homeConsole = !pureHandheld && !computer;
-    const badges: ChronicleBadge[] = [];
-    if (homeConsole && !firstConsole) {
-      firstConsole = true;
-      badges.push("FIRST_CONSOLE");
-    }
-    if (handheld && !firstHandheld) {
-      firstHandheld = true;
-      badges.push("FIRST_HANDHELD");
-    }
-    if (computer && !firstComputer) {
-      firstComputer = true;
-      badges.push("FIRST_COMPUTER");
-    }
-    const year = e.gotAt.getUTCFullYear();
-    const precision = e.gotPrecision ?? "DAY";
-    const iso = e.gotAt.toISOString();
-    return {
-      id: e.id,
-      platformId: e.platformId,
-      variant: variantOf(e.platformId, e.variant) ? e.variant : null,
-      platformName: variantOf(e.platformId, e.variant)?.name ?? platform?.name ?? "Unknown console",
-      model: e.model,
-      gotAt: precision === "YEAR" ? iso.slice(0, 4) : precision === "MONTH" ? iso.slice(0, 7) : iso.slice(0, 10),
-      gotLabel: formatPartialDate(e.gotAt, precision === "DAY" ? "MONTH" : precision),
-      year,
-      age: e.age ?? (birthYear ? Math.max(0, year - birthYear) : null),
-      ageTyped: e.age,
-      note: e.note,
-      badges,
-      art: consoleArt(e.platformId, platform?.logoImageId, e.variant),
-      games: e.games.map((g) => g.game),
-    };
-  });
+  const stops = buildStops(
+    (chronicle?.entries ?? []).map((e) => {
+      const platform = byId.get(e.platformId);
+      return {
+        id: e.id,
+        platformId: e.platformId,
+        variant: e.variant,
+        platformName: variantOf(e.platformId, e.variant)?.name ?? platform?.name ?? "Unknown console",
+        kind: consoleKind(e.platformId, platform?.category),
+        art: consoleArt(e.platformId, platform?.logoImageId, e.variant),
+        model: e.model,
+        gotAt: e.gotAt,
+        gotPrecision: e.gotPrecision,
+        age: e.age,
+        note: e.note,
+        games: e.games.map((g) => g.game),
+      };
+    }),
+    birthYear
+  );
 
   const accent = isAccent(chronicle?.accent) ? chronicle.accent : "mint";
   return {

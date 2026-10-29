@@ -54,7 +54,9 @@ export default function PrivacyPage() {
             you add, when you got them, your notes and favourite games, and, if you
             give it, the year you were born. The birth year is used only to work out
             how old you were for each console and is never shown; you can turn ages
-            off or clear it at any time.
+            off or clear it at any time. If you make a chronicle without an
+            account, it stays in your browser on that device and isn&apos;t sent
+            to us unless you sign up or sign in and bring it across.
           </li>
           <li>
             <strong className="text-white">Linked game accounts:</strong> if you

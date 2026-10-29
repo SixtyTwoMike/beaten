@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- console photos are static files; IGDB logos are remote */
-import type { ChronicleStop, ChronicleView } from "@/lib/chronicle";
-import { BADGE_LABELS } from "@/lib/chronicle";
+import type { ChronicleStop, ChronicleView } from "@/lib/chronicle-core";
+import { BADGE_LABELS } from "@/lib/chronicle-core";
 import { Poster } from "./Poster";
 
 // The zig-zag road through someone's consoles. Plain markup (no hooks) so
