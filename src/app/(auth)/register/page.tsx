@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth, googleEnabled } from "@/lib/auth";
+import { appleEnabled } from "@/lib/apple-auth";
 import { usernameForInvite } from "@/lib/reserved-usernames";
 import { RegisterForm } from "@/components/AuthForms";
 
@@ -18,6 +19,7 @@ export default async function RegisterPage({
   return (
     <RegisterForm
       googleEnabled={googleEnabled}
+      appleEnabled={appleEnabled}
       invite={code && username ? { code, username } : null}
     />
   );

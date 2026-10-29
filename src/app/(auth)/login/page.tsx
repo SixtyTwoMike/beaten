@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth, googleEnabled } from "@/lib/auth";
+import { appleEnabled } from "@/lib/apple-auth";
 import { LoginForm } from "@/components/AuthForms";
 
 export const metadata = { title: "Sign in — Beaten" };
@@ -24,6 +25,7 @@ export default async function LoginPage({
   return (
     <LoginForm
       googleEnabled={googleEnabled}
+      appleEnabled={appleEnabled}
       notice={notice ? NOTICES[notice] : null}
     />
   );

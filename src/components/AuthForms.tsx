@@ -27,6 +27,22 @@ function GoogleButton({ callbackUrl = "/" }: { callbackUrl?: string }) {
   );
 }
 
+// Apple's guidelines: black button, Apple logo, "Continue with Apple".
+function AppleButton({ callbackUrl = "/" }: { callbackUrl?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => signIn("apple", { callbackUrl })}
+      className="flex w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-black px-3 py-2 text-sm font-medium text-white hover:border-white/40 transition"
+    >
+      <svg aria-hidden="true" viewBox="0 0 17 20" className="h-4 w-4 fill-current">
+        <path d="M14.06 10.62c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.77-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.88 1.15 9.13.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.77-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.39-.92-2.41-3.65zM11.79 3.88c.63-.77 1.06-1.83.94-2.88-.91.04-2.01.61-2.66 1.37-.58.67-1.09 1.76-.96 2.8 1.02.08 2.05-.52 2.68-1.29z" />
+      </svg>
+      Continue with Apple
+    </button>
+  );
+}
+
 function Divider() {
   return (
     <div className="flex items-center gap-3 text-xs text-fog/85">
@@ -39,9 +55,11 @@ function Divider() {
 
 export function LoginForm({
   googleEnabled,
+  appleEnabled = false,
   notice = null,
 }: {
   googleEnabled: boolean;
+  appleEnabled?: boolean;
   notice?: string | null;
 }) {
   const router = useRouter();
@@ -144,10 +162,11 @@ export function LoginForm({
           </Link>
         </p>
       </form>
-      {googleEnabled && (
-        <div className="mt-4 space-y-4">
+      {(googleEnabled || appleEnabled) && (
+        <div className="mt-4 space-y-3">
           <Divider />
-          <GoogleButton />
+          {googleEnabled && <GoogleButton />}
+          {appleEnabled && <AppleButton />}
         </div>
       )}
       <p className="mt-5 text-sm text-fog">
@@ -170,9 +189,11 @@ export function LoginForm({
 // the username is then fixed to the one it was issued for.
 export function RegisterForm({
   googleEnabled,
+  appleEnabled = false,
   invite,
 }: {
   googleEnabled: boolean;
+  appleEnabled?: boolean;
   invite?: { code: string; username: string } | null;
 }) {
   const [submitted, setSubmitted] = useState(false);
@@ -286,10 +307,11 @@ export function RegisterForm({
           {pending ? "Creating account…" : "Create account"}
         </button>
       </form>
-      {googleEnabled && (
-        <div className="mt-4 space-y-4">
+      {(googleEnabled || appleEnabled) && (
+        <div className="mt-4 space-y-3">
           <Divider />
-          <GoogleButton callbackUrl={invite ? `/settings?invite=${encodeURIComponent(invite.code)}` : "/"} />
+          {googleEnabled && <GoogleButton callbackUrl={invite ? `/settings?invite=${encodeURIComponent(invite.code)}` : "/"} />}
+          {appleEnabled && <AppleButton callbackUrl={invite ? `/settings?invite=${encodeURIComponent(invite.code)}` : "/"} />}
         </div>
       )}
       <p className="mt-4 text-xs text-fog">

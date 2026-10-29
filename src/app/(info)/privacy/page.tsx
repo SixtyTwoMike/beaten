@@ -41,7 +41,9 @@ export default function PrivacyPage() {
             display name, username, and when you joined. If you use a password,
             we store only a salted bcrypt hash of it, never the password itself.
             If you sign in with Google, we get your name, email and profile picture
-            from Google.
+            from Google. If you sign in with Apple, we get your email (or a
+            private relay address, if you choose to hide yours) and, the first
+            time only, your name.
           </li>
           <li>
             <strong className="text-white">What you log:</strong> games, platforms,
@@ -121,8 +123,9 @@ export default function PrivacyPage() {
             own site; we never see your Steam password.
           </li>
           <li>
-            <strong className="text-white">Google</strong>, only if you choose
-            &ldquo;Continue with Google&rdquo;.
+            <strong className="text-white">Google</strong> or{" "}
+            <strong className="text-white">Apple</strong>, only if you choose
+            &ldquo;Continue with Google&rdquo; or &ldquo;Continue with Apple&rdquo;.
           </li>
         </ul>
       </Section>

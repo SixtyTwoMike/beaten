@@ -64,6 +64,16 @@ if [ -n "$RA_KEY" ]; then
   echo "==> setting RetroAchievements API key"
   ENV_UPDATES+="RA_API_KEY=$RA_KEY"$'\n'"RA_MOCK=0"$'\n'
 fi
+APPLE_VARS=""
+for k in APPLE_CLIENT_ID APPLE_TEAM_ID APPLE_KEY_ID APPLE_PRIVATE_KEY_B64; do
+  v=$(env_value $k)
+  [ -n "$v" ] || { APPLE_VARS=""; break; }
+  APPLE_VARS+="$k=$v"$'\n'
+done
+if [ -n "$APPLE_VARS" ]; then
+  echo "==> setting Sign in with Apple key"
+  ENV_UPDATES+="$APPLE_VARS"
+fi
 STEAM_KEY=$(env_value STEAM_API_KEY)
 if [ -n "$STEAM_KEY" ]; then
   echo "==> setting Steam Web API key"

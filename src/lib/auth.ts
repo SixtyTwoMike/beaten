@@ -2,6 +2,7 @@ import NextAuth, { CredentialsSignin, type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
+import { appleCookies, appleProviders } from "./apple-auth";
 import { prisma } from "./db";
 import { PASSWORD_ATTEMPTS, clearAttempts, isLimited, recordAttempt } from "./rate-limit";
 
@@ -65,17 +66,25 @@ if (googleEnabled) {
   );
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+// Google and Apple sign-ins: matched to accounts by verified email.
+const OAUTH_PROVIDERS = ["google", "apple"];
+
+// Lazy so Apple's client secret is remade before it expires (lib/apple-auth).
+export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   session: { strategy: "jwt", maxAge: SESSION_MAX_AGE },
   pages: { signIn: "/login" },
-  providers,
+  providers: [...providers, ...appleProviders()],
+  cookies: appleCookies((process.env.AUTH_URL ?? "").startsWith("https://")),
   callbacks: {
     async signIn({ account, profile }) {
-      if (account?.provider !== "google") return true;
-      // Only trust addresses Google has verified, and never attach a Google
-      // login to a confirmed password account: whoever registered that
-      // address with a password would keep access alongside it.
-      if (profile?.email_verified !== true || !profile.email) return false;
+      if (!account || !OAUTH_PROVIDERS.includes(account.provider)) return true;
+      // Only trust addresses the provider has verified (Apple sends "true"
+      // as a string), and never attach such a login to a confirmed password
+      // account: whoever registered that address with a password would keep
+      // access alongside it.
+      const flag: unknown = profile?.email_verified;
+      const verified = flag === true || flag === "true";
+      if (!verified || !profile?.email) return false;
       const existing = await prisma.user.findUnique({
         where: { email: profile.email.toLowerCase() },
         select: { id: true, passwordHash: true, emailVerifiedAt: true },
@@ -83,7 +92,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!existing?.passwordHash) return true;
       if (existing.emailVerifiedAt) return false;
       // An unconfirmed password sign-up on this address may not be the
-      // owner's. Google has now proved ownership: drop the password and
+      // owner's. Google/Apple has now proved ownership: drop the password and
       // anything the sign-up chose, and void its links and sessions.
       await prisma.user.update({
         where: { id: existing.id },
@@ -100,7 +109,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, account }) {
       // Runs with `user` defined only on sign-in.
       if (user) {
-        if (account?.provider === "google" && user.email) {
+        if (account && OAUTH_PROVIDERS.includes(account.provider) && user.email) {
           const dbUser = await prisma.user.upsert({
             where: { email: user.email.toLowerCase() },
             update: { name: user.name ?? undefined, image: user.image ?? undefined },
@@ -108,7 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               email: user.email.toLowerCase(),
               name: user.name,
               image: user.image,
-              // signIn() only admits Google addresses marked email_verified.
+              // signIn() only admits addresses marked email_verified.
               emailVerifiedAt: new Date(),
             },
           });
@@ -140,4 +149,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
-});
+}));
