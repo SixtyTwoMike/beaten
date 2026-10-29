@@ -292,6 +292,17 @@ export function RegisterForm({
           <GoogleButton callbackUrl={invite ? `/settings?invite=${encodeURIComponent(invite.code)}` : "/"} />
         </div>
       )}
+      <p className="mt-4 text-xs text-fog">
+        By creating an account you agree to the{" "}
+        <Link href="/terms" className="underline hover:text-white">
+          terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="underline hover:text-white">
+          privacy policy
+        </Link>
+        .
+      </p>
       <p className="mt-5 text-sm text-fog">
         Already have an account?{" "}
         <Link href="/login" className="text-mint hover:underline">

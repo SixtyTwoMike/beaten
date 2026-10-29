@@ -49,3 +49,7 @@ prisma/*.db-journal
 # deploy artifacts
 deploy/out/
 .dev-outbox/
+
+# Apple Sign in key and other local-only secrets
+.secrets/
+*.p8

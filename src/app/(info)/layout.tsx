@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { SiteFooter } from "@/components/SiteFooter";
 
-// Public reading pages (support, privacy): no sign-in needed.
+// Public reading pages (support, privacy, terms): no sign-in needed.
 export default async function InfoLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
