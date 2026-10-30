@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { PUBLIC_USER_SELECT, followingIds } from "./follows";
 import type { ActivityType } from "./activity";
+import { reviewSocialFor, type ReviewSocial } from "./review-social";
 
 // Activity feeds, read from the Activity log at request time (fan-out on
 // read: fine at this scale on SQLite) and grouped into cards:
@@ -15,7 +16,7 @@ const MERGE_MS = 24 * 60 * 60 * 1000;
 
 const ROW_INCLUDE = {
   actor: { select: PUBLIC_USER_SELECT },
-  game: { select: { igdbId: true, name: true, coverUrl: true } },
+  game: true,
   playLog: {
     select: {
       status: true,
@@ -35,7 +36,18 @@ export type FeedActor = Row["actor"];
 export type FeedGame = Row["game"];
 
 export type FeedCard =
-  | { kind: "entry"; key: string; actor: FeedActor; game: FeedGame; types: ActivityType[]; log: Row["playLog"]; at: Date }
+  | {
+      kind: "entry";
+      key: string;
+      logId: string;
+      actor: FeedActor;
+      game: FeedGame;
+      types: ActivityType[];
+      log: Row["playLog"];
+      at: Date;
+      // Reviews only: reactions and comment count (lib/review-social.ts).
+      social?: ReviewSocial;
+    }
   | { kind: "backfill"; key: string; actor: FeedActor; games: FeedGame[]; at: Date };
 
 function fetchRows(actorIds: string[], before: { t: Date; id: string } | null) {
@@ -82,7 +94,7 @@ function group(rows: Row[]): FeedCard[] {
       if (!card.types.includes(r.type as ActivityType)) card.types.push(r.type as ActivityType);
       continue;
     }
-    const c = { kind: "entry" as const, key: `e:${r.id}`, actor: r.actor, game: r.game, types: [r.type as ActivityType], log: r.playLog, at: r.createdAt };
+    const c = { kind: "entry" as const, key: `e:${r.id}`, logId: r.playLogId, actor: r.actor, game: r.game, types: [r.type as ActivityType], log: r.playLog, at: r.createdAt };
     entryCard.set(r.playLogId, c);
     cards.push(c);
   }
@@ -96,11 +108,20 @@ export async function getFeed(viewerId: string, scope: "following" | "you", rawC
   // Don't split a group across pages: stop before the last actor-day.
   const full = rows.length === FETCH;
   const kept = full ? rows.slice(0, FETCH - 10) : rows;
+  const cards = group(kept);
+  const reviews = cards.filter((c) => c.kind === "entry" && isReviewCard(c)) as Extract<FeedCard, { kind: "entry" }>[];
+  const social = await reviewSocialFor(viewerId, reviews.map((c) => c.logId));
+  for (const c of reviews) c.social = social.get(c.logId);
   return {
-    cards: group(kept),
+    cards,
     next: full ? encodeCursor(kept[kept.length - 1]) : null,
     followsAnyone: true,
   };
+}
+
+// Cards that show a review, so take reactions and comments.
+export function isReviewCard(card: Extract<FeedCard, { kind: "entry" }>): boolean {
+  return card.types.includes("REVIEWED") && Boolean(card.log.reviewText);
 }
 
 const VERB: Record<ActivityType, string> = {
@@ -118,11 +139,4 @@ export function feedVerb(types: ActivityType[]): string {
   return words.join(" and ");
 }
 
-export function timeAgo(d: Date): string {
-  const s = (Date.now() - d.getTime()) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-}
+export { timeAgo } from "./format";

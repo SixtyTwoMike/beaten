@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { AVATAR_SELECT } from "./avatar";
 import type { Limit } from "./rate-limit";
@@ -14,6 +15,7 @@ export const PUBLIC_USER_SELECT = {
   image: true,
   ...AVATAR_SELECT,
 } as const;
+export type PublicUser = Prisma.UserGetPayload<{ select: typeof PUBLIC_USER_SELECT }>;
 
 export const MAX_FOLLOWING = 2000;
 export const FOLLOW_LIMIT: Limit = { max: 60, windowMs: 60 * 60 * 1000 };

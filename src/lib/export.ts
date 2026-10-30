@@ -22,6 +22,22 @@ export async function buildExport(userId: string) {
         raAccount: { select: { raUsername: true } },
         steamAccount: { select: { steamId: true } },
         following: { orderBy: { createdAt: "asc" }, select: { createdAt: true, followee: { select: { username: true } } } },
+        comments: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            body: true,
+            createdAt: true,
+            playLog: { select: { user: { select: { username: true } }, game: { select: { name: true, igdbId: true } } } },
+          },
+        },
+        reactions: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            kind: true,
+            createdAt: true,
+            playLog: { select: { user: { select: { username: true } }, game: { select: { name: true, igdbId: true } } } },
+          },
+        },
       },
     }),
     prisma.playLog.findMany({
@@ -72,6 +88,19 @@ export async function buildExport(userId: string) {
     following: user.following
       .filter((f) => f.followee.username)
       .map((f) => ({ username: f.followee.username, since: f.createdAt.toISOString() })),
+    // Comments and reactions on other people's reviews (and replies on yours).
+    comments: user.comments.map((c) => ({
+      onReviewBy: c.playLog.user.username,
+      game: c.playLog.game,
+      body: c.body,
+      createdAt: c.createdAt.toISOString(),
+    })),
+    reactions: user.reactions.map((r) => ({
+      onReviewBy: r.playLog.user.username,
+      game: r.playLog.game,
+      reaction: r.kind,
+      createdAt: r.createdAt.toISOString(),
+    })),
     logs: logs.map((log) => ({
       game: {
         igdbId: log.game.igdbId,

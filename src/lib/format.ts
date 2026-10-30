@@ -82,3 +82,14 @@ export function dayMonth(partial: string) {
   const month = MONTHS[Number(partial.slice(5, 7)) - 1] ?? "";
   return partial.length >= 10 ? `${Number(partial.slice(8, 10))} ${month}` : month;
 }
+
+// "just now", "5m", "3h", "2d", then the date.
+export function timeAgo(d: Date | string): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const s = (Date.now() - date.getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+}

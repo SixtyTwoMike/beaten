@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { PUBLIC_USER_SELECT, SEARCH_LIMIT, blockedEitherWay } from "@/lib/follows";
+import { SEARCH_LIMIT } from "@/lib/follows";
+import { searchPeople } from "@/lib/social-queries";
 import { isLimited, recordAttempt } from "@/lib/rate-limit";
 import { requireUser } from "@/lib/session";
 import { PeopleList } from "@/components/PeopleList";
@@ -11,14 +11,14 @@ export const metadata = { title: "Find people — Beaten" };
 export default async function PeoplePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const viewer = await requireUser();
   const q = ((await searchParams).q ?? "").trim().replace(/^@/, "").slice(0, 40);
-  let results: Awaited<ReturnType<typeof search>> | null = null;
+  let results: Awaited<ReturnType<typeof searchPeople>> | null = null;
   let limited = false;
   if (q.length >= 2) {
     const key = `people:${viewer.id}`;
     limited = isLimited(key, SEARCH_LIMIT);
     if (!limited) {
       recordAttempt(key, SEARCH_LIMIT);
-      results = await search(viewer.id, q);
+      results = await searchPeople(viewer.id, q);
     }
   }
 
@@ -57,21 +57,4 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
       </div>
     </div>
   );
-}
-
-async function search(viewerId: string, q: string) {
-  const handle = q.toLowerCase();
-  const hidden = await blockedEitherWay(viewerId);
-  const rows = await prisma.user.findMany({
-    where: {
-      id: { not: viewerId },
-      username: { not: null },
-      emailVerifiedAt: { not: null },
-      OR: [{ username: { startsWith: handle } }, { name: { contains: q } }],
-    },
-    orderBy: { username: "asc" },
-    take: 25,
-    select: PUBLIC_USER_SELECT,
-  });
-  return rows.filter((r) => !hidden.has(r.id)).slice(0, 20);
 }

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { resolveAvatar } from "@/lib/avatar";
 import { feedVerb, timeAgo, type FeedCard } from "@/lib/feed";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { Avatar } from "./Avatar";
 import { Poster } from "./Poster";
+import { ReviewSocialBar } from "./ReviewSocialBar";
 import { ReviewText } from "./ReviewText";
 import { Stars } from "./Stars";
 
@@ -47,6 +49,7 @@ export function FeedList({ cards }: { cards: FeedCard[] }) {
                     <ReviewText text={card.log.reviewText} spoilers={card.log.containsSpoilers} className="text-sm text-fog/90" />
                   </div>
                 )}
+                {card.social && <ReviewSocialBar logId={card.logId} social={card.social} reportEmail={SUPPORT_EMAIL} />}
               </div>
               <Link href={`/games/${card.game.igdbId}`} className="w-12 shrink-0 sm:w-14">
                 <Poster name={card.game.name} coverUrl={card.game.coverUrl} />

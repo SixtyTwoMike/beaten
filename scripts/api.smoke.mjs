@@ -9,6 +9,8 @@ import { PrismaClient } from "@prisma/client";
 const BASE = process.env.SMOKE_BASE || "http://localhost:3000";
 const email = `api-smoke-${Date.now()}@example.com`;
 const password = `ApiSmoke!${Date.now()}x`;
+const username = `apismoke_${Date.now().toString(36)}`;
+const pal = { email: `api-pal-${Date.now()}@example.com`, password: `ApiPal!${Date.now()}x`, username: `apipal_${Date.now().toString(36)}` };
 
 let failures = 0;
 function check(name, ok, detail) {
@@ -36,7 +38,10 @@ async function api(method, path, body) {
 
 const prisma = new PrismaClient();
 await prisma.user.create({
-  data: { email, passwordHash: await bcrypt.hash(password, 12), emailVerifiedAt: new Date() },
+  data: { email, username, passwordHash: await bcrypt.hash(password, 12), emailVerifiedAt: new Date() },
+});
+await prisma.user.create({
+  data: { email: pal.email, username: pal.username, name: "API Pal", passwordHash: await bcrypt.hash(pal.password, 12), emailVerifiedAt: new Date() },
 });
 
 try {
@@ -132,9 +137,78 @@ try {
   check("first game and busiest month", review.json?.review?.firstGame?.igdbId === game.igdbId && review.json.review.bestMonth?.month === 4 && review.json.review.bestMonth.count === 1, review.json?.review);
   check("future year → 400", (await api("GET", "/year-review?year=2999")).status === 400);
 
+  // --- following, feed, reactions, comments (with a second account)
+  const me0 = (await api("GET", "/me")).json;
+  check("me has follower counts", me0?.social?.followers === 0 && me0.social.following === 0, me0?.social);
+  const myToken = token;
+  token = (await api("POST", "/auth/login", { email: pal.email, password: pal.password })).json.token;
+  const palToken = token;
+  const palLog = await api("POST", "/logs", { igdbId: game.igdbId, status: "BEATEN", finishedAt: "2026-05", rating: 7, reviewText: "Pal's review", containsSpoilers: true });
+  check("second account reviews a game", palLog.status === 201, palLog);
+  const palLogId = palLog.json?.log.id;
+  token = myToken;
+  check("short people search → empty", (await api("GET", "/people?q=a")).json?.people?.length === 0);
+  const found = await api("GET", `/people?q=${pal.username.slice(0, 7)}`);
+  check("people search", found.json?.people?.some((p) => p.username === pal.username && p.name === "API Pal"), found);
+  const prof0 = await api("GET", `/users/${pal.username}`);
+  check("profile", prof0.status === 200 && prof0.json.profile.relation.canFollow && !prof0.json.profile.relation.following && prof0.json.profile.reviews[0]?.reviewText === "Pal's review", prof0);
+  check("unknown profile → 404", (await api("GET", "/users/nobody_here_xyz")).status === 404);
+  check("empty feed before following", (await api("GET", "/feed")).json?.followsAnyone === false);
+  const followed = await api("POST", `/users/${pal.username}/follow`);
+  check("follow", followed.status === 200 && followed.json.profile.relation.following && followed.json.profile.counts.followers === 1, followed);
+  check("can't follow yourself", (await api("POST", `/users/${username}/follow`)).status === 403);
+  check("following list", (await api("GET", `/users/${username}/following`)).json?.people?.[0]?.username === pal.username);
+  const feed = await api("GET", "/feed");
+  const card = feed.json?.cards?.find((c) => c.logId === palLogId);
+  check("feed shows their review with social", card?.reviewed && card.verb.endsWith("reviewed") && card.log.containsSpoilers && card.log.finishedAt === "2026-05" && card.social?.commentCount === 0 && card.social.reactions.length === 5, feed.json);
+  check("my own feed", (await api("GET", "/feed?scope=you")).json?.cards?.some((c) => c.game?.igdbId === game.igdbId));
+  const heart = await api("POST", `/reviews/${palLogId}/reactions`, { kind: "heart" });
+  check("react", heart.json?.social?.reactions.find((r) => r.kind === "heart")?.count === 1 && heart.json.social.reactions.find((r) => r.kind === "heart").mine, heart);
+  const unheart = await api("POST", `/reviews/${palLogId}/reactions`, { kind: "heart" });
+  check("react again takes it away", unheart.json?.social?.reactions.find((r) => r.kind === "heart")?.count === 0);
+  await api("POST", `/reviews/${palLogId}/reactions`, { kind: "gg" });
+  check("unknown reaction → 400", (await api("POST", `/reviews/${palLogId}/reactions`, { kind: "poop" })).status === 400);
+  check("react to an unknown review → 404", (await api("POST", `/reviews/nope/reactions`, { kind: "heart" })).status === 404);
+  check("empty comment → 400", (await api("POST", `/reviews/${palLogId}/comments`, { body: "  " })).status === 400);
+  check("long comment → 400", (await api("POST", `/reviews/${palLogId}/comments`, { body: "x".repeat(1001) })).status === 400);
+  const commented = await api("POST", `/reviews/${palLogId}/comments`, { body: "Great call on the ending" });
+  check("comment", commented.status === 201 && commented.json.comments.length === 1 && commented.json.comments[0].author.username === username && commented.json.comments[0].canDelete, commented);
+  const commentId = commented.json?.comments?.[0]?.id;
+  check("feed counts the comment", (await api("GET", "/feed")).json?.cards?.find((c) => c.logId === palLogId)?.social?.commentCount === 1);
+  token = palToken;
+  const palMe = (await api("GET", "/me")).json;
+  check("they see a new follower", palMe?.social?.followers === 1 && palMe.social.newFollowers === 1, palMe?.social);
+  check("followers list", (await api("GET", `/users/${pal.username}/followers`)).json?.people?.[0]?.username === username);
+  check("seeing followers clears the count", (await api("GET", "/me")).json?.social?.newFollowers === 0);
+  const theirs = await api("GET", `/reviews/${palLogId}/comments`);
+  check("review author can delete comments on it", theirs.json?.comments?.[0]?.canDelete === true, theirs);
+  check("blocking", (await api("POST", `/users/${username}/block`)).json?.profile?.relation?.blocked === true);
+  token = myToken;
+  check("blocked: follow ends", (await api("GET", `/users/${pal.username}`)).json?.profile?.relation?.following === false);
+  check("blocked: can't follow back", (await api("POST", `/users/${pal.username}/follow`)).status === 403);
+  check("blocked: can't see comments", (await api("GET", `/reviews/${palLogId}/comments`)).status === 404);
+  check("blocked: can't react", (await api("POST", `/reviews/${palLogId}/reactions`, { kind: "fire" })).status === 404);
+  token = palToken;
+  check("blocked people's comments are left out of counts",
+    (await api("GET", "/feed?scope=you")).json?.cards?.find((c) => c.logId === palLogId)?.social?.commentCount === 0);
+  await api("DELETE", `/users/${username}/block`);
+  const reply = await api("POST", `/reviews/${palLogId}/comments`, { body: "Thanks!" });
+  check("review author can reply", reply.status === 201 && reply.json.comments.length === 2, reply);
+  const replyId = reply.json?.comments?.find((c) => c.body === "Thanks!")?.id;
+  token = myToken;
+  check("can't delete someone else's comment", (await api("DELETE", `/comments/${replyId}`)).status === 404);
+  token = palToken;
+  check("review author deletes a comment", (await api("DELETE", `/comments/${commentId}`)).status === 200);
+  check("deleted comment → 404", (await api("DELETE", `/comments/${commentId}`)).status === 404);
+  token = myToken;
+  check("comment is gone", (await api("GET", `/reviews/${palLogId}/comments`)).json?.comments?.map((c) => c.body).join() === "Thanks!");
+  await api("POST", `/users/${pal.username}/follow`);
+  check("unfollow", (await api("DELETE", `/users/${pal.username}/follow`)).json?.profile?.relation?.following === false);
+
   // --- export, devices
   const exported = await api("GET", "/account/export");
   check("export", exported.status === 200 && exported.json.format === "beaten-export", exported.status);
+  check("export lists reactions", exported.json?.reactions?.some((r) => r.reaction === "gg" && r.onReviewBy === pal.username), exported.json?.reactions);
   const second = (await api("POST", "/auth/login", { email, password, deviceName: "Smoke iPad" })).json.token;
   const devices = await api("GET", "/devices");
   check("two devices, this one marked", devices.json?.devices.length === 2 && devices.json.devices.filter((d) => d.current).length === 1, devices);
@@ -163,7 +237,7 @@ try {
   check("delete account", (await api("DELETE", "/account", { confirmation: password })).status === 200);
   check("account is gone", (await prisma.user.findUnique({ where: { email } })) === null);
 } finally {
-  await prisma.user.deleteMany({ where: { email } });
+  await prisma.user.deleteMany({ where: { email: { in: [email, pal.email] } } });
   await prisma.$disconnect();
 }
 

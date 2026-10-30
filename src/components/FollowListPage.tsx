@@ -1,47 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { PUBLIC_USER_SELECT, blockedEitherWay } from "@/lib/follows";
 import { requireUser } from "@/lib/session";
-import { normalizeUsername } from "@/lib/username";
+import { followList } from "@/lib/social-queries";
 import { Logo } from "./Logo";
 import { PeopleList } from "./PeopleList";
 import { SiteFooter } from "./SiteFooter";
-
-const PAGE = 50;
 
 // Someone's followers or who they follow. Signed-in only, so the social
 // graph isn't trivially scraped; people blocked either way are left out.
 export async function FollowListPage({ raw, kind, page }: { raw: string; kind: "followers" | "following"; page: number }) {
   const viewer = await requireUser();
-  const user = await prisma.user.findUnique({
-    where: { username: normalizeUsername(decodeURIComponent(raw)) },
-    select: { id: true, username: true, name: true },
-  });
-  if (!user?.username) notFound();
-  const hidden = await blockedEitherWay(viewer.id);
-  const rows =
-    kind === "followers"
-      ? (await prisma.follow.findMany({
-          where: { followeeId: user.id },
-          orderBy: { createdAt: "desc" },
-          skip: page * PAGE,
-          take: PAGE + 1,
-          select: { follower: { select: PUBLIC_USER_SELECT } },
-        })).map((f) => f.follower)
-      : (await prisma.follow.findMany({
-          where: { followerId: user.id },
-          orderBy: { createdAt: "desc" },
-          skip: page * PAGE,
-          take: PAGE + 1,
-          select: { followee: { select: PUBLIC_USER_SELECT } },
-        })).map((f) => f.followee);
-  const more = rows.length > PAGE;
-  const people = rows.slice(0, PAGE).filter((p) => !hidden.has(p.id));
-  // Seeing your own followers clears the new-followers dot.
-  if (kind === "followers" && viewer.id === user.id) {
-    await prisma.user.update({ where: { id: user.id }, data: { followersSeenAt: new Date() } });
-  }
+  const list = await followList(viewer.id, decodeURIComponent(raw), kind, page);
+  if (!list) notFound();
+  const { user, people, more } = list;
   const display = user.name || `@${user.username}`;
 
   return (

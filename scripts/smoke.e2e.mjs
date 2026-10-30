@@ -932,7 +932,7 @@ try {
   await friend.getByRole("button", { name: "Save log" }).click();
   await friend.waitForSelector("text=Add to your played log", { state: "detached" });
 
-  await page.goto(`${BASE}/people?q=${friendName.slice(0, 6)}`);
+  await page.goto(`${BASE}/people?q=${friendName}`);
   check("people search finds another player", (await page.getByRole("link", { name: new RegExp(friendName) }).count()) === 1);
   await page.goto(`${BASE}/${friendName}`);
   await page.getByRole("button", { name: "Follow", exact: true }).click();
@@ -948,6 +948,26 @@ try {
   check("spoiler reviews are blurred in the feed", await fromFriends.getByText("Contains spoilers · show").isVisible());
   await fromFriends.getByText("Contains spoilers · show").click();
   check("tapping shows the spoiler review", await fromFriends.getByText("The summit twist got me.").isVisible());
+  await fromFriends.getByRole("button", { name: "React" }).first().click();
+  await fromFriends.getByRole("menuitemcheckbox", { name: "Fire" }).click();
+  await fromFriends.getByRole("button", { name: "Fire, 1" }).waitFor();
+  await page.reload();
+  check("reacting to a review sticks",
+    (await page.locator("#following-feed").getByRole("button", { name: "Fire, 1" }).getAttribute("aria-pressed")) === "true");
+  await page.locator("#following-feed").getByRole("button", { name: "💬 Comment" }).first().click();
+  await page.locator("#following-feed").getByLabel("Add a comment").fill("Didn't see that coming either");
+  await page.locator("#following-feed").getByRole("button", { name: "Post" }).click();
+  // (Waits on the count: the text is in the box until the post lands.)
+  await page.locator("#following-feed").getByRole("button", { name: "💬 1 comment" }).waitFor();
+  check("commenting on a review",
+    await page.locator("#following-feed").locator("li p", { hasText: "Didn't see that coming either" }).isVisible());
+  await friend.goto(`${BASE}/activity?tab=you`);
+  await friend.getByRole("button", { name: "💬 1 comment" }).click();
+  await friend.getByText("Didn't see that coming either").waitFor();
+  check("the reviewer sees reactions and comments", await friend.getByRole("button", { name: "Fire, 1" }).isVisible());
+  await friend.getByRole("button", { name: "Delete" }).click();
+  await friend.getByText("Didn't see that coming either").waitFor({ state: "detached" });
+  check("the reviewer can delete a comment", await friend.getByRole("button", { name: "💬 Comment" }).isVisible());
   await page.goto(`${BASE}/games/900011`);
   check("game page shows friends who've played it", await page.getByRole("heading", { name: "Friends who've played this" }).isVisible() &&
     await page.getByRole("link", { name: "Pal Tester" }).isVisible());

@@ -54,6 +54,8 @@ model User {
   blocking     Block[]     @relation("Blocker")
   blockedBy    Block[]     @relation("Blocked")
   activities   Activity[]
+  reactions    Reaction[]
+  comments     Comment[]
   // When they last looked at their followers, for the "new followers" dot.
   followersSeenAt DateTime?
 }
@@ -157,6 +159,8 @@ model PlayLog {
   raAwards   RaAward[]
   steamGames SteamGame[]
   activities Activity[]
+  reactions  Reaction[]
+  comments   Comment[]
   // Reviews with plot details are blurred in feeds and on profiles.
   containsSpoilers Boolean @default(false)
 
@@ -410,4 +414,33 @@ model Activity {
 
   @@index([actorId, createdAt])
   @@index([playLogId])
+}
+
+// Reactions to a review (lib/review-social.ts): a small fixed set, each
+// person can add each one once.
+model Reaction {
+  playLogId String
+  userId    String
+  // "heart" | "fire" | "laugh" | "wow" | "gg" (validated in app code)
+  kind      String
+  createdAt DateTime @default(now())
+  playLog   PlayLog  @relation(fields: [playLogId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([playLogId, userId, kind])
+  @@index([userId])
+}
+
+// Comments on a review. The commenter or the review's author can delete one.
+model Comment {
+  id        String   @id @default(cuid())
+  playLogId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  playLog   PlayLog  @relation(fields: [playLogId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([playLogId, createdAt])
+  @@index([authorId, createdAt])
 }
