@@ -31,6 +31,14 @@ Build and upload to TestFlight. Pass version:"1.0.1" to override MARKETING_VERSI
 
 Give the latest processed build to an external TestFlight group (no rebuild)
 
+### ios testers
+
+```sh
+[bundle exec] fastlane ios testers
+```
+
+Add App Store Connect team members to the internal TestFlight group (every build, no Beta App Review). email:"…" (must be on the App Store Connect team)
+
 ### ios builds
 
 ```sh
