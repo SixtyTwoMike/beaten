@@ -7,6 +7,7 @@ struct ChronicleScreen: View {
     @State private var model: ChronicleModel?
     @State private var editing: ConsoleSheet.Target?
     @State private var styling = false
+    @State private var makingVideo = false
 
     var body: some View {
         ScrollView {
@@ -19,6 +20,15 @@ struct ChronicleScreen: View {
                     if chronicle.stops.isEmpty {
                         Button("Add your first console", systemImage: "plus") { editing = .init(stop: nil) }
                             .buttonStyle(.borderedProminent)
+                    }
+                    if !chronicle.stops.isEmpty {
+                        Button { makingVideo = true } label: {
+                            Label("Make a story video", systemImage: "film")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .foregroundStyle(Color.canvas)
                     }
                     if let username = chronicle.username, !chronicle.stops.isEmpty,
                        let url = URL(string: "https://beaten.games/\(username)/chronicles") {
@@ -53,6 +63,9 @@ struct ChronicleScreen: View {
         }
         .sheet(item: $editing) { target in
             if let model { ConsoleSheet(model: model, target: target) }
+        }
+        .fullScreenCover(isPresented: $makingVideo) {
+            if let chronicle = model?.chronicle { ChronicleVideoSheet(chronicle: chronicle) }
         }
         .sheet(isPresented: $styling) {
             if let model, let chronicle = model.chronicle { ChronicleStyleSheet(model: model, chronicle: chronicle) }

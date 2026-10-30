@@ -51,6 +51,9 @@ targets:
           - UIInterfaceOrientationPortrait
         UIUserInterfaceStyle: Dark
         ITSAppUsesNonExemptEncryption: false
+        # Press Start 2P (SIL OFL) for the Retro CRT video.
+        UIAppFonts: [PressStart2P-Regular.ttf]
+        NSPhotoLibraryAddUsageDescription: Beaten saves the videos and cards you make to your photo library.
         NSAppTransportSecurity:
           # Plain http only to localhost, for the Debug build's dev server.
           NSAllowsLocalNetworking: true

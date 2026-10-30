@@ -98,4 +98,23 @@ final class ChronicleTests: XCTestCase {
         app.buttons["Get card to share"].tap()
         XCTAssertTrue(app.buttons["Share card"].waitForExistence(timeout: 20))
     }
+
+    func testStoryVideo() throws {
+        try signIn()
+        app.tabBars.buttons["Profile"].tap()
+        app.buttons["Console Chronicles"].firstMatch.tap()
+        let make = app.buttons["Make a story video"]
+        XCTAssertTrue(make.waitForExistence(timeout: 15))
+        make.tap()
+        XCTAssertTrue(app.navigationBars["Story video"].waitForExistence(timeout: 5))
+        sleep(6) // artwork, then a frame of each style
+        shot("v1-styles")
+        app.buttons["Retro CRT"].tap()
+        let start = Date()
+        app.buttons["Make video"].tap()
+        XCTAssertTrue(app.buttons["Share video"].waitForExistence(timeout: 180))
+        print("VIDEO_RENDER_SECONDS \(Int(Date().timeIntervalSince(start)))")
+        sleep(3)
+        shot("v2-made")
+    }
 }
