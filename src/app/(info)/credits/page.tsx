@@ -47,6 +47,21 @@ export default async function CreditsPage() {
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-white">Fonts</h2>
+        <p>
+          The Retro CRT video uses{" "}
+          <a href="https://fonts.google.com/specimen/Press+Start+2P" className="text-mint hover:underline" target="_blank" rel="noopener noreferrer">
+            Press Start 2P
+          </a>{" "}
+          by CodeMan38, under the{" "}
+          <a href="/fonts/PressStart2P-OFL.txt" className="text-mint hover:underline">
+            SIL Open Font License
+          </a>
+          .
+        </p>
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-lg font-semibold text-white">Console photos</h2>
         <p>
           The console photos in Console Chronicles come from Wikimedia Commons, most of them

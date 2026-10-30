@@ -13,11 +13,13 @@ import {
   MAX_MODEL,
   MAX_NOTE,
   MAX_TITLE,
+  VIDEO_STYLES,
   type ChronicleBackground,
   type ChroniclePath,
   type ChronicleStop,
   type ChronicleView,
   type ConsoleOption,
+  type VideoStyle,
 } from "@/lib/chronicle-core";
 import { safeAction } from "@/lib/safe-action";
 import { CARD_ACCENTS, type CardAccent } from "@/lib/share-card";
@@ -416,6 +418,7 @@ const VIDEO_SIZES = {
 } as const;
 
 function VideoShare({ view }: { view: ChronicleView }) {
+  const [style, setStyle] = useState<VideoStyle>("road");
   const [size, setSize] = useState<keyof typeof VIDEO_SIZES>("full");
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -431,7 +434,7 @@ function VideoShare({ view }: { view: ChronicleView }) {
     setProgress(0);
     try {
       const { renderChronicleVideo } = await import("@/lib/chronicle-video");
-      setFile(await renderChronicleVideo(view, size, setProgress));
+      setFile(await renderChronicleVideo(view, size, setProgress, style));
     } catch (e) {
       console.error("chronicle video failed:", e);
       setError("Couldn't make the video on this device — try again");
@@ -451,7 +454,24 @@ function VideoShare({ view }: { view: ChronicleView }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-fog">A story-sized video that travels down your road, console by console.</p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Video style">
+        {(Object.keys(VIDEO_STYLES) as VideoStyle[]).map((k) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={style === k}
+            disabled={progress != null}
+            onClick={() => {
+              setStyle(k);
+              setFile(null);
+            }}
+            className={chip}
+          >
+            {VIDEO_STYLES[k].label}
+          </button>
+        ))}
+      </div>
+      <p className="text-sm text-fog">A story-sized video. {VIDEO_STYLES[style].blurb}</p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Video size">
         {(Object.keys(VIDEO_SIZES) as (keyof typeof VIDEO_SIZES)[]).map((k) => (
           <button

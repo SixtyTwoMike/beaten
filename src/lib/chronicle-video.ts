@@ -4,22 +4,26 @@
 // packed into an MP4. Where WebCodecs isn't available it falls back to
 // recording the canvas in real time (MediaRecorder).
 //
-// The timeline is laid out as one tall "world"; a camera glides down the
-// zig-zag road, each console sliding in as the road reaches it.
+// Styles: "road" (here) lays the timeline out as one tall "world" and a
+// camera glides down the zig-zag road, each console sliding in as the road
+// reaches it; "years" and "crt" are in chronicle-video-styles.ts. The iPhone
+// app renders the same styles natively (ios/Beaten/Features/Extras/Video);
+// change one, change the other.
 
 import { ArrayBufferTarget, Muxer } from "mp4-muxer";
-import type { ChronicleStop, ChronicleView } from "./chronicle-core";
+import type { ChronicleStop, ChronicleView, VideoStyle } from "./chronicle-core";
 import { BADGE_LABELS } from "./chronicle-core";
+import { crtPlan, yearsPlan } from "./chronicle-video-styles";
 
-const W = 1080;
-const H = 1920;
+export const W = 1080;
+export const H = 1920;
 const FPS = 30;
-const CANVAS = "#0e1216";
-const CARD = "#161c22";
-const FOG = "#8fa0b0";
-const FONT = `-apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+export const CANVAS = "#0e1216";
+export const CARD = "#161c22";
+export const FOG = "#8fa0b0";
+export const FONT = `-apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
 
-const MARGIN = 48;
+export const MARGIN = 48;
 const CARD_W = 780;
 const CARD_PAD = 44;
 const GAP = 220; // road between cards
@@ -31,11 +35,11 @@ const COVER_H = 250;
 const INTRO = 1.6;
 const OUTRO = 2.6;
 
-type Images = Map<string, HTMLImageElement>;
+export type Images = Map<string, HTMLImageElement>;
 type Card = { stop: ChronicleStop; x: number; y: number; h: number; right: boolean };
 
-const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
+export const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -48,7 +52,7 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
 }
 
 // Sharper covers than the page uses: the video is full-screen.
-const bigCover = (url: string) => url.replace("/t_cover_big/", "/t_cover_big_2x/");
+export const bigCover = (url: string) => url.replace("/t_cover_big/", "/t_cover_big_2x/");
 
 async function loadImages(view: ChronicleView): Promise<Images> {
   const srcs = new Set<string>();
@@ -66,7 +70,7 @@ async function loadImages(view: ChronicleView): Promise<Images> {
   return images;
 }
 
-function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -77,7 +81,7 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 }
 
 // Fits text to a width with an ellipsis.
-function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
+export function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
   if (ctx.measureText(text).width <= max) return text;
   let t = text;
   while (t.length > 1 && ctx.measureText(`${t}…`).width > max) t = t.slice(0, -1);
@@ -105,7 +109,7 @@ function layout(view: ChronicleView): { cards: Card[]; worldH: number } {
   return { cards, worldH: y - GAP + 400 };
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, view: ChronicleView, cameraY: number) {
+export function drawBackground(ctx: CanvasRenderingContext2D, view: ChronicleView, cameraY: number) {
   ctx.fillStyle = CANVAS;
   ctx.fillRect(0, 0, W, H);
   const a = view.accentHex;
@@ -204,7 +208,7 @@ function drawRoad(ctx: CanvasRenderingContext2D, view: ChronicleView, from: Card
   }
 }
 
-function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+export function drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
   ctx.beginPath();
   for (let i = 0; i < 10; i++) {
     const rad = i % 2 === 0 ? r : r * 0.45;
@@ -368,7 +372,7 @@ function drawHeader(ctx: CanvasRenderingContext2D, view: ChronicleView, appear: 
 }
 
 // Bottom strip: brand and link, over a fade so cards slide under it.
-function drawFooter(ctx: CanvasRenderingContext2D, view: ChronicleView) {
+export function drawFooter(ctx: CanvasRenderingContext2D, view: ChronicleView) {
   const g = ctx.createLinearGradient(0, H - 260, 0, H);
   g.addColorStop(0, `${CANVAS}00`);
   g.addColorStop(0.6, `${CANVAS}ee`);
@@ -388,7 +392,7 @@ function drawFooter(ctx: CanvasRenderingContext2D, view: ChronicleView) {
   ctx.textAlign = "left";
 }
 
-function drawOutro(ctx: CanvasRenderingContext2D, view: ChronicleView, t: number) {
+export function drawOutro(ctx: CanvasRenderingContext2D, view: ChronicleView, t: number) {
   const e = ease(t);
   ctx.save();
   ctx.fillStyle = `rgba(14,18,22,${0.97 * e})`;
@@ -552,9 +556,15 @@ async function recordInRealTime(p: VideoPlan, ctx: CanvasRenderingContext2D, out
   return new Blob(chunks, { type: recorder.mimeType });
 }
 
-export async function renderChronicleVideo(view: ChronicleView, size: VideoSize, onProgress: Progress): Promise<File> {
+export async function renderChronicleVideo(
+  view: ChronicleView,
+  size: VideoSize,
+  onProgress: Progress,
+  style: VideoStyle = "road"
+): Promise<File> {
   const images = await loadImages(view);
-  const p = plan(view, images);
+  if (style === "crt") await loadPixelFont();
+  const p = style === "years" ? yearsPlan(view, images) : style === "crt" ? crtPlan(view, images) : plan(view, images);
   const out = output(size, p.duration);
   const canvas = document.createElement("canvas");
   canvas.width = out.width;
@@ -562,5 +572,15 @@ export async function renderChronicleVideo(view: ChronicleView, size: VideoSize,
   const ctx = canvas.getContext("2d")!;
   const blob = (await encodeWithWebCodecs(p, ctx, out, onProgress)) ?? (await recordInRealTime(p, ctx, out, onProgress));
   const ext = blob.type.includes("mp4") ? "mp4" : "webm";
-  return new File([blob], `console-chronicles${size === "small" ? "-small" : ""}.${ext}`, { type: blob.type });
+  const name = `console-chronicles${style === "road" ? "" : `-${style}`}${size === "small" ? "-small" : ""}`;
+  return new File([blob], `${name}.${ext}`, { type: blob.type });
+}
+
+// Press Start 2P (SIL OFL, public/fonts) for the Retro CRT style. Canvas
+// text only uses a font once it has loaded.
+export const PIXEL_FONT = '"Press Start 2P", monospace';
+async function loadPixelFont() {
+  if ([...document.fonts].some((f) => f.family === "Press Start 2P" && f.status === "loaded")) return;
+  const face = new FontFace("Press Start 2P", "url(/fonts/PressStart2P-Regular.ttf)");
+  document.fonts.add(await face.load());
 }

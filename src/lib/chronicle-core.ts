@@ -15,6 +15,14 @@ export type ChronicleBackground = keyof typeof CHRONICLE_BACKGROUNDS;
 export const CHRONICLE_PATHS = { dotted: "Dotted trail", neon: "Neon", pixel: "Pixel road" } as const;
 export type ChroniclePath = keyof typeof CHRONICLE_PATHS;
 
+// Story videos (lib/chronicle-video*.ts; the app has the same styles).
+export const VIDEO_STYLES = {
+  road: { label: "Road trip", blurb: "Travels down your road, console by console." },
+  years: { label: "Year by year", blurb: "The years roll over and each console drops in." },
+  crt: { label: "Retro CRT", blurb: "An old telly flicking through the channels." },
+} as const;
+export type VideoStyle = keyof typeof VIDEO_STYLES;
+
 export const MAX_ENTRIES = 40;
 export const MAX_NOTE = 80;
 export const MAX_MODEL = 30;

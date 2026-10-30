@@ -601,6 +601,15 @@ try {
     return { type: blob.type, size: blob.size, ftyp: String.fromCharCode(...head.slice(4, 8)) };
   });
   check("story video is an MP4 made on the device", video.type === "video/mp4" && video.ftyp === "ftyp" && video.size > 100000);
+  // Another style (Retro CRT also loads the pixel font).
+  await page.getByRole("button", { name: "Retro CRT" }).click();
+  await page.getByRole("button", { name: "Make story video" }).click();
+  await page.waitForSelector("video", { timeout: 120000 });
+  const crt = await page.evaluate(async () => {
+    const blob = await (await fetch(document.querySelector("video").src)).blob();
+    return { type: blob.type, size: blob.size, pixelFont: [...document.fonts].some((f) => f.family === "Press Start 2P" && f.status === "loaded") };
+  });
+  check("Retro CRT video renders with the pixel font", crt.type === "video/mp4" && crt.size > 100000 && crt.pixelFont);
   check("editor page stays phone-width-safe", (await page.evaluate(() => document.documentElement.scrollWidth)) <= (await page.evaluate(() => innerWidth)));
 
   // 13. Sign out returns to login
