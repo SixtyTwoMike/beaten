@@ -75,6 +75,7 @@ chronicle's accent colour throughout.
 3. ✅ App: share cards (pick options, preview, share sheet). TestFlight 1.1.0 (4).
 4. ✅ Videos: Road in Swift; Year by year and Retro CRT on web + app
    (live on the web; TestFlight 1.1.0 (5)).
-5. Year in review: API, web page, app, video.
+5. ✅ Year in review: API, web page, app, video, with first game finished
+   and most productive month. TestFlight 1.1.0 (6).
 6. Instagram Stories button once the Meta app ID exists.
 7. TestFlight 1.1, test plan additions, App Review.
