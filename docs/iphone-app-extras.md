@@ -72,7 +72,7 @@ chronicle's accent colour throughout.
 2. ✅ App: Extras hub (from Profile and Home), chronicle viewer in the
    chosen style, editor (console picker, date, model, note, three games,
    age), settings. `ChronicleTests` UI test. TestFlight 1.1.0 (3).
-3. App: share cards (pick options, preview, share sheet).
+3. ✅ App: share cards (pick options, preview, share sheet). TestFlight 1.1.0 (4).
 4. Videos: Road in Swift; Year by year and Retro CRT on web + app.
 5. Year in review: API, web page, app, video.
 6. Instagram Stories button once the Meta app ID exists.
