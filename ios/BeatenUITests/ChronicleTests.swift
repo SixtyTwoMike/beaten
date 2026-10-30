@@ -46,7 +46,7 @@ final class ChronicleTests: XCTestCase {
     func testChronicle() throws {
         try signIn()
         app.tabBars.buttons["Profile"].tap()
-        app.buttons["Console chronicles"].firstMatch.tap()
+        app.buttons["Console Chronicles"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["CONSOLE CHRONICLES"].waitForExistence(timeout: 15))
         shot("c1-map")
         app.swipeUp()
@@ -83,5 +83,19 @@ final class ChronicleTests: XCTestCase {
         app.buttons["Remove console"].tap()
         app.buttons["Remove"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Game Boy Advance"].waitForNonExistence(timeout: 10))
+    }
+
+    func testShareCards() throws {
+        try signIn()
+        app.tabBars.buttons["Profile"].tap()
+        app.buttons["Share cards"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Share cards"].waitForExistence(timeout: 10))
+        sleep(4) // the server renders the first card
+        shot("s1-square")
+        app.buttons["Story"].tap()
+        sleep(5)
+        shot("s2-story")
+        app.buttons["Get card to share"].tap()
+        XCTAssertTrue(app.buttons["Share card"].waitForExistence(timeout: 20))
     }
 }

@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const user = await findUser((await params).username);
   if (!user?.chronicle) return { title: "Not found — Beaten" };
   const display = user.name || `@${user.username}`;
-  const title = `${display}'s console chronicles — Beaten`;
+  const title = `${display}'s Console Chronicles — Beaten`;
   const description = `Every console ${display} has owned, in the order they got them.`;
   return { title, description, openGraph: { title, description, type: "profile" } };
 }

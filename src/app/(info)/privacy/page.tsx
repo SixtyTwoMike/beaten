@@ -50,7 +50,7 @@ export default function PrivacyPage() {
             dates, ratings, reviews and shelves.
           </li>
           <li>
-            <strong className="text-white">Console chronicles:</strong> the consoles
+            <strong className="text-white">Console Chronicles:</strong> the consoles
             you add, when you got them, your notes and favourite games, and, if you
             give it, the year you were born. The birth year is used only to work out
             how old you were for each console and is never shown; you can turn ages

@@ -38,7 +38,10 @@ struct ProfileView: View {
 
             Section("Extras") {
                 NavigationLink { ChronicleScreen() } label: {
-                    Label("Console chronicles", systemImage: "point.bottomleft.forward.to.point.topright.scurvepath")
+                    Label("Console Chronicles", systemImage: "point.bottomleft.forward.to.point.topright.scurvepath")
+                }
+                NavigationLink { ShareCardsView() } label: {
+                    Label("Share cards", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
                 }
             }
 

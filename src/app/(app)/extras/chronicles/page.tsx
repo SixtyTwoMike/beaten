@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/session";
 import { consoleOptions, loadChronicle } from "@/lib/chronicle";
 import { ChronicleEditor, type SuggestedGame } from "@/components/ChronicleEditor";
 
-export const metadata = { title: "Console chronicles — Beaten" };
+export const metadata = { title: "Console Chronicles — Beaten" };
 
 export default async function ChroniclesEditorPage() {
   const user = await requireUser();

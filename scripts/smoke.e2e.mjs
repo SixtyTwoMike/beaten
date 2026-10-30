@@ -525,10 +525,10 @@ try {
   check("Steam import adds a beaten entry with a month-only date",
     await page.locator("li", { hasText: "Portal 2" }).first().getByText("Sep 2020").isVisible());
 
-  // 12f. Console chronicles (Extras): consoles with dates, ages, badges
+  // 12f. Console Chronicles (Extras): consoles with dates, ages, badges
   // and favourite games, drawn as a zig-zag map
   await page.goto(`${BASE}/extras`);
-  await page.getByRole("link", { name: /Console chronicles/ }).click();
+  await page.getByRole("link", { name: /Console Chronicles/ }).click();
   await page.waitForURL("**/extras/chronicles");
   await page.goto(`${BASE}/chronicles`);
   check("signed-in visitors to /chronicles get their own editor", page.url().endsWith("/extras/chronicles"));
@@ -853,7 +853,7 @@ try {
   const friend = await friendContext.newPage();
   const friendSince = new Date().toISOString();
 
-  // 18b. Console chronicles without an account: built in the browser,
+  // 18b. Console Chronicles without an account: built in the browser,
   // brought into the account on sign-up
   await friend.goto(`${BASE}/chronicles`);
   await friend.getByText("Saved on this device only.").waitFor({ timeout: 15000 });

@@ -27,7 +27,7 @@ struct ChronicleStyleSheet: View {
         NavigationStack {
             Form {
                 Section("Title") {
-                    TextField("My console chronicles", text: Binding(
+                    TextField("My Console Chronicles", text: Binding(
                         get: { settings.title ?? "" },
                         set: { settings.title = String($0.prefix(40)) }
                     ))

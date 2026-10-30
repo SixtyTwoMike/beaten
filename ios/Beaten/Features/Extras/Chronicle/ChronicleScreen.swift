@@ -36,7 +36,7 @@ struct ChronicleScreen: View {
             }
         }
         .canvasBackground()
-        .navigationTitle("Console chronicles")
+        .navigationTitle("Console Chronicles")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {

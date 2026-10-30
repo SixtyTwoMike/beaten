@@ -125,7 +125,7 @@ export function ChronicleMap({ view }: { view: ChronicleView }) {
     <div className="overflow-hidden rounded-3xl border border-edge bg-canvas px-3 py-8 sm:px-8 sm:py-10" style={chronicleBackground(view)}>
       <header className="mb-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.25em]" style={{ color: view.accentHex }}>
-          Console chronicles
+          Console Chronicles
         </p>
         <h2 className="mt-2 text-3xl font-bold text-white sm:text-4xl">{view.title}</h2>
         <p className="mt-2 text-sm text-fog">

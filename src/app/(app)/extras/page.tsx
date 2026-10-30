@@ -6,7 +6,7 @@ export const metadata = { title: "Extras — Beaten" };
 const EXTRAS = [
   {
     href: "/extras/chronicles",
-    title: "Console chronicles",
+    title: "Console Chronicles",
     body: "Map every console you've owned — when you got it, how old you were, and the three games that defined it.",
   },
 ];

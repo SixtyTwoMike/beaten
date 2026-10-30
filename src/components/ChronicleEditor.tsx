@@ -443,7 +443,7 @@ function VideoShare({ view }: { view: ChronicleView }) {
   async function share() {
     if (!file) return;
     try {
-      await navigator.share({ files: [file], title: "My console chronicles" });
+      await navigator.share({ files: [file], title: "My Console Chronicles" });
     } catch {
       // Cancelled.
     }
@@ -574,7 +574,7 @@ export function ChronicleEditor({
     <div className="grid items-start gap-6 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div className="min-w-0 space-y-4">
         <div>
-          <h1 className="text-2xl font-bold">Console chronicles</h1>
+          <h1 className="text-2xl font-bold">Console Chronicles</h1>
           <p className="mt-1 text-sm text-fog">Every console you&apos;ve owned, in the order you got them.</p>
         </div>
 

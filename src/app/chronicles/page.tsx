@@ -12,7 +12,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 // editor. "chronicles" is a reserved username, so this can't clash with a
 // profile.
 
-const title = "Console chronicles — Beaten";
+const title = "Console Chronicles — Beaten";
 const description = "Every console you've owned, in the order you got them — as a timeline and a story video. No account needed.";
 
 export const metadata: Metadata = { title, description, openGraph: { title, description } };

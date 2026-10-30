@@ -19,30 +19,35 @@ struct ExtrasView: View {
 
 enum Extra: String, CaseIterable, Identifiable {
     case chronicles
+    case shareCards
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .chronicles: "Console chronicles"
+        case .chronicles: "Console Chronicles"
+        case .shareCards: "Share cards"
         }
     }
 
     var blurb: String {
         switch self {
         case .chronicles: "Map every console you've owned: when you got it, how old you were, and the three games that defined it."
+        case .shareCards: "Your last four beaten or played as an image for Instagram, Messages or anywhere else."
         }
     }
 
     var symbol: String {
         switch self {
         case .chronicles: "point.bottomleft.forward.to.point.topright.scurvepath"
+        case .shareCards: "rectangle.portrait.on.rectangle.portrait.angled"
         }
     }
 
     @ViewBuilder var destination: some View {
         switch self {
         case .chronicles: ChronicleScreen()
+        case .shareCards: ShareCardsView()
         }
     }
 }

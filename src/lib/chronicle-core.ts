@@ -19,7 +19,7 @@ export const MAX_ENTRIES = 40;
 export const MAX_NOTE = 80;
 export const MAX_MODEL = 30;
 export const MAX_TITLE = 40;
-export const DEFAULT_TITLE = "My console chronicles";
+export const DEFAULT_TITLE = "My Console Chronicles";
 
 // IGDB platform types offered: consoles, handhelds and home computers,
 // plus Windows, Mac and DOS PCs (filed as operating systems).

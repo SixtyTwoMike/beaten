@@ -56,7 +56,7 @@ export function GuestChronicleImport({ hasChronicle }: { hasChronicle: boolean }
   if (!onEditor) {
     return (
       <p className="mb-6 rounded-xl border border-mint/30 bg-mint/5 p-4 text-sm">
-        You made a console chronicle before signing in.{" "}
+        You made a Console Chronicle before signing in.{" "}
         <Link href="/extras/chronicles" className="font-semibold text-mint hover:underline">
           Add it to your account →
         </Link>
