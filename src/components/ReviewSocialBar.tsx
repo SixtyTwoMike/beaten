@@ -85,7 +85,10 @@ export function ReviewSocialBar({
 
   return (
     <div className="mt-3">
-      <div className="relative flex flex-wrap items-center gap-1.5 text-xs">
+      <div
+        className="relative flex flex-wrap items-center gap-1.5 text-xs"
+        onKeyDown={(e) => e.key === "Escape" && setPicking(false)}
+      >
         {shown.map((r) => (
           <button
             key={r.kind}
