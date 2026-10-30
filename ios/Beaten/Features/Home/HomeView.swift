@@ -86,6 +86,15 @@ struct HomeView: View {
                 } header: {
                     SectionTitle("Recently beaten")
                 }
+
+                Section {
+                    ForEach(Extra.allCases) { extra in
+                        NavigationLink { extra.destination } label: { ExtraCard(extra: extra) }
+                            .buttonStyle(.plain)
+                    }
+                } header: {
+                    SectionTitle("Extras")
+                }
             }
             .padding()
         }

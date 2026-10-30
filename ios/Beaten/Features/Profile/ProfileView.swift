@@ -36,6 +36,12 @@ struct ProfileView: View {
                 }
             }
 
+            Section("Extras") {
+                NavigationLink { ChronicleScreen() } label: {
+                    Label("Console chronicles", systemImage: "point.bottomleft.forward.to.point.topright.scurvepath")
+                }
+            }
+
             Section("Account") {
                 NavigationLink { DevicesView() } label: { Label("Signed-in devices", systemImage: "iphone") }
                 Button {
