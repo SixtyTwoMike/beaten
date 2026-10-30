@@ -164,7 +164,7 @@ Store/TestFlight pipeline.
    account with a full diary, status bar set with `xcrun simctl status_bar
    … override --time 9:41`.
 8. Before submitting: real app icon; App Review contact details and the
-   demo login in `ios/fastlane/.env` (see `.env.example`; make the account
+   demo login in `ios/fastlane/.env` (`ios/fastlane/set-review-info.sh` asks for them; make the account
    with `./deploy/admin.sh create`), then `fastlane metadata`; App Privacy
    answers and price (Free) in App Store Connect, which the API key can't
    set. Then `fastlane submit build:"N" version:"1.0.0"`.
