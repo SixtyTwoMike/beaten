@@ -1,6 +1,6 @@
 # Support playbook
 
-How to handle email to **support@beaten.games** (a Hover email forward to
+How to handle email to **support@beaten.games** (an address on the iCloud+ custom email domain, delivered to
 your own inbox). The public side of this is `/support`; it tells people Beaten
 is free and replies may take a while, so there's no SLA to keep.
 
