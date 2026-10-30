@@ -88,7 +88,7 @@ platform :ios do
     info&.get_app_info_localizations&.each { |l| UI.message("info #{l.locale}: #{l.name} / #{l.subtitle.inspect} / privacy #{l.privacy_policy_url.inspect}") }
     UI.message("categories #{info&.primary_category&.id.inspect} #{info&.secondary_category&.id.inspect}")
     version = app.get_edit_app_store_version
-    UI.message("edit version #{version&.version_string} #{version&.app_store_state}")
+    UI.message("edit version #{version&.version_string} #{version&.app_store_state}, copyright #{version&.copyright.inspect}")
     version&.get_app_store_version_localizations&.each do |l|
       sets = l.get_app_screenshot_sets.map { |set| "#{set.screenshot_display_type} ×#{set.app_screenshots&.count || 0}" }
       UI.message("version #{l.locale}: description #{l.description.to_s.length} chars, screenshots #{sets.join(', ')}")
