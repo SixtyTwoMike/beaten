@@ -135,7 +135,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
 
       <div className="mt-10">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Recently finished</h2>
+          <h2 className="text-lg font-semibold">Recently beaten</h2>
           {recentLogs.length > 0 && (
             <Link href="/log" className="text-sm text-mint hover:underline">
               View full diary →

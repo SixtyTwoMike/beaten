@@ -44,7 +44,7 @@ final class ScreenshotTests: XCTestCase {
         app.buttons["Sign in"].tap()
 
         let tabs = app.tabBars
-        XCTAssertTrue(app.staticTexts["Recently finished".uppercased()].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Recently beaten".uppercased()].waitForExistence(timeout: 15))
 
         // A finished game with a review.
         app.staticTexts["Clair Obscur: Expedition 33"].firstMatch.tap()

@@ -84,7 +84,7 @@ struct HomeView: View {
                         }
                     }
                 } header: {
-                    SectionTitle("Recently finished")
+                    SectionTitle("Recently beaten")
                 }
             }
             .padding()

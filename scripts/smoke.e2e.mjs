@@ -202,7 +202,7 @@ try {
 
   // 6. Dashboard shows stats + recent
   await page.goto(`${BASE}/`);
-  await page.waitForSelector("text=Recently finished");
+  await page.waitForSelector("text=Recently beaten");
   const beatenStat = await page.locator("div", { hasText: /^2Games beaten$/ }).count();
   check("dashboard shows 2 games beaten", beatenStat > 0);
   check("dashboard shows mastered badge", await page.getByText("★ Mastered").first().isVisible());
@@ -368,7 +368,7 @@ try {
   await page.getByRole("button", { name: "Save changes" }).click();
   await page.waitForSelector("text=Edit log entry", { state: "detached" });
   await page.goto(`${BASE}/`);
-  await page.waitForSelector("text=Recently finished");
+  await page.waitForSelector("text=Recently beaten");
   const stillPlaying = await page.getByText("Currently playing").isVisible().catch(() => false);
   check("completed game left the currently-playing section", !stillPlaying);
 

@@ -45,7 +45,7 @@ final class WalkthroughTests: XCTestCase {
         app.secureTextFields["Password"].typeText(password)
         app.buttons["Sign in"].tap()
 
-        XCTAssertTrue(app.staticTexts["Recently finished".uppercased()].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Recently beaten".uppercased()].waitForExistence(timeout: 15))
         sleep(2)
         shot("02-home")
 
