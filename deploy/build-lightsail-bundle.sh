@@ -31,6 +31,10 @@ git rev-parse --short HEAD > "$STAGE/REVISION" 2>/dev/null || true
 rm -rf "$OUT_DIR/admin"
 npx tsc -p tsconfig.admin.json
 cp -r "$OUT_DIR/admin" "$STAGE/admin"
+# The CLI hashes passwords (create). The server bundles bcryptjs into its
+# chunks, so the standalone output doesn't carry the package; ship it whole.
+rm -rf "$STAGE/node_modules/bcryptjs"
+cp -r node_modules/bcryptjs "$STAGE/node_modules/bcryptjs"
 
 if ! ls "$STAGE"/node_modules/.prisma/client/*debian-openssl-3.0.x* >/dev/null 2>&1; then
   echo "Linux Prisma engine missing from bundle (check binaryTargets)" >&2

@@ -6,6 +6,8 @@
 // token, email and export code without a bundler. Messages go to stderr;
 // stdout carries only command output (export JSON), so it can be redirected.
 
+import { randomBytes } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/db";
 import { markEmailVerified } from "../src/lib/accounts";
 import { issueToken, revokeTokens } from "../src/lib/tokens";
@@ -25,6 +27,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const USAGE = `Usage: beaten-admin <command> <email | username>
 
+  create <email> [username]      make a confirmed password account; prints
+                                 its generated password once
   find <who>                     account summary (no secrets)
   send-reset <who>               email a password reset link
   send-verify <who>              email a new confirmation link
@@ -88,6 +92,34 @@ async function find(user: User) {
   for (const t of recentTokens) {
     log(`  ${t.createdAt.toISOString()}  ${t.purpose}${t.usedAt ? "  (used)" : ""}`);
   }
+}
+
+// For accounts we hand over rather than ones people sign up for (App
+// Review's demo login, a tester): confirmed straight away, with a random
+// password printed once on stdout. The owner can change it in Settings.
+async function create(rawEmail: string | undefined, rawUsername: string | undefined) {
+  const email = rawEmail?.trim().toLowerCase() ?? "";
+  if (!EMAIL_RE.test(email) || email.length > MAX_EMAIL) throw new Fail("Usage: create <email> [username]");
+  if (await prisma.user.findUnique({ where: { email } })) throw new Fail(`${email} already has an account.`);
+  let username: string | null = null;
+  if (rawUsername) {
+    username = normalizeUsername(rawUsername);
+    const bad = usernameError(username);
+    if (bad) throw new Fail(bad);
+    if (await prisma.user.findUnique({ where: { username } })) throw new Fail(`@${username} is taken.`);
+  }
+  const password = randomBytes(15).toString("base64url");
+  const user = await prisma.user.create({
+    data: {
+      email,
+      username,
+      name: username,
+      passwordHash: await bcrypt.hash(password, 12),
+      emailVerifiedAt: new Date(),
+    },
+  });
+  process.stdout.write(`${password}\n`);
+  log(`Created ${label(user)}, confirmed. The line above is its password; it isn't stored anywhere else.`);
 }
 
 async function sendReset(user: User) {
@@ -223,6 +255,7 @@ async function checkUsernames() {
 async function main(argv: string[]) {
   const [command, who, extra] = argv;
   switch (command) {
+    case "create": return create(who, extra);
     case "rename": return rename(await findUser(who), extra);
     case "reserve": return reserve(who, argv.slice(2));
     case "unreserve": return unreserve(who);

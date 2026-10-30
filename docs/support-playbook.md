@@ -18,10 +18,12 @@ first, or reply and wait for their answer to arrive from that address.
 ## Tools
 
 All commands run from your Mac in `~/beaten` (needs the AWS CLI login used
-for deploys). Messages print to the terminal; nothing secret is shown.
+for deploys). Messages print to the terminal; nothing secret is shown, except the
+password `create` prints for the account it makes.
 
 ```bash
 ./deploy/admin.sh find <email | username>          # who is this?
+./deploy/admin.sh create <email> [username]        # confirmed account; prints its password once
 ./deploy/admin.sh send-reset <who>                 # password reset email (30 min)
 ./deploy/admin.sh send-verify <who>                # fresh confirmation email (24 h)
 ./deploy/admin.sh verify <who>                     # mark email confirmed by hand
