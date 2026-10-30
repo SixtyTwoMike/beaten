@@ -125,6 +125,13 @@ try {
   check("delete console", (await api("DELETE", `/chronicle/entries/${added.json?.id}`)).json?.chronicle?.stops?.length === 0);
   check("delete it again → 404", (await api("DELETE", `/chronicle/entries/${added.json?.id}`)).status === 404);
 
+  // --- year in review (the smoke log was finished 2026-04-02, mastered, rated 10)
+  const review = await api("GET", "/year-review?year=2026");
+  check("year in review", review.status === 200 && review.json.review.finished === 1 && review.json.review.mastered === 1 && review.json.review.top[0]?.igdbId === game.igdbId, review.json);
+  check("year in review lists its years", review.json?.review?.years?.includes(2026));
+  check("first game and busiest month", review.json?.review?.firstGame?.igdbId === game.igdbId && review.json.review.bestMonth?.month === 4 && review.json.review.bestMonth.count === 1, review.json?.review);
+  check("future year → 400", (await api("GET", "/year-review?year=2999")).status === 400);
+
   // --- export, devices
   const exported = await api("GET", "/account/export");
   check("export", exported.status === 200 && exported.json.format === "beaten-export", exported.status);

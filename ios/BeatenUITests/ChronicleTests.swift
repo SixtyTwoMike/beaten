@@ -117,4 +117,16 @@ final class ChronicleTests: XCTestCase {
         sleep(3)
         shot("v2-made")
     }
+
+    func testYearReview() throws {
+        try signIn()
+        app.tabBars.buttons["Profile"].tap()
+        app.buttons["Year in review"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["MOST PRODUCTIVE MONTH"].waitForExistence(timeout: 15))
+        shot("y1-screen")
+        app.buttons["Make a story video"].tap()
+        XCTAssertTrue(app.buttons["Share video"].waitForExistence(timeout: 180))
+        sleep(3)
+        shot("y2-video")
+    }
 }

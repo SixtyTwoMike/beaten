@@ -43,6 +43,9 @@ struct ProfileView: View {
                 NavigationLink { ShareCardsView() } label: {
                     Label("Share cards", systemImage: "rectangle.portrait.on.rectangle.portrait.angled")
                 }
+                NavigationLink { YearReviewScreen() } label: {
+                    Label("Year in review", systemImage: "calendar.badge.checkmark")
+                }
             }
 
             Section("Account") {

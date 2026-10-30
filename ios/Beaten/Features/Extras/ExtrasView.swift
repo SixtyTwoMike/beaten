@@ -20,6 +20,7 @@ struct ExtrasView: View {
 enum Extra: String, CaseIterable, Identifiable {
     case chronicles
     case shareCards
+    case yearReview
 
     var id: String { rawValue }
 
@@ -27,6 +28,7 @@ enum Extra: String, CaseIterable, Identifiable {
         switch self {
         case .chronicles: "Console Chronicles"
         case .shareCards: "Share cards"
+        case .yearReview: "Year in review"
         }
     }
 
@@ -34,6 +36,7 @@ enum Extra: String, CaseIterable, Identifiable {
         switch self {
         case .chronicles: "Map every console you've owned: when you got it, how old you were, and the three games that defined it."
         case .shareCards: "Your last four beaten or played as an image for Instagram, Messages or anywhere else."
+        case .yearReview: "Everything you finished in a year, counted up with your favourites, as a story video."
         }
     }
 
@@ -41,6 +44,7 @@ enum Extra: String, CaseIterable, Identifiable {
         switch self {
         case .chronicles: "point.bottomleft.forward.to.point.topright.scurvepath"
         case .shareCards: "rectangle.portrait.on.rectangle.portrait.angled"
+        case .yearReview: "calendar.badge.checkmark"
         }
     }
 
@@ -48,6 +52,7 @@ enum Extra: String, CaseIterable, Identifiable {
         switch self {
         case .chronicles: ChronicleScreen()
         case .shareCards: ShareCardsView()
+        case .yearReview: YearReviewScreen()
         }
     }
 }

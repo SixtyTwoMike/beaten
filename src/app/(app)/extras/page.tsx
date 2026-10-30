@@ -9,6 +9,11 @@ const EXTRAS = [
     title: "Console Chronicles",
     body: "Map every console you've owned — when you got it, how old you were, and the three games that defined it.",
   },
+  {
+    href: "/extras/year",
+    title: "Year in review",
+    body: "Everything you finished in a year, counted up with your favourites, as a story video.",
+  },
 ];
 
 export default function ExtrasPage() {

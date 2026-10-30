@@ -41,7 +41,7 @@ type Card = { stop: ChronicleStop; x: number; y: number; h: number; right: boole
 export const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+export function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -565,6 +565,12 @@ export async function renderChronicleVideo(
   const images = await loadImages(view);
   if (style === "crt") await loadPixelFont();
   const p = style === "years" ? yearsPlan(view, images) : style === "crt" ? crtPlan(view, images) : plan(view, images);
+  const name = `console-chronicles${style === "road" ? "" : `-${style}`}${size === "small" ? "-small" : ""}`;
+  return renderPlanVideo(p, size, onProgress, name);
+}
+
+// Any 1080x1920 plan to a video file (the year in review uses this too).
+export async function renderPlanVideo(p: VideoPlan, size: VideoSize, onProgress: Progress, name: string): Promise<File> {
   const out = output(size, p.duration);
   const canvas = document.createElement("canvas");
   canvas.width = out.width;
@@ -572,7 +578,6 @@ export async function renderChronicleVideo(
   const ctx = canvas.getContext("2d")!;
   const blob = (await encodeWithWebCodecs(p, ctx, out, onProgress)) ?? (await recordInRealTime(p, ctx, out, onProgress));
   const ext = blob.type.includes("mp4") ? "mp4" : "webm";
-  const name = `console-chronicles${style === "road" ? "" : `-${style}`}${size === "small" ? "-small" : ""}`;
   return new File([blob], `${name}.${ext}`, { type: blob.type });
 }
 

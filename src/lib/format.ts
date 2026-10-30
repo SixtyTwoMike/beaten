@@ -74,3 +74,11 @@ export function logDates(log: {
   if (log.status !== "PLAYING") return "Finished, date unknown";
   return started ? `Playing since ${started}` : "Currently playing";
 }
+
+export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// "4 January" or "January", from a partial date ("2026-01-04", "2026-01").
+export function dayMonth(partial: string) {
+  const month = MONTHS[Number(partial.slice(5, 7)) - 1] ?? "";
+  return partial.length >= 10 ? `${Number(partial.slice(8, 10))} ${month}` : month;
+}

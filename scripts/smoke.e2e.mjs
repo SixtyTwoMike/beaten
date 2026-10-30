@@ -611,6 +611,9 @@ try {
   });
   check("Retro CRT video renders with the pixel font", crt.type === "video/mp4" && crt.size > 100000 && crt.pixelFont);
   check("editor page stays phone-width-safe", (await page.evaluate(() => document.documentElement.scrollWidth)) <= (await page.evaluate(() => innerWidth)));
+  // Year in review (Extras): this year's page, with the video maker if anything's finished.
+  await page.goto(`${BASE}/extras/year`);
+  check("year in review page", await page.getByRole("heading", { name: "Year in review" }).isVisible());
 
   // 13. Sign out returns to login
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
