@@ -104,6 +104,27 @@ try {
   check("delete shelf", (await api("DELETE", `/shelves/${shelfId}`)).status === 200);
   check("delete shelf again → 404", (await api("DELETE", `/shelves/${shelfId}`)).status === 404);
 
+  // --- console chronicles
+  const consoles = await api("GET", "/chronicle/consoles");
+  const ps1 = consoles.json?.consoles?.find((c) => c.platformId === 7);
+  check("console picker lists consoles, photos absolute", consoles.status === 200 && ps1?.art?.src?.startsWith("http"), consoles.status);
+  const empty = await api("GET", "/chronicle");
+  check("empty chronicle", empty.status === 200 && empty.json.chronicle.stops.length === 0, empty);
+  if (entry.platformId) check("suggestions from the diary", empty.json?.suggestions?.[entry.platformId]?.[0]?.igdbId === game.igdbId, empty.json?.suggestions);
+  check("bad birth year → 400", (await api("PATCH", "/chronicle", { birthYear: 12 })).status === 400);
+  const styled = await api("PATCH", "/chronicle", { title: "Smoke years", birthYear: 1990, showAges: true, accent: "gold", background: "grid", path: "pixel" });
+  check("chronicle settings", styled.status === 200 && styled.json.chronicle.path === "pixel" && styled.json.chronicle.title === "Smoke years", styled);
+  const added = await api("POST", "/chronicle/entries", { platformId: 7, gotAt: "1998-12", note: "Christmas", games: [game.igdbId] });
+  const stop = added.json?.chronicle?.stops?.[0];
+  check("add console", added.status === 201 && stop?.id === added.json.id && stop.age === 8 && stop.badges.includes("FIRST_CONSOLE"), added);
+  check("console's game", stop?.games?.[0]?.igdbId === game.igdbId);
+  check("unknown console → 400", (await api("POST", "/chronicle/entries", { platformId: 999999, gotAt: "2000" })).status === 400);
+  const moved = await api("PATCH", `/chronicle/entries/${added.json?.id}`, { platformId: 7, gotAt: "1999", games: [] });
+  check("edit console", moved.status === 200 && moved.json.chronicle.stops[0].gotLabel === "1999" && moved.json.chronicle.stops[0].games.length === 0, moved);
+  check("edit unknown console → 404", (await api("PATCH", "/chronicle/entries/nope", { platformId: 7, gotAt: "1999" })).status === 404);
+  check("delete console", (await api("DELETE", `/chronicle/entries/${added.json?.id}`)).json?.chronicle?.stops?.length === 0);
+  check("delete it again → 404", (await api("DELETE", `/chronicle/entries/${added.json?.id}`)).status === 404);
+
   // --- export, devices
   const exported = await api("GET", "/account/export");
   check("export", exported.status === 200 && exported.json.format === "beaten-export", exported.status);

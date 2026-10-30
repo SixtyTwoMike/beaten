@@ -2,60 +2,35 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import { MAX_ENTRIES, MAX_TITLE, checkBirthYear, checkEntry, cleanText, isAccent, isBackground, isPath, type EntryFields } from "@/lib/chronicle";
 import {
-  MAX_ENTRIES,
-  MAX_TITLE,
-  checkBirthYear,
-  checkEntry,
-  cleanText,
-  isAccent,
-  isBackground,
-  isPath,
-  type EntryFields,
-} from "@/lib/chronicle";
-import { ensureGame, ensureGames } from "@/lib/games";
+  deleteChronicleEntryForUser,
+  saveChronicleEntryForUser,
+  saveChronicleSettingsForUser,
+  type ChronicleEntryInput,
+  type ChronicleSettingsInput,
+} from "@/lib/chronicle-write";
+import { ensureGames } from "@/lib/games";
 import { requireUserId } from "@/lib/session";
 import type { ActionResult } from "./logs";
 
 // Console Chronicles: the look and birth year, and the consoles themselves.
+// The checks live in lib/chronicle-write (shared with the app's API).
 
 const clean = cleanText;
 
-function revalidate(username: string | null) {
+async function revalidate(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
   revalidatePath("/extras/chronicles");
-  if (username) revalidatePath(`/${username}/chronicles`);
+  if (user?.username) revalidatePath(`/${user.username}/chronicles`);
 }
 
-async function ensureChronicle(userId: string) {
-  await prisma.chronicle.upsert({ where: { userId }, update: {}, create: { userId } });
-}
-
-export async function saveChronicleSettings(input: {
-  title?: string | null;
-  birthYear?: number | null;
-  showAges?: boolean;
-  accent?: string;
-  background?: string;
-  path?: string;
-}): Promise<ActionResult> {
+export async function saveChronicleSettings(input: ChronicleSettingsInput): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const birthYear = checkBirthYear(input.birthYear);
-    if (birthYear === false) return { ok: false, error: "Enter a year of birth like 1990" };
-    if (input.accent !== undefined && !isAccent(input.accent)) return { ok: false, error: "Invalid colour" };
-    if (input.background !== undefined && !isBackground(input.background)) return { ok: false, error: "Invalid background" };
-    if (input.path !== undefined && !isPath(input.path)) return { ok: false, error: "Invalid path style" };
-    const data = {
-      title: clean(input.title, MAX_TITLE),
-      birthYear,
-      ...(input.showAges !== undefined && { showAges: Boolean(input.showAges) }),
-      ...(input.accent !== undefined && { accent: input.accent }),
-      ...(input.background !== undefined && { background: input.background }),
-      ...(input.path !== undefined && { path: input.path }),
-    };
-    await prisma.chronicle.upsert({ where: { userId }, update: data, create: { userId, ...data } });
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-    revalidate(user?.username ?? null);
+    const error = await saveChronicleSettingsForUser(userId, input);
+    if (error) return { ok: false, error };
+    await revalidate(userId);
     return { ok: true };
   } catch (e) {
     console.error("saveChronicleSettings failed:", e);
@@ -63,52 +38,12 @@ export async function saveChronicleSettings(input: {
   }
 }
 
-export async function saveChronicleEntry(input: {
-  id?: string | null;
-  platformId: number;
-  variant?: string | null;
-  model?: string | null;
-  gotAt: string;
-  age?: number | null;
-  note?: string | null;
-  games?: number[];
-}): Promise<ActionResult> {
+export async function saveChronicleEntry(input: ChronicleEntryInput & { id?: string | null }): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    const checked = checkEntry(input);
-    if (!checked.ok) return checked;
-    const { igdbIds, ...fields } = checked.entry;
-    if (!(await prisma.platform.findUnique({ where: { id: fields.platformId } }))) {
-      return { ok: false, error: "Pick a console" };
-    }
-
-    await ensureChronicle(userId);
-    if (input.id) {
-      const existing = await prisma.chronicleEntry.findUnique({ where: { id: String(input.id) } });
-      if (!existing || existing.userId !== userId) return { ok: false, error: "Console not found" };
-    } else if ((await prisma.chronicleEntry.count({ where: { userId } })) >= MAX_ENTRIES) {
-      return { ok: false, error: `That's ${MAX_ENTRIES} consoles — the most a chronicle can hold` };
-    }
-
-    // Games come from IGDB like anywhere else; one that can't be looked up
-    // fails the save rather than silently dropping it.
-    const games: { id: string }[] = [];
-    for (const igdbId of igdbIds) games.push(await ensureGame(igdbId));
-
-    const data = fields;
-    await prisma.$transaction(async (tx) => {
-      const entry = input.id
-        ? await tx.chronicleEntry.update({ where: { id: String(input.id) }, data })
-        : await tx.chronicleEntry.create({ data: { ...data, userId } });
-      await tx.chronicleGame.deleteMany({ where: { entryId: entry.id } });
-      if (games.length) {
-        await tx.chronicleGame.createMany({
-          data: games.map((g, i) => ({ entryId: entry.id, position: i + 1, gameId: g.id })),
-        });
-      }
-    });
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-    revalidate(user?.username ?? null);
+    const res = await saveChronicleEntryForUser(userId, input, input.id);
+    if (!res.ok) return { ok: false, error: res.error };
+    await revalidate(userId);
     return { ok: true };
   } catch (e) {
     console.error("saveChronicleEntry failed:", e);
@@ -119,9 +54,8 @@ export async function saveChronicleEntry(input: {
 export async function deleteChronicleEntry(id: string): Promise<ActionResult> {
   try {
     const userId = await requireUserId();
-    await prisma.chronicleEntry.deleteMany({ where: { id: String(id), userId } });
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-    revalidate(user?.username ?? null);
+    await deleteChronicleEntryForUser(userId, id);
+    await revalidate(userId);
     return { ok: true };
   } catch (e) {
     console.error("deleteChronicleEntry failed:", e);
@@ -182,8 +116,7 @@ export async function importGuestChronicle(
         }
       }
     });
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
-    revalidate(user?.username ?? null);
+    await revalidate(userId);
     return { ok: true, imported: checked.length, skipped: entries.length - checked.length };
   } catch (e) {
     console.error("importGuestChronicle failed:", e);
