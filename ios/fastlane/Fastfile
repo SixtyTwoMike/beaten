@@ -5,6 +5,7 @@
 #
 #   fastlane beta                    → build + upload to TestFlight
 #   fastlane distribute group:"…"    → give the latest processed build to an external group
+#   fastlane testers                 → add yourself (or email:"…") to internal TestFlight testing
 #   fastlane builds                  → recent TestFlight builds
 #   fastlane metadata                → upload the listing (no submit); screenshots:true for screenshots too
 #   fastlane submit build:"N"        → submit an uploaded build for App Store review
@@ -70,6 +71,28 @@ platform :ios do
     UI.user_error!("TestFlight group not found") unless group
     build.add_beta_groups(beta_groups: [group])
     UI.success("Build #{build.version} (#{build.app_version}) → #{group.name} ✅")
+  end
+
+  desc "Add App Store Connect team members to the internal TestFlight group (every build, no Beta App Review). email:\"…\" (must be on the App Store Connect team)"
+  lane :testers do |options|
+    app = connect
+    name = options[:group] || "Internal"
+    group = app.get_beta_groups(filter: { name: name }).first ||
+            app.create_beta_group(group_name: name, is_internal_group: true, has_access_to_all_builds: true,
+                                   public_link_enabled: nil, public_link_limit: nil, public_link_limit_enabled: nil)
+    # The API leaves the account holder's email blank, so it can't be looked
+    # up; pass email: (testers from other apps, e.g. éist, are reused).
+    emails = options[:email] ? [options[:email]] : Spaceship::ConnectAPI::User.all.select { |u| u.roles.include?("ACCOUNT_HOLDER") }.map(&:email).reject { |e| e.to_s.empty? }
+    UI.user_error!("Pass email:\"your Apple ID email\"") if emails.empty?
+    emails.each do |email|
+      tester = Spaceship::ConnectAPI::BetaTester.find(email: email)
+      if tester
+        Spaceship::ConnectAPI.add_beta_tester_to_group(beta_group_id: group.id, beta_tester_ids: [tester.id])
+      else
+        Spaceship::ConnectAPI.post_beta_tester_assignment(beta_group_ids: [group.id], attributes: { email: email })
+      end
+      UI.success("#{email} added to '#{group.name}' ✅")
+    end
   end
 
   desc "Recent TestFlight builds"
