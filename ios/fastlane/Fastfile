@@ -6,7 +6,7 @@
 #   fastlane beta                    → build + upload to TestFlight
 #   fastlane distribute group:"…"    → give the latest processed build to an external group
 #   fastlane builds                  → recent TestFlight builds
-#   fastlane metadata                → upload the listing + screenshots (no submit)
+#   fastlane metadata                → upload the listing (no submit); screenshots:true for screenshots too
 #   fastlane submit build:"N"        → submit an uploaded build for App Store review
 
 default_platform(:ios)
@@ -89,10 +89,13 @@ platform :ios do
     UI.message("categories #{info&.primary_category&.id.inspect} #{info&.secondary_category&.id.inspect}")
     version = app.get_edit_app_store_version
     UI.message("edit version #{version&.version_string} #{version&.app_store_state}")
-    version&.get_app_store_version_localizations&.each { |l| UI.message("version #{l.locale}: description #{l.description.to_s.length} chars") }
+    version&.get_app_store_version_localizations&.each do |l|
+      sets = l.get_app_screenshot_sets.map { |set| "#{set.screenshot_display_type} ×#{set.app_screenshots&.count || 0}" }
+      UI.message("version #{l.locale}: description #{l.description.to_s.length} chars, screenshots #{sets.join(', ')}")
+    end
   end
 
-  desc "Upload the App Store listing (fastlane/metadata, screenshots, age rating, review details) without submitting"
+  desc "Upload the App Store listing (metadata, age rating, review details) without submitting; screenshots:true replaces the screenshots too"
   lane :metadata do |options|
     upload_to_app_store(
       app_identifier: BUNDLE_ID,
@@ -100,7 +103,12 @@ platform :ios do
       skip_binary_upload: true,
       submit_for_review: false,
       force: true,
-      overwrite_screenshots: true,
+      skip_screenshots: !options[:screenshots],
+      # Replacing deletes then recreates the set, which App Store Connect
+      # sometimes refuses ("Screenshot Set Already Exists") after deleting.
+      # Without it, already-uploaded files are skipped by checksum; delete
+      # stale ones in App Store Connect by hand.
+      overwrite_screenshots: false,
       app_review_information: review_information,
       precheck_include_in_app_purchases: false,
       run_precheck_before_submit: false
