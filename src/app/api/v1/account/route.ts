@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import { deleteAccountForUser } from "@/lib/accounts";
+import { deleteAccountForUser } from "@/lib/account-auth";
 import { sendAccountDeletedEmail } from "@/lib/account-emails";
 import { apiError, apiJson, apiRoute, readJson, requireApiUser } from "@/lib/api";
 

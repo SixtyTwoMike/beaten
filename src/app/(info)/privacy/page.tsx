@@ -6,7 +6,7 @@ export const metadata = {
   description: "What Beaten stores, what's public, and how to get or delete your data.",
 };
 
-const LAST_UPDATED = "29 October 2026";
+const LAST_UPDATED = "30 October 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -70,8 +70,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-white">Security records:</strong> one-time
-            links we email you (stored only as hashes, and they expire), and a
-            counter that lets us sign you out everywhere.
+            links we email you (stored only as hashes, and they expire), a
+            counter that lets us sign you out everywhere, and, for each device
+            signed in to the iPhone app, its name, when it signed in and when it
+            was last used.
           </li>
         </ul>
       </Section>
@@ -88,11 +90,17 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="Cookies">
+      <Section title="Cookies and the app">
         <p>
           Only what signing in needs: a session cookie that keeps you signed in
           (for up to 14 days), plus short-lived security cookies used during
           sign-in. No analytics, advertising or tracking cookies.
+        </p>
+        <p>
+          The iPhone app keeps you signed in with a token stored in your
+          phone&apos;s keychain; we keep only a hash of it. It lapses after 90
+          days without use, and you can sign a device out from the app. The app
+          has no analytics, advertising or tracking either.
         </p>
       </Section>
 
@@ -146,11 +154,12 @@ export default function PrivacyPage() {
         <ul className={list}>
           <li>
             <strong className="text-white">Download your data</strong> any time
-            from Settings → Your data (JSON, or your diary as CSV).
+            from Settings → Your data (JSON, or your diary as CSV), or from
+            Profile in the iPhone app.
           </li>
           <li>
             <strong className="text-white">Delete your account</strong> from
-            Settings → Delete account.
+            Settings → Delete account, or from Profile in the iPhone app.
           </li>
           <li>
             <strong className="text-white">Anything else</strong> (corrections,

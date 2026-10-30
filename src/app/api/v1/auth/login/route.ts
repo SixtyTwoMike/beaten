@@ -1,4 +1,4 @@
-import { checkPassword } from "@/lib/accounts";
+import { checkPassword } from "@/lib/account-auth";
 import { apiError, apiJson, apiRoute, readJson } from "@/lib/api";
 import { issueApiToken } from "@/lib/api-tokens";
 import { meJson } from "@/lib/api-me";

@@ -1,7 +1,7 @@
 import NextAuth, { CredentialsSignin, type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { admitOAuthEmail, checkPassword, upsertOAuthUser } from "./accounts";
+import { admitOAuthEmail, checkPassword, upsertOAuthUser } from "./account-auth";
 import { appleCookies, appleProviders } from "./apple-auth";
 import { prisma } from "./db";
 

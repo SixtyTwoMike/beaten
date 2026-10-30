@@ -1,4 +1,4 @@
-import { admitOAuthEmail, upsertOAuthUser } from "@/lib/accounts";
+import { admitOAuthEmail, upsertOAuthUser } from "@/lib/account-auth";
 import { apiError, apiJson, apiRoute, readJson } from "@/lib/api";
 import { issueApiToken } from "@/lib/api-tokens";
 import { meJson } from "@/lib/api-me";

@@ -36,10 +36,29 @@ if ! ls "$STAGE"/node_modules/.prisma/client/*debian-openssl-3.0.x* >/dev/null 2
   echo "Linux Prisma engine missing from bundle (check binaryTargets)" >&2
   exit 1
 fi
-if ! node -e 'require.resolve("@prisma/client", { paths: [process.argv[1]] })' "$STAGE/admin/scripts"; then
-  echo "Admin CLI can't resolve @prisma/client from the bundle" >&2
-  exit 1
-fi
+# Every package the admin CLI requires must come from the bundle's own
+# node_modules (the standalone build only keeps what the server traced), not
+# from this checkout's, which Node would otherwise fall back to.
+node -e '
+  const fs = require("fs"), path = require("path");
+  const stage = path.resolve(process.argv[1]), missing = new Set();
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+    const f = path.join(d, e.name);
+    if (e.isDirectory()) return walk(f);
+    if (!f.endsWith(".js")) return;
+    for (const [, spec] of fs.readFileSync(f, "utf8").matchAll(/require\("([^".][^"]*)"\)/g)) {
+      if (require("module").isBuiltin(spec)) continue;
+      let hit = null;
+      try { hit = require.resolve(spec, { paths: [path.dirname(f)] }); } catch {}
+      if (!hit || !hit.startsWith(stage + path.sep)) missing.add(spec);
+    }
+  });
+  walk(path.join(stage, "admin"));
+  if (missing.size) {
+    console.error("Admin CLI needs packages the bundle lacks: " + [...missing].join(", "));
+    process.exit(1);
+  }
+' "$STAGE"
 
 echo "==> packing $TARBALL"
 tar czf "$TARBALL" -C "$STAGE" .

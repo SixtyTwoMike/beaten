@@ -13,7 +13,8 @@ import {
 import { MAX_EMAIL } from "@/lib/limits";
 import { passwordError } from "@/lib/password";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
-import { deleteAccountForUser, markEmailVerified } from "@/lib/accounts";
+import { deleteAccountForUser } from "@/lib/account-auth";
+import { markEmailVerified } from "@/lib/accounts";
 import { clearAttempts } from "@/lib/rate-limit";
 import { requireUserId } from "@/lib/session";
 import { consumeToken, issueToken } from "@/lib/tokens";
