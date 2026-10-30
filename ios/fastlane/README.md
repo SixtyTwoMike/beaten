@@ -53,7 +53,7 @@ What App Store Connect has for the app: locale, names, version state
 [bundle exec] fastlane ios metadata
 ```
 
-Upload the App Store listing (fastlane/metadata, screenshots, age rating, review details) without submitting
+Upload the App Store listing (metadata, age rating, review details) without submitting; screenshots:true replaces the screenshots too
 
 ### ios age_rating
 
