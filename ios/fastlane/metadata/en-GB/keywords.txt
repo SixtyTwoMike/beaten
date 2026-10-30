@@ -1,0 +1,1 @@
+game,diary,log,tracker,backlog,completion,rating,review,collection,shelf,completed,mastered,played

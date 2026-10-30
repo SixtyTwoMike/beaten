@@ -155,11 +155,19 @@ Store/TestFlight pipeline.
 4. ✅ App: sign-in, Home, Search, Log sheet, Game, Diary, Shelves, Profile,
    devices, export, delete account; UI walkthrough test.
 5. ✅ Deploy the server (`api_tokens` migration applied, nginx `-t` passes).
-6. Developer portal: App ID `games.beaten.app` with Sign in with Apple,
-   grouped with the web Services ID; App Store Connect record; real app
-   icon (the current one is a placeholder).
-7. TestFlight: copy `ios/fastlane/.env.example` to `.env` (same API key as
-   éist), then `cd ios && fastlane beta`. Then App Store review.
+6. ✅ Developer portal App ID + App Store Connect record (by hand). Build
+   1.0.0 (1) on TestFlight.
+7. ✅ Listing: `ios/fastlane/metadata` (text), `screenshots/en-GB` (6.9"),
+   `age_rating.json`. `fastlane metadata` uploads them without submitting;
+   `fastlane age_rating` alone if only that changed. Screenshots come from
+   `ScreenshotTests` on the iPhone 17 Pro Max simulator against a dev
+   account with a full diary, status bar set with `xcrun simctl status_bar
+   … override --time 9:41`.
+8. Before submitting: real app icon; App Review contact details and the
+   demo login in `ios/fastlane/.env` (see `.env.example`; make the account
+   with `./deploy/admin.sh create`), then `fastlane metadata`; App Privacy
+   answers and price (Free) in App Store Connect, which the API key can't
+   set. Then `fastlane submit build:"N" version:"1.0.0"`.
 
 ## Later
 

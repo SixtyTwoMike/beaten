@@ -20,6 +20,7 @@
 		B75EDF772F2F236B78F5FBB8 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B0C79D322E06CA3C5E2830 /* Keychain.swift */; };
 		C032008C4BD875EA971956A0 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 686AAEE1A588909CAC5CC296 /* SearchView.swift */; };
 		CE15A58395ED3E2EE47ED56F /* BeatenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3853AE026873F41F09C04728 /* BeatenApp.swift */; };
+		D79523134810848B6FE02389 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5297C3949FC2C08A494DDAB0 /* ScreenshotTests.swift */; };
 		DAE3D2E95C1B0F99A6DCF2EF /* DiaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DE1775222B9F04C43DF9C5 /* DiaryView.swift */; };
 		DF88D9C910513F063CCA2EF6 /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7393FDDD995C92C5B5C7E24 /* GameView.swift */; };
 		FD46AEE3ACC3A7ABCA49EA15 /* ShelvesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118510FC28A61C31CC88AA17 /* ShelvesView.swift */; };
@@ -41,6 +42,7 @@
 		25298FEFB9DE554B4CD068D9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		35EA2730C135DA2D6A190C5A /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		3853AE026873F41F09C04728 /* BeatenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatenApp.swift; sourceTree = "<group>"; };
+		5297C3949FC2C08A494DDAB0 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		53701E5FCCCCB6EF36EFD872 /* Beaten.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Beaten.entitlements; sourceTree = "<group>"; };
 		6081CFB5B9D6172E99EE3733 /* Beaten.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Beaten.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		66DE1775222B9F04C43DF9C5 /* DiaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryView.swift; sourceTree = "<group>"; };
@@ -203,6 +205,7 @@
 		FB139CE085B243E2C648BC63 /* BeatenUITests */ = {
 			isa = PBXGroup;
 			children = (
+				5297C3949FC2C08A494DDAB0 /* ScreenshotTests.swift */,
 				DBD9FD44844FC91C310DDD29 /* WalkthroughTests.swift */,
 			);
 			path = BeatenUITests;
@@ -303,6 +306,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D79523134810848B6FE02389 /* ScreenshotTests.swift in Sources */,
 				0A806938026E84D9C995840B /* WalkthroughTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

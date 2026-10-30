@@ -6,6 +6,7 @@
 #   fastlane beta                    → build + upload to TestFlight
 #   fastlane distribute group:"…"    → give the latest processed build to an external group
 #   fastlane builds                  → recent TestFlight builds
+#   fastlane metadata                → upload the listing + screenshots (no submit)
 #   fastlane submit build:"N"        → submit an uploaded build for App Store review
 
 default_platform(:ios)
@@ -79,6 +80,69 @@ platform :ios do
     end
   end
 
+  desc "What App Store Connect has for the app: locale, names, version state"
+  lane :appinfo do
+    app = connect
+    UI.message("primary locale #{app.primary_locale}, name #{app.name}, sku #{app.sku}")
+    info = app.fetch_edit_app_info || app.fetch_live_app_info
+    info&.get_app_info_localizations&.each { |l| UI.message("info #{l.locale}: #{l.name} / #{l.subtitle.inspect} / privacy #{l.privacy_policy_url.inspect}") }
+    UI.message("categories #{info&.primary_category&.id.inspect} #{info&.secondary_category&.id.inspect}")
+    version = app.get_edit_app_store_version
+    UI.message("edit version #{version&.version_string} #{version&.app_store_state}")
+    version&.get_app_store_version_localizations&.each { |l| UI.message("version #{l.locale}: description #{l.description.to_s.length} chars") }
+  end
+
+  desc "Upload the App Store listing (fastlane/metadata, screenshots, age rating, review details) without submitting"
+  lane :metadata do |options|
+    upload_to_app_store(
+      app_identifier: BUNDLE_ID,
+      app_version: options[:version] || "1.0.0",
+      skip_binary_upload: true,
+      submit_for_review: false,
+      force: true,
+      overwrite_screenshots: true,
+      app_review_information: review_information,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false
+    )
+    set_age_rating
+  end
+
+  desc "Set the age rating answers from fastlane/age_rating.json"
+  lane :age_rating do
+    set_age_rating
+  end
+
+  # Sent as-is rather than through deliver's app_rating_config_path, which
+  # drops answers it doesn't know (App Store Connect keeps adding them, e.g.
+  # socialMedia) and then fails because they're missing.
+  def set_age_rating
+    app = connect
+    info = app.fetch_edit_app_info || app.fetch_live_app_info
+    declaration = info.fetch_age_rating_declaration
+    answers = JSON.parse(File.read(File.join(__dir__, "age_rating.json")))
+    Spaceship::ConnectAPI.patch_age_rating_declaration(age_rating_declaration_id: declaration.id, attributes: answers)
+    UI.success("Age rating answers set ✅")
+  end
+
+  # App Review's contact and demo login, from fastlane/.env (never committed).
+  # App Store Connect rejects review details without the contact fields, so
+  # they're left out until those are filled in.
+  def review_information
+    return nil if %w[REVIEW_FIRST_NAME REVIEW_LAST_NAME REVIEW_PHONE REVIEW_EMAIL].any? { |k| ENV[k].to_s.empty? }
+    {
+      first_name: ENV["REVIEW_FIRST_NAME"],
+      last_name: ENV["REVIEW_LAST_NAME"],
+      phone_number: ENV["REVIEW_PHONE"],
+      email_address: ENV["REVIEW_EMAIL"],
+      demo_user: ENV["REVIEW_DEMO_USER"],
+      demo_password: ENV["REVIEW_DEMO_PASSWORD"],
+      notes: "Sign in with the demo account above, or with Sign in with Apple. Accounts can also be " \
+             "created on https://beaten.games. Search for any game, tap + to log it, and it appears " \
+             "on Home and in the Diary. Account deletion is under Profile > Delete account.",
+    }.compact
+  end
+
   desc "Submit an already-uploaded build for App Store review: build:\"N\" version:\"1.0.0\""
   lane :submit do |options|
     UI.user_error!("Pass build:\"N\"") unless options[:build]
@@ -93,7 +157,13 @@ platform :ios do
       skip_screenshots: true,
       skip_metadata: true,
       precheck_include_in_app_purchases: false,
-      submission_information: { export_compliance_uses_encryption: false, add_id_info_uses_idfa: false }
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false,
+        # Game details and artwork come from IGDB, under its API terms.
+        content_rights_contains_third_party_content: true,
+        content_rights_has_rights: true
+      }
     )
   end
 end
