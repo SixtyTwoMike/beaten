@@ -52,11 +52,13 @@ final class ScreenshotTests: XCTestCase {
         shot("3-game")
         app.navigationBars.buttons.firstMatch.tap()
 
-        tabs.buttons["Diary"].tap()
+        tabs.buttons["Library"].tap()
+        app.buttons["Diary"].firstMatch.tap()
         XCTAssertTrue(app.buttons.containing(NSPredicate(format: "label BEGINSWITH 'Balatro'")).firstMatch.waitForExistence(timeout: 5))
         shot("4-diary")
 
-        tabs.buttons["Shelves"].tap()
+        tabs.buttons["Library"].tap()
+        app.buttons["Shelves"].firstMatch.tap()
         app.staticTexts["All-timers"].firstMatch.tap()
         XCTAssertTrue(app.navigationBars["All-timers"].waitForExistence(timeout: 5))
         shot("6-shelf")

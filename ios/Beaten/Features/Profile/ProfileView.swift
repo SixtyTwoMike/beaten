@@ -26,6 +26,23 @@ struct ProfileView: View {
                         }
                     }
                     .padding(.vertical, 6)
+                    if let username = me.username, let social = me.social {
+                        NavigationLink(value: FollowListRoute(username: username, kind: .followers)) {
+                            LabeledContent {
+                                if social.newFollowers > 0 {
+                                    Text("\(social.newFollowers) new").font(.caption.weight(.semibold)).foregroundStyle(Color.mint)
+                                }
+                            } label: {
+                                Label("\(social.followers) follower\(social.followers == 1 ? "" : "s")", systemImage: "person.2")
+                            }
+                        }
+                        NavigationLink(value: FollowListRoute(username: username, kind: .following)) {
+                            Label("\(social.following) following", systemImage: "person.crop.circle.badge.checkmark")
+                        }
+                        NavigationLink { PeopleSearchView() } label: {
+                            Label("Find people", systemImage: "person.badge.plus")
+                        }
+                    }
                     if let profileURL {
                         ShareLink(item: profileURL) { Label("Share your profile", systemImage: "square.and.arrow.up") }
                         Link(destination: profileURL) { Label("View on beaten.games", systemImage: "safari") }
@@ -78,6 +95,8 @@ struct ProfileView: View {
         }
         .canvasBackground()
         .navigationTitle("Profile")
+        .gameDestinations()
+        .task { await model.refreshMe() }
         .confirmationDialog("Sign out of Beaten on this iPhone?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await model.signOut() } }
         }

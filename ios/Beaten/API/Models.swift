@@ -66,6 +66,7 @@ nonisolated struct Me: Codable, Hashable, Sendable {
     let name: String?
     let hasPassword: Bool
     let avatar: Avatar?
+    let social: MySocial?
     let stats: Stats
 }
 

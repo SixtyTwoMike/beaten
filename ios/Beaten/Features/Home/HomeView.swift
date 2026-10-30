@@ -203,8 +203,10 @@ extension PlayLog {
 }
 
 extension View {
-    // Every tab's stack opens games the same way.
+    // Every tab's stack opens games, profiles and follower lists the same way.
     func gameDestinations() -> some View {
         navigationDestination(for: Game.self) { GameView(game: $0) }
+            .navigationDestination(for: ProfileRoute.self) { UserProfileView(username: $0.username) }
+            .navigationDestination(for: FollowListRoute.self) { FollowListView(route: $0) }
     }
 }

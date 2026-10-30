@@ -73,7 +73,8 @@ final class WalkthroughTests: XCTestCase {
         shot("05-game")
 
         // Diary has it; delete it again so the run can repeat.
-        app.tabBars.buttons["Diary"].tap()
+        app.tabBars.buttons["Library"].tap()
+        app.buttons["Diary"].firstMatch.tap()
         let row = app.buttons.containing(NSPredicate(format: "label BEGINSWITH 'Hades'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         shot("06-diary")
@@ -82,11 +83,14 @@ final class WalkthroughTests: XCTestCase {
         app.buttons["Delete"].firstMatch.tap()
         XCTAssertTrue(row.waitForNonExistence(timeout: 10))
 
-        app.tabBars.buttons["Shelves"].tap()
-        XCTAssertTrue(app.staticTexts["Favourites"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Library"].tap()
+        app.buttons["Shelves"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["New shelf"].waitForExistence(timeout: 5))
         shot("07-shelves")
 
         app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(app.buttons["Find people"].waitForExistence(timeout: 5))
+        app.swipeUp()
         XCTAssertTrue(app.buttons["Signed-in devices"].waitForExistence(timeout: 5))
         shot("08-profile")
     }

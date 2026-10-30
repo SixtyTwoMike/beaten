@@ -12,8 +12,9 @@ Tick as you go; note the build number at the top of the run. Anything marked
 
 | Check | Where | Covers |
 | --- | --- | --- |
-| API smoke, 39 checks | `node scripts/api.smoke.mjs` (dev server) | every `/api/v1` endpoint, auth errors, idempotent create, account deletion |
-| Web smoke, 195 checks | `scripts/smoke.e2e.mjs` | the web app, including the actions now shared with the API |
+| API smoke | `node scripts/api.smoke.mjs` (dev server) | every `/api/v1` endpoint, auth errors, idempotent create, following, reactions, comments, blocking, account deletion |
+| Web smoke | `scripts/smoke.e2e.mjs` | the web app, including the actions now shared with the API |
+| Social UI | `SocialTests.testSocial` | feed, spoiler reveal, react, comment and delete, profile, unfollow/follow, people search | `scripts/smoke.e2e.mjs` | the web app, including the actions now shared with the API |
 | UI walkthrough | `WalkthroughTests.testCoreLoop` | sign in, search, log, game page, diary delete, shelves, profile |
 | Screenshots | `ScreenshotTests` | the App Store screens render with a full diary |
 | Apple token checks | offline, 8 cases | nonce, audience, expiry, issuer, unverified email, unknown key, tampering |
@@ -76,7 +77,7 @@ Bad network **(where duplicates would show)**:
 - [ ] Turn on Network Link Conditioner (Very Bad Network, in Settings > Developer), log a game, and if it fails tap Save again → exactly **one** entry.
 - [ ] Airplane mode on, Save → an error in the sheet; the sheet stays open with everything you typed.
 
-## 5. Diary and Home
+## 5. Library (Diary and Shelves) and Home
 
 - [ ] Diary groups match the web's (by finish date, unknown date, shelved).
 - [ ] Filter menu narrows by status.
@@ -89,6 +90,21 @@ Bad network **(where duplicates would show)**:
 - [ ] Open a shelf; long-press a game → Remove from shelf.
 - [ ] Delete a shelf; its games stay in the Diary.
 - [ ] Shelf chips on a game page add and remove it.
+
+## 6b. Activity, following and comments
+
+Use two accounts (yours and a throwaway), one on the web and one in the app.
+
+- [ ] Activity > Following shows what people you follow logged, newest first; scrolling to the end loads older cards.
+- [ ] Spoiler reviews are blurred until tapped.
+- [ ] React from the ☺ menu; the chip appears with a count, tapping it again removes it. The web shows the same count.
+- [ ] Comment from the app; it shows on the web under the review and vice versa.
+- [ ] Swipe to delete your own comment; the review's author can delete anyone's comment on their review.
+- [ ] Long-press a comment > Report comment opens Mail to support with the comment quoted **(review)**.
+- [ ] Profile > Find people finds the other account by name or username.
+- [ ] Their profile: Follow / Following (unfollow asks first); counts update on both sides.
+- [ ] ⋯ > Block: the follow ends both ways, their cards and comments disappear, and they can't follow or comment on you **(review)**. Unblock brings the button back.
+- [ ] New followers show as a badge on the Profile tab; opening Followers clears it.
 
 ## 7. Profile and account
 

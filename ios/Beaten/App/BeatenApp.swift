@@ -31,7 +31,8 @@ struct RootView: View {
 }
 
 struct MainTabs: View {
-    enum TabID: Hashable { case home, diary, shelves, profile, search }
+    @Environment(AppModel.self) private var model
+    enum TabID: Hashable { case home, library, activity, profile, search }
     @State private var tab: TabID = .home
 
     var body: some View {
@@ -39,15 +40,17 @@ struct MainTabs: View {
             Tab("Home", systemImage: "house", value: .home) {
                 NavigationStack { HomeView(showSearch: { tab = .search }) }
             }
-            Tab("Diary", systemImage: "book.closed", value: .diary) {
-                NavigationStack { DiaryView() }
+            Tab("Library", systemImage: "books.vertical", value: .library) {
+                NavigationStack { LibraryView() }
             }
-            Tab("Shelves", systemImage: "books.vertical", value: .shelves) {
-                NavigationStack { ShelvesView() }
+            Tab("Activity", systemImage: "person.2", value: .activity) {
+                NavigationStack { ActivityView() }
             }
             Tab("Profile", systemImage: "person.crop.circle", value: .profile) {
                 NavigationStack { ProfileView() }
             }
+            // New followers since you last looked (the dot on the web's avatar).
+            .badge(model.me?.social?.newFollowers ?? 0)
             Tab(value: .search, role: .search) {
                 NavigationStack { SearchView() }
             }

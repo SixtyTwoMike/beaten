@@ -111,7 +111,7 @@ final class AppModel {
         }
     }
 
-    private func refreshMe() async {
+    func refreshMe() async {
         if let fresh: Me = try? await api.get("/me") { me = fresh }
     }
 

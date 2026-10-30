@@ -59,14 +59,16 @@ export default function TermsPage() {
       <Section title="What you post">
         <ul className={list}>
           <li>
-            Your diary, ratings, reviews, shelves and chronicles are yours. You
+            Your diary, ratings, reviews, comments, shelves and chronicles are yours. You
             give us permission to store them and show them on the site (and in
             share images you create) for as long as they&apos;re on your account.
           </li>
           <li>
             Don&apos;t post anything illegal, hateful, harassing, sexually
             explicit, or that infringes someone else&apos;s rights, and
-            don&apos;t spam. Mark reviews with plot details as spoilers.
+            don&apos;t spam. Mark reviews with plot details as spoilers. Comments
+            and reactions are for the person whose review it is: be kind. You can
+            delete comments on your own reviews, and block anyone.
           </li>
           <li>
             We may remove content or suspend or close accounts that break these
