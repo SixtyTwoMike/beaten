@@ -98,8 +98,9 @@ platform :ios do
   desc "Recent TestFlight builds"
   lane :builds do
     app = connect
-    Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 10).each do |b|
-      UI.message("#{b.app_version} (#{b.version}) — #{b.processing_state}")
+    Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 10, includes: "buildBetaDetail,preReleaseVersion").each do |b|
+      detail = b.build_beta_detail
+      UI.message("#{b.app_version} (#{b.version}) — #{b.processing_state}, TestFlight internal: #{detail&.internal_build_state || '?'}, expired: #{b.expired}")
     end
   end
 
