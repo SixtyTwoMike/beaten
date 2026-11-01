@@ -175,6 +175,15 @@ platform :ios do
   end
 
   desc "Submit an already-uploaded build for App Store review: build:\"N\" version:\"1.0.0\""
+  desc "Rename the version being edited (before its first release): version:\"1.1.0\""
+  lane :review_version do |options|
+    UI.user_error!("Pass version:\"x.y.z\"") unless options[:version]
+    app = connect
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    version.update(attributes: { version_string: options[:version].to_s })
+    UI.success("#{version.version_string} is now #{options[:version]}")
+  end
+
   desc "Attach a TestFlight build to the version being edited: build:\"9\""
   lane :review_build do |options|
     UI.user_error!("Pass build:\"N\"") unless options[:build]
