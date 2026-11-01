@@ -123,7 +123,8 @@ platform :ios do
   lane :metadata do |options|
     upload_to_app_store(
       app_identifier: BUNDLE_ID,
-      app_version: options[:version] || "1.0.0",
+      # The app's own version (project.yml), so the listing never renames it.
+      app_version: options[:version] || File.read(File.join(__dir__, "../project.yml"))[/MARKETING_VERSION: "([^"]+)"/, 1],
       skip_binary_upload: true,
       submit_for_review: false,
       force: true,
@@ -203,12 +204,68 @@ platform :ios do
     app = connect
     version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
     detail = version.fetch_app_store_review_detail
-    detail.app_store_review_attachments.to_a.each do |old|
-      UI.message("removing earlier attachment #{old.file_name}")
-      old.delete!
+    # Adds to what's there; replace:true clears earlier attachments first.
+    attached = detail.app_store_review_attachments.to_a
+    if options[:replace]
+      attached.each do |old|
+        UI.message("removing earlier attachment #{old.file_name}")
+        old.delete!
+      end
+    elsif attached.any? { |a| a.file_name == File.basename(path) }
+      UI.success("#{File.basename(path)} is already attached")
+      next
     end
     Spaceship::ConnectAPI::AppStoreReviewAttachment.create(app_store_review_detail_id: detail.id, path: path)
     UI.success("Attached #{File.basename(path)} (#{(File.size(path) / 1_048_576.0).round(1)} MB)")
+  end
+
+  desc "Where the version being edited stands: state, build, attachments"
+  lane :review_status do
+    app = connect
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS, includes: "build")
+    UI.message("version #{version.version_string}: #{version.app_store_state}, build #{version.build&.version} (#{version.build&.processing_state})")
+    detail = version.fetch_app_store_review_detail
+    detail.app_store_review_attachments.to_a.each do |a|
+      UI.message("attachment #{a.file_name}: #{a.asset_delivery_state.inspect}")
+    end
+    app.get_app_store_versions(includes: "build").each do |v|
+      UI.message("all versions: #{v.id} #{v.version_string} #{v.app_store_state} build #{v.build&.version}")
+    end
+  end
+
+  desc "Resubmit the open review submission (after a rejection), with the version being edited"
+  lane :resubmit do
+    app = connect
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    open = app.get_review_submissions(
+      filter: { state: "UNRESOLVED_ISSUES,READY_FOR_REVIEW", platform: "IOS" },
+      includes: "items"
+    ).first
+    UI.user_error!("No open review submission") unless open
+    UI.message("submission #{open.id}: #{open.state}, #{open.items.to_a.size} item(s)")
+    # The rejected version is still its item; add it only if it's empty.
+    if open.items.to_a.empty?
+      open.add_app_store_version_to_review_items(app_store_version_id: version.id)
+      UI.message("added #{version.version_string} to it")
+    end
+    # Sent directly (not through spaceship) so Apple's reasons for refusing,
+    # if any, come back in full.
+    require "net/http"
+    require "json"
+    uri = URI("https://api.appstoreconnect.apple.com/v1/reviewSubmissions/#{open.id}")
+    req = Net::HTTP::Patch.new(uri, "Content-Type" => "application/json", "Authorization" => "Bearer #{Spaceship::ConnectAPI.token.text}")
+    req.body = { data: { type: "reviewSubmissions", id: open.id, attributes: { submitted: true } } }.to_json
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(req) }
+    unless res.is_a?(Net::HTTPSuccess)
+      (JSON.parse(res.body)["errors"] || []).each do |err|
+        UI.error(err["detail"].to_s)
+        (err.dig("meta", "associatedErrors") || {}).each do |path, errs|
+          errs.each { |x| UI.error("  #{path}: #{x['code']} - #{x['detail']}") }
+        end
+      end
+      UI.user_error!("Review submission refused (#{res.code})")
+    end
+    UI.success("#{version.version_string} resubmitted for review")
   end
 
   lane :submit do |options|

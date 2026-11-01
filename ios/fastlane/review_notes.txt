@@ -1,12 +1,12 @@
-SCREEN RECORDING
-Attached: recorded on an iPhone running the latest iOS with the submitted build. It starts at launch and shows sign-up, sign-in, the main features, the user-generated content (reviews and comments) with reporting and blocking, and account deletion.
+SCREEN RECORDINGS
+Attached, recorded on an iPhone running the latest iOS with the submitted build, each starting at launch. Together they show in-app sign-up, email confirmation, sign-in, the main features, the user-generated content (reviews and comments) with reporting and blocking, and account deletion.
 
 1. PURPOSE AND AUDIENCE
 Beaten is a video game diary, like Letterboxd for games. Players log the games they're playing, have beaten and have mastered, with dates, platform, a star rating and an optional review, and organise them into shelves. They can follow friends, see what they've been playing, and react to and comment on their reviews. Extras turn the diary into shareable things: a "Console Chronicles" timeline of the consoles they've owned, share cards and a "Year in review" video.
 It's for adults and teens who play video games and want a record of what they've played and finished. It solves "what did I play last year, and what did I think of it?", and gives friends a place to compare notes. The app is free, with no ads, purchases or subscriptions.
 
 2. HOW TO USE IT
-- Sign in with the demo account in the Sign-In Information section (email and password), or with Sign in with Apple. New accounts can be made with "Create an account" (it opens beaten.games/register, then sign in in the app).
+- Sign in with the demo account in the Sign-In Information section (email and password), or with Sign in with Apple. New accounts can be made in the app with "Create an account" (confirm the email, then sign in).
 - Home: stats, now playing, recently beaten. Tap "Log a game", search (e.g. "Hades"), tap + then choose Beaten; add a rating and review and save.
 - Library: your diary (filter with the top-right button) and your shelves.
 - Activity: what people you follow logged. The demo account follows another account with reviews. Under a review: tap the smiley to react, tap Comment to comment. Long-press a review or comment for "Report", which emails our support team with it quoted. Tap the person's name > ... (top right) > Block or Report. Blocking ends follows both ways and hides each from the other's activity and comments.
