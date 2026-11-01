@@ -6,7 +6,7 @@ export const metadata = {
   description: "What Beaten stores, what's public, and how to get or delete your data.",
 };
 
-const LAST_UPDATED = "30 October 2026";
+const LAST_UPDATED = "1 November 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -95,6 +95,14 @@ export default function PrivacyPage() {
           Only what signing in needs: a session cookie that keeps you signed in
           (for up to 14 days), plus short-lived security cookies used during
           sign-in. No analytics, advertising or tracking cookies.
+        </p>
+        <p>
+          To see which pages get used, the website counts visits with Umami,
+          which we run ourselves on the same server, so nothing goes to a third
+          party. It uses no cookies and doesn&apos;t identify you: it records
+          the page (without anything after the ?), the referring site, and your
+          browser, device type and rough location (country and city), and it doesn&apos;t keep your IP
+          address. It&apos;s skipped if your browser sends Do Not Track.
         </p>
         <p>
           The iPhone app keeps you signed in with a token stored in your

@@ -167,6 +167,20 @@ location /api/v1/ {
     proxy_pass http://127.0.0.1:3000;
 }
 
+# Umami analytics (deploy/umami.sh), served first-party so the tracker
+# isn't blocked as third-party: /a/script.js and /a/api/send go to the
+# local Umami. A 502 here just means Umami isn't set up.
+location = /a/script.js {
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:3100/script.js;
+}
+location = /a/api/send {
+    limit_req zone=api burst=60 nodelay;
+    include snippets/beaten-proxy.conf;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_pass http://127.0.0.1:3100/api/send;
+}
+
 # Share-card PNGs are the most expensive thing the app renders. Cache them
 # (the URL fully determines the image; no cookies are involved) and rate
 # limit misses-and-hits alike so query-string variations can't pin the CPU.
@@ -194,11 +208,14 @@ NGINX
 # once the certificate covers it.
 # chronicles.<domain> is a short link to /chronicles (guest Console
 # Chronicles), likewise once DNS points here and the certificate covers it.
+# stats.<domain> is the Umami dashboard (deploy/umami.sh), likewise.
 WWW_DOMAIN=""
 CHRONICLES_DOMAIN=""
+STATS_DOMAIN=""
 if [ -n "$BEATEN_DOMAIN" ] && [ "$(tr -cd . <<<"$BEATEN_DOMAIN" | wc -c)" -eq 1 ]; then
   WWW_DOMAIN="www.$BEATEN_DOMAIN"
   CHRONICLES_DOMAIN="chronicles.$BEATEN_DOMAIN"
+  STATS_DOMAIN="stats.$BEATEN_DOMAIN"
 fi
 CERT="/etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem"
 
@@ -212,6 +229,8 @@ write_nginx() {
   if [ -n "$WWW_DOMAIN" ] && cert_covers "$WWW_DOMAIN"; then www="$WWW_DOMAIN"; fi
   local chron=""
   if [ -n "$CHRONICLES_DOMAIN" ] && cert_covers "$CHRONICLES_DOMAIN"; then chron="$CHRONICLES_DOMAIN"; fi
+  local stats=""
+  if [ -n "$STATS_DOMAIN" ] && cert_covers "$STATS_DOMAIN"; then stats="$STATS_DOMAIN"; fi
   {
     cat <<'NGINX'
 limit_req_zone $binary_remote_addr zone=auth:10m rate=10r/m;
@@ -256,6 +275,13 @@ server {
 }
 
 server {
+    listen 80;
+    server_name ${STATS_DOMAIN:-stats.invalid};
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://\$host\$request_uri; }
+}
+
+server {
     listen 443 ssl http2;  # nginx 1.24 (Ubuntu 24.04) predates 'http2 on;'
     server_name $BEATEN_DOMAIN;
     ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
@@ -276,6 +302,25 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     add_header Strict-Transport-Security "max-age=31536000" always;
     return 301 https://$BEATEN_DOMAIN\$request_uri;
+}
+NGINX
+      fi
+      if [ -n "$stats" ]; then
+        cat <<NGINX
+
+server {
+    listen 443 ssl http2;
+    server_name $stats;
+    ssl_certificate     /etc/letsencrypt/live/$BEATEN_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$BEATEN_DOMAIN/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    include snippets/beaten-headers.conf;
+    location / {
+        limit_req zone=posts burst=20 nodelay;
+        include snippets/beaten-proxy.conf;
+        proxy_pass http://127.0.0.1:3100;
+    }
 }
 NGINX
       fi
@@ -326,6 +371,7 @@ if [ -n "$BEATEN_DOMAIN" ]; then
     names+=(-d "$BEATEN_DOMAIN")
     if [ -n "$WWW_DOMAIN" ] && points_here "$WWW_DOMAIN"; then names+=(-d "$WWW_DOMAIN"); fi
     if [ -n "$CHRONICLES_DOMAIN" ] && points_here "$CHRONICLES_DOMAIN"; then names+=(-d "$CHRONICLES_DOMAIN"); fi
+    if [ -n "$STATS_DOMAIN" ] && points_here "$STATS_DOMAIN"; then names+=(-d "$STATS_DOMAIN"); fi
   fi
   # A name that resolves here but isn't on the certificate yet.
   missing=0
