@@ -94,4 +94,37 @@ final class WalkthroughTests: XCTestCase {
         XCTAssertTrue(app.buttons["Signed-in devices"].waitForExistence(timeout: 5))
         shot("08-profile")
     }
+
+    // Sign-up in the app, against the dev server: ends at "Check your email"
+    // (the unconfirmed account can't sign in, and expires unclaimed).
+    func testRegister() throws {
+        if app.tabBars.buttons["Profile"].waitForExistence(timeout: 5) {
+            app.tabBars.buttons["Profile"].tap()
+            app.buttons["Sign out"].firstMatch.tap()
+            app.sheets.buttons["Sign out"].firstMatch.tap()
+        }
+        let create = app.buttons["Create an account"]
+        XCTAssertTrue(create.waitForExistence(timeout: 10))
+        create.tap()
+        let stamp = String(Int(Date().timeIntervalSince1970))
+        let fields: [(String, String)] = [
+            ("register-name", "UI Signup"),
+            ("register-username", "ui_signup_\(stamp.suffix(6))"),
+            ("register-email", "ui-signup-\(stamp)@example.com"),
+        ]
+        for (label, value) in fields {
+            let field = app.textFields[label]
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
+            field.tap()
+            field.typeText(value)
+        }
+        app.secureTextFields["register-password"].tap()
+        app.secureTextFields["register-password"].typeText("Signup-pass-\(stamp)")
+        shot("r1-register")
+        app.buttons["Create account"].tap()
+        XCTAssertTrue(app.staticTexts["Check your email"].waitForExistence(timeout: 20))
+        shot("r2-check-email")
+        app.buttons["Back to sign in"].tap()
+        XCTAssertTrue(app.buttons["Create an account"].waitForExistence(timeout: 5))
+    }
 }

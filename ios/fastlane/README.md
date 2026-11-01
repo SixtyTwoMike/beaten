@@ -71,13 +71,31 @@ Upload the App Store listing (metadata, age rating, review details) without subm
 
 Set the age rating answers from fastlane/age_rating.json
 
+### ios review_build
+
+```sh
+[bundle exec] fastlane ios review_build
+```
+
+Submit an already-uploaded build for App Store review: build:"N" version:"1.0.0"
+
+Attach a TestFlight build to the version being edited: build:"9"
+
+### ios review_attach
+
+```sh
+[bundle exec] fastlane ios review_attach
+```
+
+Attach a file (the App Review screen recording) to the version's review details: path:"…"
+
 ### ios submit
 
 ```sh
 [bundle exec] fastlane ios submit
 ```
 
-Submit an already-uploaded build for App Store review: build:"N" version:"1.0.0"
+
 
 ----
 

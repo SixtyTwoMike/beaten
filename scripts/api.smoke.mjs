@@ -45,6 +45,15 @@ await prisma.user.create({
 });
 
 try {
+  // --- sign-up (the app's register screen)
+  const regEmail = `api-reg-${Date.now()}@example.com`;
+  check("register validates", (await api("POST", "/auth/register", { name: "R", username: "x", email: "nope", password: "x" })).status === 400);
+  check("register taken username → 400", (await api("POST", "/auth/register", { name: "R", username, email: regEmail, password: "Plenty-long-pass-123!" })).json?.error === "That username is taken");
+  const reg = await api("POST", "/auth/register", { name: "Reg", username: `reg_${Date.now().toString(36)}`, email: regEmail, password: `Reg!${Date.now()}xyz` });
+  check("register → check your email", reg.status === 200 && reg.json?.ok === true, reg);
+  check("unconfirmed account can't sign in yet", (await api("POST", "/auth/login", { email: regEmail, password: "whatever-pass-1" })).status !== 200);
+  await prisma.user.deleteMany({ where: { email: regEmail } });
+
   // --- auth
   check("no token → 401", (await api("GET", "/me")).status === 401);
   token = "nonsense";

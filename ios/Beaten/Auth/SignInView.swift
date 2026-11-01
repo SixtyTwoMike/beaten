@@ -11,6 +11,7 @@ struct SignInView: View {
     // Raw nonce for the Apple request in flight; Apple gets its SHA-256 and
     // the server checks the two match.
     @State private var nonce = ""
+    @State private var registering = false
 
     var body: some View {
         ScrollView {
@@ -66,7 +67,7 @@ struct SignInView: View {
                 .disabled(busy)
 
                 VStack(spacing: 10) {
-                    Link("Create an account", destination: APIClient.baseURL.appending(path: "register"))
+                    Button("Create an account") { registering = true }
                     Link("Forgot your password?", destination: APIClient.baseURL.appending(path: "forgot-password"))
                         .foregroundStyle(Color.fog)
                 }
@@ -86,6 +87,7 @@ struct SignInView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color.canvas)
+        .sheet(isPresented: $registering) { RegisterView() }
     }
 
     private func signIn() {
