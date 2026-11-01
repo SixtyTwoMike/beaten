@@ -36,6 +36,27 @@ cp -r "$OUT_DIR/admin" "$STAGE/admin"
 rm -rf "$STAGE/node_modules/bcryptjs"
 cp -r node_modules/bcryptjs "$STAGE/node_modules/bcryptjs"
 
+# sharp's native build for the server (x86_64 Linux, glibc). The standalone
+# output carries this Mac's builds instead, which can't load there; the
+# share-card renderer and image optimiser try sharp, and on a worker thread
+# that failed load is fatal. Versions follow the installed sharp.
+SHARP_VERSION=$(node -p 'require("./node_modules/sharp/package.json").version')
+VIPS_VERSION=$(node -p 'require("./node_modules/sharp/package.json").optionalDependencies["@img/sharp-libvips-linux-x64"]')
+SHARP_CACHE="$OUT_DIR/sharp-linux-x64-$SHARP_VERSION"
+if [ ! -d "$SHARP_CACHE" ]; then
+  mkdir -p "$SHARP_CACHE.tmp"
+  (cd "$SHARP_CACHE.tmp" && npm pack --silent "@img/sharp-linux-x64@$SHARP_VERSION" "@img/sharp-libvips-linux-x64@$VIPS_VERSION" >/dev/null)
+  for t in "$SHARP_CACHE.tmp"/*.tgz; do
+    name=$(basename "$t" | sed -E 's/^img-(.*)-[0-9.]+\.tgz$/\1/')
+    mkdir -p "$SHARP_CACHE/$name" && tar -xzf "$t" -C "$SHARP_CACHE/$name" --strip-components=1
+  done
+  rm -rf "$SHARP_CACHE.tmp"
+fi
+rm -rf "$STAGE"/node_modules/@img/sharp-*
+mkdir -p "$STAGE/node_modules/@img"
+cp -r "$SHARP_CACHE"/. "$STAGE/node_modules/@img/"
+[ -f "$STAGE/node_modules/@img/sharp-linux-x64/package.json" ] || { echo "sharp for Linux missing from bundle" >&2; exit 1; }
+
 if ! ls "$STAGE"/node_modules/.prisma/client/*debian-openssl-3.0.x* >/dev/null 2>&1; then
   echo "Linux Prisma engine missing from bundle (check binaryTargets)" >&2
   exit 1
