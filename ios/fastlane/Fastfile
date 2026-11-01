@@ -233,6 +233,17 @@ platform :ios do
     end
   end
 
+  desc "Raw GET against the App Store Connect API: path:\"/v1/...\""
+  lane :asc_get do |options|
+    require "net/http"
+    require "json"
+    connect
+    uri = URI("https://api.appstoreconnect.apple.com#{options[:path]}")
+    req = Net::HTTP::Get.new(uri, "Authorization" => "Bearer #{Spaceship::ConnectAPI.token.text}")
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(req) }
+    File.write(options[:out] || "/dev/stdout", JSON.pretty_generate(JSON.parse(res.body)))
+  end
+
   desc "Resubmit the open review submission (after a rejection), with the version being edited"
   lane :resubmit do
     app = connect
@@ -247,6 +258,22 @@ platform :ios do
     if open.items.to_a.empty?
       open.add_app_store_version_to_review_items(app_store_version_id: version.id)
       UI.message("added #{version.version_string} to it")
+    end
+    require "net/http"
+    require "json"
+    patch = lambda do |path, type, id, attributes|
+      uri = URI("https://api.appstoreconnect.apple.com#{path}")
+      req = Net::HTTP::Patch.new(uri, "Content-Type" => "application/json", "Authorization" => "Bearer #{Spaceship::ConnectAPI.token.text}")
+      req.body = { data: { type: type, id: id, attributes: attributes } }.to_json
+      Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(req) }
+    end
+    # A rejected item has to be marked resolved before the submission can
+    # go back in (the website's "Resubmit" does this).
+    open.items.to_a.each do |item|
+      next unless item.state == "REJECTED"
+      res = patch.call("/v1/reviewSubmissionItems/#{item.id}", "reviewSubmissionItems", item.id, { resolved: true })
+      UI.user_error!("Couldn't mark the rejected item resolved: #{res.body}") unless res.is_a?(Net::HTTPSuccess)
+      UI.message("marked the rejected item resolved")
     end
     # Sent directly (not through spaceship) so Apple's reasons for refusing,
     # if any, come back in full.
