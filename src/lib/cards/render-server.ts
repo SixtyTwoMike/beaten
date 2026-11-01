@@ -1,5 +1,5 @@
 import path from "node:path";
-import { Worker } from "node:worker_threads";
+import type { Worker } from "node:worker_threads";
 import { isValidElement, type ReactNode } from "react";
 
 // Renders card markup to a PNG on a worker thread (scripts/og-worker.mjs),
@@ -25,7 +25,10 @@ function failAll(error: Error) {
 function getWorker(): Worker {
   if (worker) return worker;
   const cwd = process.cwd();
-  const w = new Worker(/* turbopackIgnore: true */ path.join(cwd, "scripts/og-worker.mjs"), {
+  // Fetched at run time so the bundler leaves it alone: it would otherwise
+  // swap in its own bundled copy of the worker script.
+  const { Worker: NodeWorker } = process.getBuiltinModule("node:worker_threads") as typeof import("node:worker_threads");
+  const w = new NodeWorker(path.join(cwd, "scripts/og-worker.mjs"), {
     workerData: { fontDir: path.join(cwd, "src/assets/fonts") },
     resourceLimits: { maxOldGenerationSizeMb: 256 },
   });
