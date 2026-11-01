@@ -17,6 +17,7 @@ import { normalizeUsername, usernameError } from "../src/lib/username";
 import { isBuiltInReserved } from "../src/lib/username-rules";
 import { reserveUsername } from "../src/lib/reserved-usernames";
 import { sendNotificationEmails } from "../src/lib/notifications";
+import { isAchievementProvider, setBeatenAchievementConfirmed } from "../src/lib/beaten-achievements";
 import {
   sendAccountDeletedEmail,
   sendEmailChangedEmail,
@@ -47,6 +48,12 @@ const USAGE = `Usage: beaten-admin <command> <email | username>
   check-usernames                list accounts whose username breaks the rules
   notify                         email notifications that are due (the
                                  beaten-notify timer runs this every 15 min)
+  beaten-ach [provider] [gameId] list mapped beaten achievements
+  confirm-ach <provider> <gameId> <achKey> [title]
+                                 confirm an achievement as equating to Beaten
+  unconfirm-ach <provider> <gameId> <achKey>
+                                 stop it counting for everyone (users' own
+                                 picks stay); also on the web at /admin
 
 Only act on requests sent from the account's own email address.`;
 
@@ -260,6 +267,57 @@ async function notify() {
   if (emails) log(`Sent ${emails} email(s) covering ${notifications} notification(s).`);
 }
 
+async function listBeatenAch(rawProvider: string | undefined, externalGameId: string | undefined) {
+  const provider = rawProvider?.toUpperCase();
+  if (provider && !isAchievementProvider(provider)) {
+    throw new Fail("Provider must be STEAM, PSN, or XBOX.");
+  }
+  const rows = await prisma.beatenAchievement.findMany({
+    where: {
+      ...(provider ? { provider } : {}),
+      ...(externalGameId ? { externalGameId } : {}),
+    },
+    orderBy: [{ provider: "asc" }, { externalGameId: "asc" }, { confirmed: "desc" }, { voteCount: "desc" }],
+  });
+  if (!rows.length) return log("No beaten achievements mapped yet.");
+  for (const r of rows) {
+    const status = r.confirmed ? "CONFIRMED" : `votes:${r.voteCount}`;
+    process.stdout.write(
+      `${r.provider}:${r.externalGameId}${r.igdbId ? ` (igdb:${r.igdbId})` : ""}  ${r.achievementKey}  "${r.title}"  [${status}]\n`
+    );
+  }
+}
+
+async function confirmBeatenAch(
+  rawProvider: string | undefined,
+  externalGameId: string | undefined,
+  achievementKey: string | undefined,
+  titleParts: string[]
+) {
+  const provider = (rawProvider ?? "").toUpperCase();
+  if (!isAchievementProvider(provider) || !externalGameId || !achievementKey) {
+    throw new Fail("Usage: confirm-ach <STEAM|PSN|XBOX> <externalGameId> <achievementKey> [title]");
+  }
+  const row = await setBeatenAchievementConfirmed({
+    provider, externalGameId, achievementKey, confirmed: true, title: titleParts.join(" ").trim() || undefined,
+  });
+  log(`Confirmed ${provider}:${externalGameId} ${achievementKey} ("${row?.title}") as a beaten achievement.`);
+}
+
+async function unconfirmBeatenAch(
+  rawProvider: string | undefined,
+  externalGameId: string | undefined,
+  achievementKey: string | undefined
+) {
+  const provider = (rawProvider ?? "").toUpperCase();
+  if (!isAchievementProvider(provider) || !externalGameId || !achievementKey) {
+    throw new Fail("Usage: unconfirm-ach <STEAM|PSN|XBOX> <externalGameId> <achievementKey>");
+  }
+  const row = await setBeatenAchievementConfirmed({ provider, externalGameId, achievementKey, confirmed: false });
+  if (!row) throw new Fail("No matching beaten achievement found.");
+  log(`Unconfirmed ${provider}:${externalGameId} ${achievementKey}; users' own picks are kept.`);
+}
+
 async function main(argv: string[]) {
   const [command, who, extra] = argv;
   switch (command) {
@@ -270,6 +328,9 @@ async function main(argv: string[]) {
     case "reservations": return reservations();
     case "check-usernames": return checkUsernames();
     case "notify": return notify();
+    case "beaten-ach": return listBeatenAch(who, extra);
+    case "confirm-ach": return confirmBeatenAch(who, extra, argv[3], argv.slice(4));
+    case "unconfirm-ach": return unconfirmBeatenAch(who, extra, argv[3]);
     case "find": return find(await findUser(who));
     case "send-reset": return sendReset(await findUser(who));
     case "send-verify": return sendVerify(await findUser(who));

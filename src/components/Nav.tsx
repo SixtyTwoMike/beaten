@@ -23,6 +23,7 @@ export function Nav({
   image,
   newFollowers,
   unreadNotifications,
+  admin = false,
 }: {
   userName: string;
   username: string | null;
@@ -30,6 +31,7 @@ export function Nav({
   image: string | null;
   newFollowers: number;
   unreadNotifications: number;
+  admin?: boolean;
 }) {
   const pathname = usePathname();
   return (
@@ -95,6 +97,16 @@ export function Nav({
             )}
             <span className="hidden sm:inline">{userName}</span>
           </Link>
+          {admin && (
+            <Link
+              href="/admin"
+              className={`rounded-md px-2 py-1.5 transition ${
+                pathname.startsWith("/admin") ? "text-white" : "text-fog hover:text-white"
+              }`}
+            >
+              Admin
+            </Link>
+          )}
           <Link
             href="/settings"
             className={`rounded-md px-2 py-1.5 transition ${

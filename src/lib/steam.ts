@@ -159,25 +159,100 @@ export type AchievementSummary = {
   unlocked: number;
   firstUnlockAt: Date | null;
   lastUnlockAt: Date | null;
+  // Map of unlocked achievement apiname -> unlock unix timestamp (seconds)
+  unlockedMap: Record<string, number>;
+};
+
+export type SteamSchemaAchievement = {
+  key: string;
+  title: string;
+  description: string | null;
+  iconUrl: string | null;
+  hidden: boolean;
 };
 
 export async function getAchievementSummary(steamId: string, appId: number): Promise<AchievementSummary> {
-  if (mockEnabled()) return MOCK_ACHIEVEMENTS[appId] ?? { total: 0, unlocked: 0, firstUnlockAt: null, lastUnlockAt: null };
+  if (mockEnabled()) {
+    return (
+      MOCK_ACHIEVEMENTS[appId] ?? {
+        total: 0,
+        unlocked: 0,
+        firstUnlockAt: null,
+        lastUnlockAt: null,
+        unlockedMap: {},
+      }
+    );
+  }
   try {
     const data = await steamGet<{
-      playerstats?: { success?: boolean; achievements?: { achieved?: number; unlocktime?: number }[] };
+      playerstats?: {
+        success?: boolean;
+        achievements?: { apiname?: string; achieved?: number; unlocktime?: number }[];
+      };
     }>("ISteamUserStats/GetPlayerAchievements/v1", { steamid: steamId, appid: String(appId) });
     const list = data.playerstats?.achievements ?? [];
-    const times = list.filter((a) => a.achieved === 1).map((a) => a.unlocktime ?? 0).filter((t) => t > 0).sort((a, b) => a - b);
+    const unlockedList = list.filter((a) => a.achieved === 1);
+    const times = unlockedList
+      .map((a) => a.unlocktime ?? 0)
+      .filter((t) => t > 0)
+      .sort((a, b) => a - b);
+    const unlockedMap: Record<string, number> = {};
+    for (const a of unlockedList) {
+      if (a.apiname && typeof a.apiname === "string") {
+        unlockedMap[a.apiname] = a.unlocktime && a.unlocktime > 0 ? a.unlocktime : 0;
+      }
+    }
     return {
       total: list.length,
-      unlocked: list.filter((a) => a.achieved === 1).length,
+      unlocked: unlockedList.length,
       firstUnlockAt: times.length ? new Date(times[0] * 1000) : null,
       lastUnlockAt: times.length ? new Date(times[times.length - 1] * 1000) : null,
+      unlockedMap,
     };
   } catch (e) {
-    if (e instanceof SteamNoStats) return { total: 0, unlocked: 0, firstUnlockAt: null, lastUnlockAt: null };
+    if (e instanceof SteamNoStats) {
+      return { total: 0, unlocked: 0, firstUnlockAt: null, lastUnlockAt: null, unlockedMap: {} };
+    }
     throw e;
+  }
+}
+
+// Fetches the game's achievement definitions (names, descriptions, icons)
+// from Steam, so users and admins can pick which achievement(s) mean the
+// story/campaign is beaten.
+export async function getGameSchemaAchievements(appId: number): Promise<SteamSchemaAchievement[]> {
+  if (!Number.isInteger(appId) || appId <= 0) return [];
+  if (mockEnabled()) return MOCK_SCHEMA[appId] ?? [];
+  if (!process.env.STEAM_API_KEY) return [];
+  try {
+    const data = await steamGet<{
+      game?: {
+        availableGameStats?: {
+          achievements?: {
+            name?: string;
+            displayName?: string;
+            description?: string;
+            icon?: string;
+            hidden?: number;
+          }[];
+        };
+      };
+    }>("ISteamUserStats/GetSchemaForGame/v2", { appid: String(appId), l: "english" });
+    const raw = data.game?.availableGameStats?.achievements ?? [];
+    return raw
+      .filter((a) => typeof a.name === "string" && a.name.length > 0)
+      .map((a) => ({
+        key: a.name!.slice(0, 128),
+        title: String(a.displayName || a.name!).slice(0, 200),
+        description: a.description ? String(a.description).slice(0, 500) : null,
+        iconUrl:
+          a.icon && /^https:\/\/[\w.-]*steamstatic\.com\//.test(a.icon) ? a.icon : null,
+        hidden: a.hidden === 1,
+      }));
+  } catch (e) {
+    if (e instanceof SteamNoStats || e instanceof SteamPrivate) return [];
+    console.error("getGameSchemaAchievements failed:", appId, e);
+    return [];
   }
 }
 
@@ -201,9 +276,82 @@ const MOCK_OWNED: RawOwned[] = [
 
 const at = (t: number) => new Date(t * 1000);
 const MOCK_ACHIEVEMENTS: Record<number, AchievementSummary> = {
-  1245620: { total: 42, unlocked: 42, firstUnlockAt: at(1646300000), lastUnlockAt: at(1660000000) },
-  1145360: { total: 49, unlocked: 20, firstUnlockAt: at(now() - 40 * DAY), lastUnlockAt: at(now() - 3 * DAY) },
-  367520: { total: 63, unlocked: 30, firstUnlockAt: at(1690000000), lastUnlockAt: at(1699000000) },
-  620: { total: 51, unlocked: 19, firstUnlockAt: at(1590000000), lastUnlockAt: at(1599000000) },
-  413150: { total: 40, unlocked: 12, firstUnlockAt: at(1670000000), lastUnlockAt: at(1679000000) },
+  1245620: {
+    total: 42,
+    unlocked: 42,
+    firstUnlockAt: at(1646300000),
+    lastUnlockAt: at(1660000000),
+    unlockedMap: {
+      ACH01_ELDEN_LORD: 1655000000,
+      ACH02_AGE_OF_STARS: 1658000000,
+      ACH03_FRENZIED_FLAME: 1660000000,
+    },
+  },
+  1145360: {
+    total: 49,
+    unlocked: 20,
+    firstUnlockAt: at(now() - 40 * DAY),
+    lastUnlockAt: at(now() - 3 * DAY),
+    unlockedMap: {
+      Clear_01: now() - 20 * DAY,
+      Beat_BoneHydra: now() - 35 * DAY,
+    },
+  },
+  367520: {
+    total: 63,
+    unlocked: 30,
+    firstUnlockAt: at(1690000000),
+    lastUnlockAt: at(1699000000),
+    unlockedMap: {
+      FALSE_KNIGHT: 1690000000,
+      HORNET_1: 1691000000,
+      THE_HOLLOW_KNIGHT: 1698500000,
+    },
+  },
+  620: {
+    total: 51,
+    unlocked: 19,
+    firstUnlockAt: at(1590000000),
+    lastUnlockAt: at(1599000000),
+    unlockedMap: {
+      "ACH.WAKE_UP": 1590000000,
+      "ACH.LUNACY": 1599000000,
+    },
+  },
+  413150: {
+    total: 40,
+    unlocked: 12,
+    firstUnlockAt: at(1670000000),
+    lastUnlockAt: at(1679000000),
+    unlockedMap: {
+      GREENHORN: 1670000000,
+    },
+  },
+};
+
+const MOCK_SCHEMA: Record<number, SteamSchemaAchievement[]> = {
+  1245620: [
+    { key: "ACH01_ELDEN_LORD", title: "Elden Lord", description: "Achieved the \"Elden Lord\" ending", iconUrl: null, hidden: false },
+    { key: "ACH02_AGE_OF_STARS", title: "Age of the Stars", description: "Achieved the \"Age of the Stars\" ending", iconUrl: null, hidden: false },
+    { key: "ACH03_FRENZIED_FLAME", title: "Lord of Frenzied Flame", description: "Achieved the \"Lord of Frenzied Flame\" ending", iconUrl: null, hidden: false },
+  ],
+  1145360: [
+    { key: "Beat_BoneHydra", title: "Lernaean Might", description: "Slay the Bone Hydra.", iconUrl: null, hidden: false },
+    { key: "Clear_01", title: "Is There No Escape?", description: "Clear a run for the first time.", iconUrl: null, hidden: false },
+    { key: "End_01", title: "Something From Everyone", description: "Reach the Epilogue.", iconUrl: null, hidden: true },
+  ],
+  367520: [
+    { key: "FALSE_KNIGHT", title: "Falsehood", description: "Defeat the False Knight", iconUrl: null, hidden: false },
+    { key: "HORNET_1", title: "Test of Resolve", description: "Defeat Hornet in Greenpath", iconUrl: null, hidden: false },
+    { key: "THE_HOLLOW_KNIGHT", title: "The Hollow Knight", description: "Defeat the Hollow Knight and complete the game", iconUrl: null, hidden: false },
+    { key: "DREAM_NO_MORE", title: "Dream No More", description: "Defeat the Radiance and consume the light", iconUrl: null, hidden: true },
+  ],
+  620: [
+    { key: "ACH.WAKE_UP", title: "Wake Up Call", description: "Survive the manual override", iconUrl: null, hidden: false },
+    { key: "ACH.LUNACY", title: "Lunacy", description: "That just happened", iconUrl: null, hidden: false },
+  ],
+  413150: [
+    { key: "GREENHORN", title: "Greenhorn", description: "Earn 15,000g", iconUrl: null, hidden: false },
+    { key: "LOCAL_LEGEND", title: "Local Legend", description: "Restore the Pelican Town Community Center.", iconUrl: null, hidden: false },
+  ],
 };

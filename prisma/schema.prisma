@@ -48,6 +48,7 @@ model User {
   raAwards     RaAward[]
   steamAccount SteamAccount?
   steamGames   SteamGame[]
+  beatenAchievementVotes BeatenAchievementVote[]
   chronicle    Chronicle?
   following    Follow[]    @relation("Follower")
   followers    Follow[]    @relation("Followee")
@@ -289,6 +290,10 @@ model SteamGame {
   achUnlocked     Int?
   firstUnlockAt   DateTime?
   lastUnlockAt    DateTime?
+  // When the user unlocked one of the game's "beaten" achievements (if any)
+  beatenUnlockAt  DateTime?
+  // JSON map of unlocked achievement key -> unix timestamp (seconds), e.g. {"ACH_1":1700000000}
+  unlockedAchievements String?
   statsCheckedAt  DateTime?
   // "PENDING" | "IMPORTED" | "LINKED" (already in the diary) | "SKIPPED"
   state           String    @default("PENDING")
@@ -308,6 +313,49 @@ model SteamGame {
 
   @@unique([userId, appId])
   @@index([userId, state])
+  @@index([appId])
+}
+
+// Achievements that equate to "Beaten" (story/campaign completed) across
+// achievement providers ("STEAM" | "PSN" | "XBOX"). Any one active achievement
+// on a game (OR logic) counts as Beaten, dated by when it was unlocked.
+// An achievement goes live for everyone when confirmed by an admin or once
+// enough users agree (`voteCount >= 2`); a user's own vote always counts
+// immediately for their own library.
+model BeatenAchievement {
+  id             String   @id @default(cuid())
+  // "STEAM" | "PSN" | "XBOX"
+  provider       String
+  // Provider's game identifier (e.g. Steam appId as a string, PSN npCommunicationId, Xbox titleId)
+  externalGameId String
+  // Optional matched IGDB game id so Game pages can show beaten criteria across providers
+  igdbId         Int?
+  // Provider's achievement identifier (e.g. Steam apiname)
+  achievementKey String
+  title          String
+  description    String?
+  iconUrl        String?
+  // Set by admin curation or seed data; bypasses the vote threshold
+  confirmed      Boolean  @default(false)
+  voteCount      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  votes          BeatenAchievementVote[]
+
+  @@unique([provider, externalGameId, achievementKey])
+  @@index([provider, externalGameId])
+  @@index([igdbId])
+}
+
+model BeatenAchievementVote {
+  achievementId String
+  userId        String
+  createdAt     DateTime          @default(now())
+  achievement   BeatenAchievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([achievementId, userId])
+  @@index([userId])
 }
 
 // Usernames nobody can take without an invite: names set aside for someone

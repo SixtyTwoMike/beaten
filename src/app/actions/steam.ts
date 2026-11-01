@@ -9,7 +9,12 @@ import { isIgdbId } from "@/lib/limits";
 import { requireUserId } from "@/lib/session";
 import { isPlayStatus, STATUS_RANK, type PlayStatus } from "@/lib/status";
 import { SteamPrivate, getAchievementSummary, getOwnedGames } from "@/lib/steam";
-import { MIN_MINUTES, importDates, isComplete } from "@/lib/steam-import";
+import { MIN_MINUTES, importDates, isBeatenByAchievement, isComplete } from "@/lib/steam-import";
+import {
+  computeBeatenUnlockAt,
+  ensureBuiltinBeatenAchievements,
+  getActiveBeatenKeysForGame,
+} from "@/lib/beaten-achievements";
 import type { ActionResult } from "./logs";
 
 // Steam import: the account is linked by "Sign in through Steam"
@@ -128,17 +133,39 @@ async function fetchStats(userId: string, steamId: string) {
     where: { userId, ...NEEDS_STATS },
     orderBy: { playtimeMinutes: "desc" },
     take: STATS_BATCH,
-    select: { id: true, appId: true },
+    select: { id: true, appId: true, igdbId: true, lastPlayedAt: true },
   });
+  if (queue.length > 0) {
+    await ensureBuiltinBeatenAchievements(
+      queue.map((q) => q.appId),
+      new Map(queue.map((q) => [q.appId, q.igdbId]))
+    );
+  }
   let stopped = false;
   async function worker() {
     while (!stopped && queue.length) {
       const g = queue.shift()!;
       try {
-        const s = await getAchievementSummary(steamId, g.appId);
+        const [s, activeBeatenKeys] = await Promise.all([
+          getAchievementSummary(steamId, g.appId),
+          getActiveBeatenKeysForGame("STEAM", String(g.appId), userId),
+        ]);
+        const beatenUnlockAt = computeBeatenUnlockAt(
+          s.unlockedMap,
+          activeBeatenKeys,
+          s.lastUnlockAt ?? g.lastPlayedAt
+        );
         await prisma.steamGame.update({
           where: { id: g.id },
-          data: { achTotal: s.total, achUnlocked: s.unlocked, firstUnlockAt: s.firstUnlockAt, lastUnlockAt: s.lastUnlockAt, statsCheckedAt: new Date() },
+          data: {
+            achTotal: s.total,
+            achUnlocked: s.unlocked,
+            firstUnlockAt: s.firstUnlockAt,
+            lastUnlockAt: s.lastUnlockAt,
+            beatenUnlockAt,
+            unlockedAchievements: JSON.stringify(s.unlockedMap),
+            statsCheckedAt: new Date(),
+          },
         });
       } catch (e) {
         // Private game details stop the lot; anything else is retried next sync.
@@ -150,13 +177,20 @@ async function fetchStats(userId: string, steamId: string) {
   await Promise.all(Array.from({ length: STATS_CONCURRENCY }, worker));
 }
 
-// A game imported below Mastered that has since hit 100% comes back for
-// review as an upgrade.
+// A game imported below Mastered that has since hit 100%, or imported below
+// Beaten that has since unlocked a beaten achievement, comes back for review
+// as an upgrade.
 async function reopenCompleted(userId: string) {
   const done = await prisma.steamGame.findMany({
     where: { userId, state: { in: ["IMPORTED", "LINKED"] }, importedStatus: { not: "MASTERED" }, achTotal: { gt: 0 } },
   });
-  const ids = done.filter(isComplete).map((g) => g.id);
+  const ids = done
+    .filter(
+      (g) =>
+        isComplete(g) ||
+        (isBeatenByAchievement(g) && g.importedStatus !== "BEATEN" && g.importedStatus !== "MASTERED")
+    )
+    .map((g) => g.id);
   if (ids.length) await prisma.steamGame.updateMany({ where: { id: { in: ids } }, data: { state: "PENDING" } });
 }
 

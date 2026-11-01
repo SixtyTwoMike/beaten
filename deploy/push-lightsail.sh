@@ -33,7 +33,8 @@ ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p ~/beaten-upload"
 scp -q "${SSH_OPTS[@]}" "$TARBALL" deploy/lightsail/install-from-bundle.sh \
   "$TARGET:beaten-upload/"
 
-# Merge IGDB, Resend, Google + RetroAchievements credentials into /etc/beaten.env
+# Merge IGDB, Resend, Google + RetroAchievements credentials (and the admin
+# list) into /etc/beaten.env
 # when they're set locally.
 # Last assignment wins; surrounding quotes are stripped (.env.example ships "").
 env_value() {
@@ -78,6 +79,12 @@ STEAM_KEY=$(env_value STEAM_API_KEY)
 if [ -n "$STEAM_KEY" ]; then
   echo "==> setting Steam Web API key"
   ENV_UPDATES+="STEAM_API_KEY=$STEAM_KEY"$'\n'"STEAM_MOCK=0"$'\n'
+fi
+# Who can open the web admin (/admin): comma-separated verified emails.
+ADMINS=$(env_value ADMIN_EMAILS)
+if [ -n "$ADMINS" ]; then
+  echo "==> setting admin accounts"
+  ENV_UPDATES+="ADMIN_EMAILS=$ADMINS"$'\n'
 fi
 # BEATEN_DOMAIN=new.host moves the site (users sign in again on the new origin).
 if [ -n "${BEATEN_DOMAIN:-}" ]; then

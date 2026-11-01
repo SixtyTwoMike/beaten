@@ -5,7 +5,9 @@ import { readFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
 const BASE = "http://localhost:3000";
-const email = `smoke-${Date.now()}@example.com`;
+// SMOKE_EMAIL fixes the address, so the server's ADMIN_EMAILS can name it
+// and the admin pages get checked too.
+const email = process.env.SMOKE_EMAIL || `smoke-${Date.now()}@example.com`;
 // Unique per run so it can't appear in the breached-password corpus.
 let password = `Smoke!${Date.now()}x`;
 const username = `smoke_${Date.now().toString(36)}`;
@@ -499,6 +501,18 @@ try {
   check("Steam: 100% achievements suggests Mastered", (await stStatus("ELDEN RING").inputValue()) === "MASTERED");
   check("Steam: played recently suggests Playing", (await stStatus("Hades").inputValue()) === "PLAYING");
   check("Steam: not played lately suggests Shelved", (await stStatus("Hollow Knight").inputValue()) === "SHELVED");
+  // Tagging a story-completion achievement on Hollow Knight immediately marks it as Beaten on the day it was unlocked
+  await stRow("Hollow Knight").getByRole("button", { name: "Beaten achievement" }).click();
+  await stRow("Hollow Knight").getByText("The Hollow Knight", { exact: true }).waitFor();
+  check("Steam: heuristic highlights likely story achievement", await stRow("Hollow Knight").getByText("Likely story completion").isVisible());
+  await stRow("Hollow Knight").locator("li", { hasText: "The Hollow Knight" }).getByRole("button", { name: "Mark as beaten" }).click();
+  await stRow("Hollow Knight").getByRole("button", { name: "✓ Beaten achievement" }).waitFor();
+  // The suggestion follows once the page refreshes with the new unlock.
+  await stRow("Hollow Knight").getByText("finished Oct 28, 2023").waitFor({ timeout: 10000 }).catch(() => {});
+  check("Steam: tagging beaten achievement suggests Beaten with exact unlock date",
+    (await stStatus("Hollow Knight").inputValue()) === "BEATEN" &&
+      await stRow("Hollow Knight").getByText("finished Oct 28, 2023").isVisible());
+  await stRow("Hollow Knight").getByRole("button", { name: "Close achievements" }).click();
   check("Steam: non-games aren't matched", await stRow("Wallpaper Engine").getByRole("checkbox").isDisabled());
   check("Steam: unplayed games aren't listed", (await stRow("The Witcher 3: Wild Hunt").count()) === 0);
   check("Steam: games played under an hour are hidden", (await stRow("Celeste").count()) === 0);
@@ -518,8 +532,35 @@ try {
   const erImported = page.locator("li", { hasText: "Elden Ring" }).first();
   check("Steam import adds a mastered entry dated by the last achievement",
     await erImported.getByText("★ Mastered").isVisible() && await erImported.getByText("Aug 8, 2022").isVisible());
+  await erImported.getByRole("link", { name: /Elden Ring/ }).first().click();
+  await page.waitForURL("**/games/**");
+  check("game page shows verified beaten achievements",
+    await page.getByRole("heading", { name: "Beaten achievements" }).isVisible() &&
+      await page.getByText("Elden Lord", { exact: true }).isVisible() &&
+      await page.getByText("Age of the Stars", { exact: true }).isVisible());
+  await page.goto(`${BASE}/log`);
   check("Steam import adds a beaten entry with a month-only date",
     await page.locator("li", { hasText: "Portal 2" }).first().getByText("Sep 2020").isVisible());
+
+  // 12e2. Web admin: only ADMIN_EMAILS accounts see it. The Hollow Knight
+  // pick above waits there as a suggestion; confirming one makes it count
+  // for everyone.
+  if (process.env.SMOKE_EMAIL) {
+    await page.goto(`${BASE}/admin/achievements`);
+    const hk = page.locator("li", { hasText: "The Hollow Knight" }).first();
+    check("admin: a player's pick waits as a suggestion", await hk.getByText(/\d+ players?/).isVisible());
+    await page.goto(`${BASE}/admin/achievements?app=413150`);
+    const legend = page.locator("section").first().locator("li", { hasText: "Local Legend" });
+    await legend.getByRole("button", { name: "Confirm" }).click();
+    await legend.getByRole("button", { name: "Unconfirm" }).waitFor();
+    check("admin: confirming an achievement lists it as confirmed",
+      await page.locator("section").last().getByText("Local Legend").isVisible());
+    await legend.getByRole("button", { name: "Unconfirm" }).click();
+    await legend.getByRole("button", { name: "Confirm" }).waitFor();
+  } else {
+    const res = await page.goto(`${BASE}/admin`);
+    check("admin pages are a 404 for everyone else", res?.status() === 404);
+  }
 
   // 12f. Console Chronicles (Extras): consoles with dates, ages, badges
   // and favourite games, drawn as a zig-zag map

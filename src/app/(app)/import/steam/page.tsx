@@ -4,7 +4,15 @@ import { formatPartialDate } from "@/lib/format";
 import { requireUser } from "@/lib/session";
 import { PLAY_STATUSES, STATUS_RANK, type PlayStatus } from "@/lib/status";
 import { steamCapsuleUrl, steamStoreUrl } from "@/lib/steam";
-import { MIN_MINUTES, formatPlaytime, importDates, type ImportDates, isComplete, proposeStatus } from "@/lib/steam-import";
+import {
+  MIN_MINUTES,
+  formatPlaytime,
+  importDates,
+  type ImportDates,
+  isBeatenByAchievement,
+  isComplete,
+  proposeStatus,
+} from "@/lib/steam-import";
 import { SteamReviewList, type SteamReviewRow } from "@/components/SteamReviewList";
 
 export const metadata = { title: "Import from Steam — Beaten" };
@@ -31,20 +39,23 @@ export default async function SteamImportPage() {
 
   const rows: SteamReviewRow[] = games.map((g) => ({
     id: g.id,
+    appId: g.appId,
     name: g.name,
     capsuleUrl: steamCapsuleUrl(g.appId),
     storeUrl: steamStoreUrl(g.appId),
     playtime: formatPlaytime(g.playtimeMinutes),
     lastPlayed: g.lastPlayedAt ? formatPartialDate(g.lastPlayedAt, null) : null,
     achievements: g.achTotal ? `${g.achUnlocked ?? 0}/${g.achTotal}` : null,
+    hasAchievements: Boolean(g.hasStats || (g.achTotal && g.achTotal > 0)),
     complete: isComplete(g),
-    minor: g.playtimeMinutes < MIN_MINUTES && !isComplete(g),
+    beatenByAchievement: isBeatenByAchievement(g),
+    minor: g.playtimeMinutes < MIN_MINUTES && !isComplete(g) && !isBeatenByAchievement(g),
     proposed: proposeStatus(g),
     when: Object.fromEntries(PLAY_STATUSES.map((s) => [s, describe(importDates(g, s))])) as Record<PlayStatus, string>,
     match: g.igdbId ? { igdbId: g.igdbId, name: g.matchName ?? g.name, coverUrl: g.matchCoverUrl, year: g.matchYear } : null,
   }));
-  // Mastered first, then what's being played, then the rest by playtime.
-  const order: Record<string, number> = { MASTERED: 0, PLAYING: 1, SHELVED: 2, BEATEN: 2 };
+  // Mastered first, then beaten by achievement, then what's being played, then the rest by playtime.
+  const order: Record<string, number> = { MASTERED: 0, BEATEN: 1, PLAYING: 2, SHELVED: 3 };
   rows.sort((a, b) => order[a.proposed] - order[b.proposed]);
 
   const igdbIds = [...new Set(rows.flatMap((r) => (r.match ? [r.match.igdbId] : [])))];
@@ -76,13 +87,12 @@ export default async function SteamImportPage() {
       ) : (
         <>
           <p className="mt-1 text-sm text-fog">
-            Steam doesn&apos;t know when you&apos;ve beaten something, so each game
-            has a suggested status: <span className="text-white">Mastered</span> when
-            you&apos;ve every achievement, <span className="text-white">Playing</span> if
+            Each game has a suggested status: <span className="text-white">Mastered</span> when
+            you&apos;ve every achievement, <span className="text-white">Beaten</span> when
+            you&apos;ve unlocked its story-completion achievement, <span className="text-white">Playing</span> if
             you&apos;ve played it this month, otherwise <span className="text-white">Shelved</span>.
-            Change any to <span className="text-white">Beaten</span> (or anything else)
-            before importing. Games already in your diary are upgraded or linked,
-            never duplicated.
+            You can also tag which achievement counts as beating a game. Games already in your diary
+            are upgraded or linked, never duplicated.
           </p>
           {toMatch > 0 && (
             <p className="mt-3 rounded-md bg-gold/10 px-3 py-2 text-sm text-gold">

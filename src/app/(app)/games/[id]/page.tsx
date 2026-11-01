@@ -12,8 +12,11 @@ import { reviewPath } from "@/lib/notifications";
 import { reviewSocialFor } from "@/lib/review-social";
 import { requireUser } from "@/lib/session";
 import { SUPPORT_EMAIL } from "@/lib/site";
+import { steamConfigured } from "@/lib/steam";
+import { type AchievementProvider, PROVIDER_LABELS } from "@/lib/beaten-achievements";
 import { Avatar } from "@/components/Avatar";
 import { Backdrop } from "@/components/Backdrop";
+import { BeatenAchievementPicker } from "@/components/BeatenAchievementPicker";
 import { GameShelves } from "@/components/GameShelves";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
@@ -79,6 +82,26 @@ export default async function GamePage({
       distinct: ["raGameId"],
     }),
   ]);
+
+  // Beaten achievements: the confirmed ones for this game, plus the
+  // viewer's own picks. Only someone who owns it on Steam is offered the
+  // (optional) picker.
+  const [steamApps, mySteam] = await Promise.all([
+    prisma.steamGame.findMany({ where: { igdbId }, select: { appId: true }, distinct: ["appId"] }),
+    prisma.steamGame.findFirst({
+      where: { igdbId, userId: user.id, OR: [{ hasStats: true }, { achTotal: { gt: 0 } }] },
+      select: { appId: true },
+    }),
+  ]);
+  const steamAppIds = steamApps.map((s) => String(s.appId));
+  const beatenAchievements = await prisma.beatenAchievement.findMany({
+    where: {
+      OR: [{ igdbId }, ...(steamAppIds.length ? [{ provider: "STEAM", externalGameId: { in: steamAppIds } }] : [])],
+      AND: [{ OR: [{ confirmed: true }, { votes: { some: { userId: user.id } } }] }],
+    },
+    orderBy: [{ confirmed: "desc" }, { title: "asc" }],
+  });
+  const pickerAppId = steamConfigured() && mySteam ? mySteam.appId : null;
 
   // People you follow who've logged this game: their latest entry each.
   const friendIds = cached ? await followingIds(user.id) : [];
@@ -317,6 +340,44 @@ export default async function GamePage({
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {beatenAchievements.length > 0 && (
+          <div className="mt-10 rounded-xl border border-edge bg-card p-4">
+            <h2 className="text-sm font-semibold text-white">Beaten achievements</h2>
+            <p className="mt-1 text-xs text-fog">
+              Unlocking {beatenAchievements.length === 1 ? "this" : "any of these"} marks {game.name} as{" "}
+              <span className="text-white">Beaten</span> when your library syncs.
+            </p>
+            <ul className="mt-2.5 space-y-2">
+              {beatenAchievements.map((b) => (
+                <li key={b.id} className="rounded-lg border border-edge bg-canvas/60 px-3 py-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium text-white">{b.title}</span>
+                    <span className="rounded bg-card-2 px-1.5 py-0.5 text-[10px] text-fog">
+                      {PROVIDER_LABELS[b.provider as AchievementProvider] ?? b.provider}
+                    </span>
+                    {!b.confirmed && <span className="rounded bg-card-2 px-1.5 py-0.5 text-[10px] text-fog">Your pick</span>}
+                  </div>
+                  {b.description && <p className="mt-0.5 text-fog">{b.description}</p>}
+                </li>
+              ))}
+            </ul>
+            {pickerAppId && (
+              <div className="mt-2">
+                <BeatenAchievementPicker appId={pickerAppId} igdbId={igdbId} triggerLabel="Pick a different one" />
+              </div>
+            )}
+          </div>
+        )}
+        {beatenAchievements.length === 0 && pickerAppId && (
+          <div className="mt-6 text-right">
+            <BeatenAchievementPicker
+              appId={pickerAppId}
+              igdbId={igdbId}
+              triggerLabel="Which achievement means you beat it? (optional)"
+            />
           </div>
         )}
 

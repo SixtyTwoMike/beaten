@@ -1,5 +1,6 @@
 import { Nav } from "@/components/Nav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { isAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
 import { newFollowerCount } from "@/lib/follows";
@@ -18,6 +19,7 @@ export async function AppShell({
     where: { id: user.id },
     select: { username: true, followersSeenAt: true, ...AVATAR_SELECT },
   });
+  const admin = await isAdmin(user.id);
   const [newFollowers, unread] = profile?.username
     ? await Promise.all([newFollowerCount(user.id, profile.followersSeenAt), unreadNotificationCount(user.id)])
     : [0, 0];
@@ -30,6 +32,7 @@ export async function AppShell({
         image={user.image ?? null}
         newFollowers={newFollowers}
         unreadNotifications={unread}
+        admin={admin}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {children}

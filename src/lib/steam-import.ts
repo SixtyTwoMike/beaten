@@ -1,11 +1,11 @@
 import type { PlayStatus } from "./status";
 
-// Steam has no "beaten" signal, so imports propose a status the user then
-// confirms or changes on the review page:
+// Steam imports propose a status the user then confirms or changes on the
+// review page:
 // - every achievement unlocked → Mastered, dated by the last unlock;
+// - any mapped "beaten" achievement unlocked → Beaten, dated by that unlock;
 // - played in the last month → Playing;
 // - anything else → Shelved, dated by when it was last played.
-// Beaten is always the user's call.
 
 // Games with less playtime than this are hidden from review by default.
 export const MIN_MINUTES = 60;
@@ -18,14 +18,20 @@ type Stats = {
   achUnlocked: number | null;
   firstUnlockAt: Date | null;
   lastUnlockAt: Date | null;
+  beatenUnlockAt?: Date | null;
 };
 
 export function isComplete(g: Stats): boolean {
   return Boolean(g.achTotal && g.achTotal > 0 && g.achUnlocked === g.achTotal);
 }
 
+export function isBeatenByAchievement(g: Stats): boolean {
+  return Boolean(g.beatenUnlockAt);
+}
+
 export function proposeStatus(g: Stats, now = Date.now()): PlayStatus {
   if (isComplete(g)) return "MASTERED";
+  if (isBeatenByAchievement(g)) return "BEATEN";
   if (g.lastPlayedAt && now - g.lastPlayedAt.getTime() < RECENT_MS) return "PLAYING";
   return "SHELVED";
 }
@@ -35,8 +41,9 @@ const month = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()
 
 // The diary dates an import writes for a status. Steam doesn't say when a
 // game was first played, so the first achievement stands in for the start.
-// A Beaten finish is a guess (last achievement or last played), so it's
-// kept to the month.
+// When a mapped beaten achievement is unlocked, its exact day is used;
+// otherwise a Beaten finish is a guess (last achievement or last played),
+// so it's kept to the month.
 export type ImportDates = {
   startedAt?: Date;
   finishedAt?: Date | null;
@@ -51,6 +58,9 @@ export function importDates(g: Stats, status: PlayStatus): ImportDates {
     case "MASTERED":
       return { ...started, finishedAt: g.lastUnlockAt ? day(g.lastUnlockAt) : null };
     case "BEATEN":
+      if (g.beatenUnlockAt) {
+        return { ...started, finishedAt: day(g.beatenUnlockAt) };
+      }
       return { ...started, ...(lastSeen ? { finishedAt: month(lastSeen), finishedPrecision: "MONTH" } : { finishedAt: null }) };
     case "SHELVED":
       return { ...started, stoppedAt: g.lastPlayedAt ? day(g.lastPlayedAt) : null };

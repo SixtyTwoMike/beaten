@@ -6,18 +6,22 @@ import { useRouter } from "next/navigation";
 import { importSteamGames, restoreSkippedSteamGames, skipSteamGames } from "@/app/actions/steam";
 import { safeAction } from "@/lib/safe-action";
 import { PLAY_STATUSES, STATUS_LABELS, STATUS_RANK, type PlayStatus } from "@/lib/status";
+import { BeatenAchievementPicker } from "./BeatenAchievementPicker";
 import { Poster } from "./Poster";
 import { MatchSearch, type MatchedGame } from "./RaReviewList";
 
 export type SteamReviewRow = {
   id: string;
+  appId: number;
   name: string;
   capsuleUrl: string;
   storeUrl: string;
   playtime: string;
   lastPlayed: string | null;
   achievements: string | null;
+  hasAchievements: boolean;
   complete: boolean;
+  beatenByAchievement: boolean;
   // Under an hour played: hidden unless asked for
   minor: boolean;
   proposed: PlayStatus;
@@ -180,7 +184,10 @@ export function SteamReviewList({
                           {r.playtime}
                           {r.lastPlayed && ` · last played ${r.lastPlayed}`}
                           {r.achievements && (
-                            <span className={r.complete ? "text-gold" : undefined}> · {r.achievements} achievements</span>
+                            <span className={r.complete ? "text-gold" : r.beatenByAchievement ? "text-mint" : undefined}>
+                              {" "}
+                              · {r.achievements} achievements
+                            </span>
                           )}
                         </p>
                       </div>
@@ -220,7 +227,14 @@ export function SteamReviewList({
                       </div>
                     </div>
                   </div>
-                  <div className="mt-2 flex justify-end gap-3 text-xs">
+                  <div className="mt-2 flex flex-wrap items-center justify-end gap-3 text-xs">
+                    {r.hasAchievements && !r.complete && (
+                      <BeatenAchievementPicker
+                        appId={r.appId}
+                        igdbId={r.match?.igdbId ?? null}
+                        triggerLabel="Beaten achievement"
+                      />
+                    )}
                     <button type="button" onClick={() => setEditing(editing === r.id ? null : r.id)} className="text-fog hover:text-white">
                       {r.match ? "Change match" : "Find the game"}
                     </button>

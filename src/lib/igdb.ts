@@ -220,6 +220,27 @@ export async function getGame(igdbId: number): Promise<IgdbGame | null> {
   return raw.length ? toIgdbGame(raw[0]) : null;
 }
 
+// Steam app ids for an IGDB game, via external_games (source 1 = Steam).
+export async function findSteamAppIdsForGame(igdbId: number): Promise<number[]> {
+  if (!Number.isInteger(igdbId) || igdbId <= 0) return [];
+  if (mockEnabled()) {
+    return Object.entries(MOCK_STEAM)
+      .filter(([, gid]) => gid === igdbId)
+      .map(([appId]) => Number(appId));
+  }
+  if (!igdbConfigured()) return [];
+  try {
+    const links = await igdbQuery<{ uid?: string }>(
+      "external_games",
+      `fields uid; where external_game_source = ${STEAM_SOURCE} & game = ${igdbId}; limit 20;`
+    );
+    return [...new Set(links.map((l) => Number(l.uid)).filter((n) => Number.isInteger(n) && n > 0))];
+  } catch (e) {
+    console.error("findSteamAppIdsForGame failed:", e);
+    return [];
+  }
+}
+
 // Games for Steam app ids, via IGDB's external_games (source 1 = Steam).
 // An app that is an edition of another game resolves to that game.
 // Up to 500 ids per call.
