@@ -105,6 +105,14 @@ Attach a file (the App Review screen recording) to the version's review details:
 
 Where the version being edited stands: state, build, attachments
 
+### ios asc_get
+
+```sh
+[bundle exec] fastlane ios asc_get
+```
+
+Raw GET against the App Store Connect API: path:"/v1/..."
+
 ### ios resubmit
 
 ```sh
