@@ -71,6 +71,14 @@ struct SignInView: View {
                         .foregroundStyle(Color.fog)
                 }
                 .font(.footnote)
+
+                // Accounts made here (Sign in with Apple) agree to the same terms as on the web.
+                Text(Self.agreement)
+                    .font(.caption2)
+                    .foregroundStyle(Color.fog)
+                    .multilineTextAlignment(.center)
+                    .tint(.mint)
+                    .padding(.top, 4)
             }
             .padding(.horizontal, 24)
             .frame(maxWidth: 440)
@@ -131,4 +139,13 @@ extension View {
             .background(Color.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.edge))
     }
+}
+
+extension SignInView {
+    // Markdown, so the two links are tappable.
+    static let agreement: AttributedString = {
+        let base = APIClient.baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let text = "By continuing you agree to the [Terms of use](\(base)/terms) and [Privacy policy](\(base)/privacy). There's no tolerance for abusive or objectionable content."
+        return (try? AttributedString(markdown: text)) ?? AttributedString(text)
+    }()
 }

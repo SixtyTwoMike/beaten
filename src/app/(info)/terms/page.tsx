@@ -71,8 +71,11 @@ export default function TermsPage() {
             delete comments on your own reviews, and block anyone.
           </li>
           <li>
-            We may remove content or suspend or close accounts that break these
-            rules. Report anything you see to{" "}
+            There&apos;s no tolerance for objectionable content or abusive
+            users. Use Report on any review, comment or profile (or block
+            someone), and we act on reports within 24 hours: we remove the
+            content and suspend or close accounts that break these rules. You
+            can also report anything to{" "}
             <a href={`mailto:${SUPPORT_EMAIL}`} className="text-mint hover:underline">
               {SUPPORT_EMAIL}
             </a>
