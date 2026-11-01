@@ -169,9 +169,8 @@ platform :ios do
       email_address: ENV["REVIEW_EMAIL"],
       demo_user: ENV["REVIEW_DEMO_USER"],
       demo_password: ENV["REVIEW_DEMO_PASSWORD"],
-      notes: "Sign in with the demo account above, or with Sign in with Apple. Accounts can also be " \
-             "created on https://beaten.games. Search for any game, tap + to log it, and it appears " \
-             "on Home and in the Diary. Account deletion is under Profile > Delete account.",
+      # App Review notes (purpose, how to use it, services, regions): fastlane/review_notes.txt
+      notes: File.read(File.join(__dir__, "review_notes.txt")).strip,
     }.compact
   end
 
