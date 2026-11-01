@@ -27,7 +27,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const display = user.name || `@${user.username}`;
   const title = `${display}'s Console Chronicles — Beaten`;
   const description = `Every console ${display} has owned, in the order they got them.`;
-  return { title, description, openGraph: { title, description, type: "profile" } };
+  const card = { url: `/${user.username}/chronicles/card`, width: 1200, height: 630 };
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "profile", images: [card] },
+    twitter: { card: "summary_large_image", title, description, images: [card.url] },
+  };
 }
 
 export default async function ChroniclePage({ params }: Params) {

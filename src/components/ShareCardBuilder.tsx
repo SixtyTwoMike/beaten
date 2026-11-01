@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { renderCardSvg, svgToPng, svgUrl } from "@/lib/cards/render-client";
+import type { ShareCardData } from "@/lib/cards/share-card-markup";
 import {
   CARD_ACCENTS,
   CARD_FORMATS,
@@ -22,63 +24,66 @@ const TOGGLES = [
   ["stats", "Stats"],
 ] as const;
 
-// Builds a share-card URL from fixed options and previews the PNG. The
-// preview URL is debounced so clicking through options doesn't render a
-// card per click. A card takes seconds to render the first time, so the
-// last one stays up until the new one arrives, and once it has, the other
-// sizes with the same options are rendered in the background (the server
-// keeps them) so switching size is instant.
-export function ShareCardBuilder({ username }: { username: string }) {
+// Builds a share card from fixed options. It's drawn on this device (a
+// Web Worker lays it out from the same markup the server uses), so
+// previews are quick and nothing waits on the server; the last preview
+// stays up until the next one arrives. "Copy image link" gives the
+// server-drawn PNG's URL, for posting where an image link is wanted.
+export function ShareCardBuilder({ username, data }: { username: string; data: ShareCardData }) {
   const [opts, setOpts] = useState<CardOptions>(DEFAULT_CARD);
-  const pathFor = (o: CardOptions) => `/${username}/card${cardQuery(o)}`;
-  const path = pathFor(opts);
-  const [previewOpts, setPreviewOpts] = useState(opts);
-  const preview = pathFor(previewOpts);
-  const [shown, setShown] = useState<string | null>(null);
-  const loading = shown !== preview;
+  const path = `/${username}/card${cardQuery(opts)}`;
+  const [card, setCard] = useState<{ svg: string; url: string; width: number; height: number; key: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const warmed = useRef(new Set<string>());
+  const key = JSON.stringify(opts);
+  const loading = card?.key !== key;
 
   useEffect(() => {
-    const t = setTimeout(() => setPreviewOpts(opts), 400);
-    return () => clearTimeout(t);
-  }, [opts]);
-
-  useEffect(() => {
-    const img = new Image();
-    img.onload = img.onerror = () => setShown(preview);
-    img.src = preview;
-    return () => {
-      img.onload = img.onerror = null;
-    };
-  }, [preview]);
-
-  // One at a time, so the server isn't asked for three renders at once.
-  useEffect(() => {
-    if (loading) return;
-    warmed.current.add(preview);
-    const others = (Object.keys(CARD_FORMATS) as CardFormat[])
-      .map((format) => pathFor({ ...previewOpts, format }))
-      .filter((p) => !warmed.current.has(p));
     let cancelled = false;
-    let img: HTMLImageElement | null = null;
-    const next = () => {
-      const url = others.shift();
-      if (cancelled || !url) return;
-      warmed.current.add(url);
-      img = new Image();
-      img.onload = img.onerror = next;
-      img.src = url;
-    };
-    const t = setTimeout(next, 1500);
+    const t = setTimeout(async () => {
+      try {
+        const r = await renderCardSvg({ kind: "share", data, opts });
+        if (cancelled) return;
+        setError(null);
+        setCard((old) => {
+          if (old) URL.revokeObjectURL(old.url);
+          return { ...r, url: svgUrl(r.svg), key };
+        });
+      } catch (e) {
+        console.error("share card failed:", e);
+        if (!cancelled) setError("Couldn't draw the card on this device.");
+      }
+    }, 120);
     return () => {
       cancelled = true;
       clearTimeout(t);
-      if (img) img.onload = img.onerror = null;
     };
-    // pathFor only depends on username and the options already listed.
+    // key stands for opts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, preview, previewOpts]);
+  }, [key, data]);
+
+  async function save() {
+    if (!card) return;
+    setSaving(true);
+    try {
+      const file = await svgToPng(card.svg, card.width, card.height, `beaten-${username}-${opts.source}-${opts.format}`);
+      if (navigator.canShare?.({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
+        await navigator.share({ files: [file] }).catch(() => {});
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(file);
+        a.download = file.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+      }
+    } catch (e) {
+      console.error("share card PNG failed:", e);
+      setError("Couldn't save the image on this device.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const set = <K extends keyof CardOptions>(k: K, v: CardOptions[K]) => {
     setCopied(false);
@@ -110,10 +115,10 @@ export function ShareCardBuilder({ username }: { username: string }) {
         className="relative mx-auto w-full overflow-hidden rounded-lg border border-edge bg-canvas"
         style={{ aspectRatio: `${width} / ${height}`, maxWidth: opts.format === "story" ? 360 : undefined }}
       >
-        {shown && (
+        {card && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={shown}
+            src={card.url}
             alt="Preview of your share card"
             className={`h-full w-full object-contain transition-opacity ${loading ? "opacity-40" : ""}`}
           />
@@ -122,7 +127,7 @@ export function ShareCardBuilder({ username }: { username: string }) {
           <div role="status" className="absolute inset-0 flex items-center justify-center">
             <span className="flex items-center gap-2 rounded-full bg-canvas/85 px-3 py-1.5 text-xs text-fog">
               <span className="h-3 w-3 animate-spin rounded-full border-2 border-fog/40 border-t-mint" aria-hidden />
-              Rendering…
+              Drawing…
             </span>
           </div>
         )}
@@ -184,13 +189,14 @@ export function ShareCardBuilder({ username }: { username: string }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <a
-            href={path}
-            download={`beaten-${username}-${opts.source}-${opts.format}.png`}
-            className="rounded-md bg-mint px-4 py-2 text-sm font-semibold text-canvas hover:brightness-110 transition"
+          <button
+            type="button"
+            onClick={save}
+            disabled={!card || loading || saving}
+            className="rounded-md bg-mint px-4 py-2 text-sm font-semibold text-canvas hover:brightness-110 disabled:opacity-50 transition"
           >
-            Download PNG
-          </a>
+            {saving ? "Saving…" : "Download PNG"}
+          </button>
           <button
             type="button"
             onClick={copy}
@@ -199,6 +205,11 @@ export function ShareCardBuilder({ username }: { username: string }) {
             {copied ? "Link copied" : "Copy image link"}
           </button>
         </div>
+        {error && (
+          <p role="alert" className="text-xs text-red-400">
+            {error}
+          </p>
+        )}
       </div>
     </div>
   );

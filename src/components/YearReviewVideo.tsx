@@ -25,12 +25,8 @@ export function YearReviewVideo({ review }: { review: YearReview }) {
     setError(null);
     setProgress(0);
     try {
-      const [{ renderPlanVideo }, { loadReviewImages, yearReviewPlan }] = await Promise.all([
-        import("@/lib/chronicle-video"),
-        import("@/lib/year-review-video"),
-      ]);
-      const plan = yearReviewPlan(review, await loadReviewImages(review));
-      setFile(await renderPlanVideo(plan, "full", setProgress, `beaten-${review.year}-in-review`));
+      const { makeVideo } = await import("@/lib/video-client");
+      setFile(await makeVideo({ kind: "year", review, size: "full" }, `beaten-${review.year}-in-review`, setProgress));
     } catch (e) {
       console.error("year review video failed:", e);
       setError("Couldn't make the video on this device — try again");

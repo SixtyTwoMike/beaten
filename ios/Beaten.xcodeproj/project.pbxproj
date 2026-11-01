@@ -21,6 +21,7 @@
 		6C8E44F237F785BD8B649F9F /* ChronicleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E135D04B179E56657177570C /* ChronicleModels.swift */; };
 		79F7C835A85EBA3501C8D5BB /* ChronicleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F779804110C3F9EB48CD81E1 /* ChronicleTests.swift */; };
 		815B3BD6DAC46DE206553BAE /* ChronicleStyleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B12CA66F97D5557D571286A /* ChronicleStyleSheet.swift */; };
+		836125002DF25C578C6BD1BB /* ChronicleCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E180A9A87F67F85D93E9155A /* ChronicleCard.swift */; };
 		881195C8868EBE538477C814 /* YearReviewVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689DA279C0E51F609109B36A /* YearReviewVideo.swift */; };
 		8AA22B2B0E5E314485D1AE10 /* ShareCardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 267D6F64E3A5ADC40CC804A5 /* ShareCardsView.swift */; };
 		8AD45F67A5C1DE3A758AB9B1 /* ChronicleModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27AD54638114A8C72AEE622 /* ChronicleModel.swift */; };
@@ -98,6 +99,7 @@
 		DAD3DE657EA5F938F8070CC6 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		DBD9FD44844FC91C310DDD29 /* WalkthroughTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalkthroughTests.swift; sourceTree = "<group>"; };
 		E135D04B179E56657177570C /* ChronicleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleModels.swift; sourceTree = "<group>"; };
+		E180A9A87F67F85D93E9155A /* ChronicleCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleCard.swift; sourceTree = "<group>"; };
 		E1B0C79D322E06CA3C5E2830 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		E5F70781FBD1D6F0D322EB25 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
 		F27AD54638114A8C72AEE622 /* ChronicleModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleModel.swift; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 		97896C325C2D1CDED4D7D132 /* Chronicle */ = {
 			isa = PBXGroup;
 			children = (
+				E180A9A87F67F85D93E9155A /* ChronicleCard.swift */,
 				1A310B2AD1AED4103EE0CD7D /* ChronicleMapView.swift */,
 				F27AD54638114A8C72AEE622 /* ChronicleModel.swift */,
 				2F5DB25B04A3FB4B52E1DEFF /* ChronicleScreen.swift */,
@@ -436,6 +439,7 @@
 				6253BA2C03BC5AE9787DE85D /* ActivityView.swift in Sources */,
 				A46BA2CDDB598E485A04F26D /* AppModel.swift in Sources */,
 				CE15A58395ED3E2EE47ED56F /* BeatenApp.swift in Sources */,
+				836125002DF25C578C6BD1BB /* ChronicleCard.swift in Sources */,
 				94ACD2F94E85C9855EFEA27B /* ChronicleMapView.swift in Sources */,
 				8AD45F67A5C1DE3A758AB9B1 /* ChronicleModel.swift in Sources */,
 				6C8E44F237F785BD8B649F9F /* ChronicleModels.swift in Sources */,

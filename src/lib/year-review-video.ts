@@ -71,9 +71,9 @@ function cover(ctx: CanvasRenderingContext2D, images: Images, url: string | null
   ctx.clip();
   const img = url ? images.get(bigCover(url)) : null;
   if (img) {
-    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-    const dw = img.naturalWidth * scale;
-    const dh = img.naturalHeight * scale;
+    const scale = Math.max(w / img.width, h / img.height);
+    const dw = img.width * scale;
+    const dh = img.height * scale;
     ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
   } else {
     const g = ctx.createLinearGradient(x, y, x + w, y + h);

@@ -8,7 +8,15 @@ const nextConfig: NextConfig = {
   // The share card reads its fonts from disk at runtime; the standalone
   // trace doesn't see readFile paths, so bundle them explicitly.
   outputFileTracingIncludes: {
-    "/*/card": ["./src/assets/fonts/**/*"],
+    // Cards render on a worker thread (lib/cards/render-server.ts), which
+    // nothing imports, so its script and renderer are listed here.
+    "/*/card": ["./src/assets/fonts/**/*", "./scripts/og-worker.mjs", "./node_modules/next/dist/compiled/@vercel/og/**/*"],
+    "/*/chronicles/card": [
+      "./src/assets/fonts/**/*",
+      "./scripts/og-worker.mjs",
+      "./node_modules/next/dist/compiled/@vercel/og/**/*",
+      "./public/consoles/*.png",
+    ],
   },
   // Lets password managers jump straight to the change-password form
   // (https://w3c.github.io/webappsec-change-password-url/).

@@ -417,32 +417,28 @@ try {
   check("nav shows the game avatar", await navAvatar.waitFor({ timeout: 5000 }).then(() => true, () => false));
   await page.screenshot({ path: `${shots}/smoke-settings-profile.png`, fullPage: true });
 
-  // 12d. Share page: builder previews a PNG; "last 4 played" swaps headings
+  // 12d. Share page: the builder draws the card in the browser; "last 4
+  // played" swaps headings; Download gives a full-size PNG
   await page.getByRole("link", { name: "Share", exact: true }).click();
   await page.waitForURL("**/share");
   const preview = page.locator('img[alt="Preview of your share card"]');
-  await page.waitForFunction(
-    () => {
-      const img = document.querySelector('img[alt="Preview of your share card"]');
-      return img?.complete && img.naturalWidth > 0;
-    },
-    null,
-    { timeout: 15000 }
-  );
-  check("share page shows a card preview", await preview.evaluate((img) => img.naturalWidth === 1080));
+  await preview.waitFor({ timeout: 30000 });
+  await page.getByText("Drawing…").waitFor({ state: "detached", timeout: 30000 });
+  check("share page shows a card preview, drawn in the browser",
+    await preview.evaluate((img) => img.src.startsWith("blob:") && img.complete && img.naturalWidth > 0));
+  const firstPreview = await preview.getAttribute("src");
   await page.getByRole("button", { name: "Last 4 played" }).click();
   check("played cards offer played headings",
     await page.getByRole("button", { name: "What I've been playing" }).isVisible() &&
       !(await page.getByRole("button", { name: "Latest conquests" }).isVisible()));
-  await page.waitForFunction(
-    () => {
-      const img = document.querySelector('img[alt="Preview of your share card"]');
-      return img?.getAttribute("src")?.includes("games=played") && img.complete && img.naturalWidth > 0;
-    },
-    null,
-    { timeout: 15000 }
-  );
+  await page.waitForFunction((before) => {
+    const img = document.querySelector('img[alt="Preview of your share card"]');
+    return img && img.getAttribute("src") !== before && !document.body.innerText.includes("Drawing…");
+  }, firstPreview, { timeout: 15000 });
   check("preview follows the played option", true);
+  const [cardDownload] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download PNG" }).click()]);
+  const cardPng = await readFile(await cardDownload.path());
+  check("downloaded card is a 1080x1080 PNG", cardPng.readUInt32BE(16) === 1080 && cardPng.readUInt32BE(20) === 1080);
   await page.screenshot({ path: `${shots}/smoke-share.png`, fullPage: true });
 
   // 12e. RetroAchievements import (RA_MOCK sample library): link, review,
@@ -601,15 +597,16 @@ try {
     return { type: blob.type, size: blob.size, ftyp: String.fromCharCode(...head.slice(4, 8)) };
   });
   check("story video is an MP4 made on the device", video.type === "video/mp4" && video.ftyp === "ftyp" && video.size > 100000);
-  // Another style (Retro CRT also loads the pixel font).
+  // Another style (Retro CRT also loads the pixel font, inside the video
+  // worker, so it isn't in the page's own font list).
   await page.getByRole("button", { name: "Retro CRT" }).click();
   await page.getByRole("button", { name: "Make story video" }).click();
   await page.waitForSelector("video", { timeout: 120000 });
   const crt = await page.evaluate(async () => {
     const blob = await (await fetch(document.querySelector("video").src)).blob();
-    return { type: blob.type, size: blob.size, pixelFont: [...document.fonts].some((f) => f.family === "Press Start 2P" && f.status === "loaded") };
+    return { type: blob.type, size: blob.size };
   });
-  check("Retro CRT video renders with the pixel font", crt.type === "video/mp4" && crt.size > 100000 && crt.pixelFont);
+  check("Retro CRT video renders", crt.type === "video/mp4" && crt.size > 100000);
   check("editor page stays phone-width-safe", (await page.evaluate(() => document.documentElement.scrollWidth)) <= (await page.evaluate(() => innerWidth)));
   // Year in review (Extras): this year's page, with the video maker if anything's finished.
   await page.goto(`${BASE}/extras/year`);
@@ -894,6 +891,10 @@ try {
     guestStops.length === 2 && guestStops[0].includes("Game Boy Advance") && guestStops[1].includes("Nintendo Switch"));
   check("guest chronicle uses the name typed", await friend.getByText(/^Pal · 2 consoles/).isVisible());
   check("guests can make the story video", await friend.getByRole("button", { name: "Make story video" }).isVisible());
+  await friend.getByText("Drawing…").first().waitFor({ state: "detached", timeout: 30000 });
+  check("guests get a Console Chronicles image",
+    await friend.getByAltText("Preview of your Console Chronicles image").evaluate((img) => img.complete && img.naturalWidth > 0) &&
+      await friend.getByRole("button", { name: "Save image" }).isEnabled());
   const limitedIp = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
   let lastStatus = 0;
   for (let i = 0; i < 151; i++) {

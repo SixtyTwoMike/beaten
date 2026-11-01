@@ -129,4 +129,23 @@ final class ChronicleTests: XCTestCase {
         sleep(3)
         shot("y2-video")
     }
+
+    func testChronicleImage() throws {
+        try signIn()
+        app.tabBars.buttons["Profile"].tap()
+        app.buttons["Console Chronicles"].firstMatch.tap()
+        let make = app.buttons["Make an image"]
+        XCTAssertTrue(make.waitForExistence(timeout: 15))
+        make.tap()
+        XCTAssertTrue(app.buttons["Share image"].waitForExistence(timeout: 30))
+        shot("i1-square")
+        app.buttons["Story"].tap()
+        app.buttons["Latest 4"].tap()
+        sleep(2)
+        shot("i2-story")
+        app.buttons["Wide"].tap()
+        sleep(2)
+        shot("i3-wide")
+        XCTAssertTrue(app.buttons["Share image"].exists)
+    }
 }

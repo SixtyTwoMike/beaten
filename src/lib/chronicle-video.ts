@@ -35,20 +35,21 @@ const COVER_H = 250;
 const INTRO = 1.6;
 const OUTRO = 2.6;
 
-export type Images = Map<string, HTMLImageElement>;
+// ImageBitmaps, which a Web Worker can draw as well as the page.
+export type Images = Map<string, ImageBitmap>;
 type Card = { stop: ChronicleStop; x: number; y: number; h: number; right: boolean };
 
 export const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
-export function loadImage(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
+export async function loadImage(src: string): Promise<ImageBitmap | null> {
+  try {
+    const res = await fetch(src, { mode: "cors" });
+    if (!res.ok) return null;
+    return await createImageBitmap(await res.blob());
+  } catch {
+    return null;
+  }
 }
 
 // Sharper covers than the page uses: the video is full-screen.
@@ -262,9 +263,9 @@ function drawCard(ctx: CanvasRenderingContext2D, view: ChronicleView, card: Card
   const art = stop.art ? images.get(stop.art.src) : null;
   if (art && stop.art) {
     if (stop.art.kind === "photo") {
-      const scale = Math.min(inner / art.naturalWidth, PHOTO_H / art.naturalHeight);
-      const w = art.naturalWidth * scale;
-      const h = art.naturalHeight * scale;
+      const scale = Math.min(inner / art.width, PHOTO_H / art.height);
+      const w = art.width * scale;
+      const h = art.height * scale;
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,0.55)";
       ctx.shadowBlur = 30;
@@ -275,9 +276,9 @@ function drawCard(ctx: CanvasRenderingContext2D, view: ChronicleView, card: Card
       rr(ctx, left, y, inner, PHOTO_H, 24);
       ctx.fillStyle = "rgba(255,255,255,0.92)";
       ctx.fill();
-      const scale = Math.min((inner - 80) / art.naturalWidth, (PHOTO_H - 60) / art.naturalHeight);
-      const w = art.naturalWidth * scale;
-      const h = art.naturalHeight * scale;
+      const scale = Math.min((inner - 80) / art.width, (PHOTO_H - 60) / art.height);
+      const w = art.width * scale;
+      const h = art.height * scale;
       ctx.drawImage(art, left + (inner - w) / 2, y + (PHOTO_H - h) / 2, w, h);
     }
   } else {
@@ -331,9 +332,9 @@ function drawCard(ctx: CanvasRenderingContext2D, view: ChronicleView, card: Card
       rr(ctx, x, y, COVER_W, COVER_H, 14);
       ctx.clip();
       if (img) {
-        const scale = Math.max(COVER_W / img.naturalWidth, COVER_H / img.naturalHeight);
-        const w = img.naturalWidth * scale;
-        const h = img.naturalHeight * scale;
+        const scale = Math.max(COVER_W / img.width, COVER_H / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
         ctx.drawImage(img, x + (COVER_W - w) / 2, y + (COVER_H - h) / 2, w, h);
       } else {
         const g2 = ctx.createLinearGradient(x, y, x + COVER_W, y + COVER_H);
@@ -483,6 +484,8 @@ function drawFrame(p: VideoPlan, ctx: CanvasRenderingContext2D, time: number) {
   p.draw(ctx, time);
 }
 
+const onPage = typeof document !== "undefined";
+
 async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, out: Output, onProgress: Progress): Promise<Blob | null> {
   if (typeof VideoEncoder === "undefined") return null;
   let config: VideoEncoderConfig | null = null;
@@ -516,12 +519,11 @@ async function encodeWithWebCodecs(p: VideoPlan, ctx: CanvasRenderingContext2D, 
     const frame = new VideoFrame(ctx.canvas, { timestamp: Math.round((f * 1_000_000) / FPS), duration: Math.round(1_000_000 / FPS) });
     encoder.encode(frame, { keyFrame: f % (FPS * 2) === 0 });
     frame.close();
-    // Keep the encoder's queue short (memory), and let the page breathe.
+    // Keep the encoder's queue short (memory). On the page (no worker),
+    // hand back control after every frame so it stays responsive.
     while (encoder.encodeQueueSize > 8) await new Promise((r) => setTimeout(r, 5));
-    if (f % 10 === 0) {
-      onProgress(f / frames);
-      await new Promise((r) => setTimeout(r, 0));
-    }
+    if (f % 10 === 0) onProgress(f / frames);
+    if (onPage || f % 10 === 0) await new Promise((r) => setTimeout(r, 0));
   }
   await encoder.flush();
   if (failure) throw failure;
@@ -556,20 +558,29 @@ async function recordInRealTime(p: VideoPlan, ctx: CanvasRenderingContext2D, out
   return new Blob(chunks, { type: recorder.mimeType });
 }
 
-export async function renderChronicleVideo(
-  view: ChronicleView,
-  size: VideoSize,
-  onProgress: Progress,
-  style: VideoStyle = "road"
-): Promise<File> {
+// The plan for a chronicle in a style, with its artwork (and font) loaded.
+export async function chroniclePlan(view: ChronicleView, style: VideoStyle): Promise<VideoPlan> {
   const images = await loadImages(view);
   if (style === "crt") await loadPixelFont();
-  const p = style === "years" ? yearsPlan(view, images) : style === "crt" ? crtPlan(view, images) : plan(view, images);
-  const name = `console-chronicles${style === "road" ? "" : `-${style}`}${size === "small" ? "-small" : ""}`;
-  return renderPlanVideo(p, size, onProgress, name);
+  return style === "years" ? yearsPlan(view, images) : style === "crt" ? crtPlan(view, images) : plan(view, images);
 }
 
-// Any 1080x1920 plan to a video file (the year in review uses this too).
+export const chronicleVideoName = (style: VideoStyle, size: VideoSize) =>
+  `console-chronicles${style === "road" ? "" : `-${style}`}${size === "small" ? "-small" : ""}`;
+
+// Encodes a plan to MP4 bytes on an OffscreenCanvas (in a Web Worker: see
+// video.worker.ts). Null when this browser can't encode there.
+export async function encodeOffscreen(p: VideoPlan, size: VideoSize, onProgress: Progress): Promise<Blob | null> {
+  if (typeof OffscreenCanvas === "undefined") return null;
+  const out = output(size, p.duration);
+  const canvas = new OffscreenCanvas(out.width, out.height);
+  const ctx = canvas.getContext("2d") as unknown as CanvasRenderingContext2D | null;
+  if (!ctx) return null;
+  return encodeWithWebCodecs(p, ctx, out, onProgress);
+}
+
+// Any 1080x1920 plan to a video file, on the page itself: the fallback when
+// a worker can't do it.
 export async function renderPlanVideo(p: VideoPlan, size: VideoSize, onProgress: Progress, name: string): Promise<File> {
   const out = output(size, p.duration);
   const canvas = document.createElement("canvas");
@@ -584,8 +595,17 @@ export async function renderPlanVideo(p: VideoPlan, size: VideoSize, onProgress:
 // Press Start 2P (SIL OFL, public/fonts) for the Retro CRT style. Canvas
 // text only uses a font once it has loaded.
 export const PIXEL_FONT = '"Press Start 2P", monospace';
+
+// The page's fonts, or a worker's (null where workers have none).
+export function fontSet(): FontFaceSet | null {
+  if (typeof document !== "undefined") return document.fonts;
+  return (globalThis as unknown as { fonts?: FontFaceSet }).fonts ?? null;
+}
+
 async function loadPixelFont() {
-  if ([...document.fonts].some((f) => f.family === "Press Start 2P" && f.status === "loaded")) return;
+  const fonts = fontSet();
+  if (!fonts) throw new Error("no fonts here");
+  if ([...fonts].some((f) => f.family === "Press Start 2P" && f.status === "loaded")) return;
   const face = new FontFace("Press Start 2P", "url(/fonts/PressStart2P-Regular.ttf)");
-  document.fonts.add(await face.load());
+  fonts.add(await face.load());
 }

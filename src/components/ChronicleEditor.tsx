@@ -23,6 +23,7 @@ import {
 } from "@/lib/chronicle-core";
 import { safeAction } from "@/lib/safe-action";
 import { CARD_ACCENTS, type CardAccent } from "@/lib/share-card";
+import { ChronicleImageShare } from "./ChronicleImageShare";
 import { ChronicleMap } from "./ChronicleMap";
 import { ConsolePicker } from "./ConsolePicker";
 import { PartialDateField } from "./PartialDateField";
@@ -433,8 +434,8 @@ function VideoShare({ view }: { view: ChronicleView }) {
     setError(null);
     setProgress(0);
     try {
-      const { renderChronicleVideo } = await import("@/lib/chronicle-video");
-      setFile(await renderChronicleVideo(view, size, setProgress, style));
+      const [{ makeVideo }, { chronicleVideoName }] = await Promise.all([import("@/lib/video-client"), import("@/lib/chronicle-video")]);
+      setFile(await makeVideo({ kind: "chronicle", view, style, size }, chronicleVideoName(style, size), setProgress));
     } catch (e) {
       console.error("chronicle video failed:", e);
       setError("Couldn't make the video on this device — try again");
@@ -711,9 +712,12 @@ export function ChronicleEditor({
           {guest ? (
             <div className="space-y-4">
               {view.stops.length > 0 ? (
-                <VideoShare key={version} view={preview} />
+                <>
+                  <ChronicleImageShare view={preview} />
+                  <VideoShare key={version} view={preview} />
+                </>
               ) : (
-                <p className="text-sm text-fog">Add a console to make a story video.</p>
+                <p className="text-sm text-fog">Add a console to make an image or a story video.</p>
               )}
               <p className="text-sm text-fog">
                 Want a link to share too?{" "}
@@ -730,7 +734,12 @@ export function ChronicleEditor({
                   beaten.games/{view.username}/chronicles
                 </Link>
               </p>
-              {view.stops.length > 0 && <VideoShare key={version} view={preview} />}
+              {view.stops.length > 0 && (
+                <>
+                  <ChronicleImageShare view={preview} />
+                  <VideoShare key={version} view={preview} />
+                </>
+              )}
             </div>
           ) : (
             <p className="text-sm text-fog">

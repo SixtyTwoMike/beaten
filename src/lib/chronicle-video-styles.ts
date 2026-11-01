@@ -42,10 +42,10 @@ function easeOutBack(t: number) {
   return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
 }
 
-function drawImageIn(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number, cover: boolean) {
-  const scale = cover ? Math.max(w / img.naturalWidth, h / img.naturalHeight) : Math.min(w / img.naturalWidth, h / img.naturalHeight);
-  const dw = img.naturalWidth * scale;
-  const dh = img.naturalHeight * scale;
+function drawImageIn(ctx: CanvasRenderingContext2D, img: ImageBitmap, x: number, y: number, w: number, h: number, cover: boolean) {
+  const scale = cover ? Math.max(w / img.width, h / img.height) : Math.min(w / img.width, h / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 

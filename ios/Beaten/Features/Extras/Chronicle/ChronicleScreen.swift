@@ -8,6 +8,7 @@ struct ChronicleScreen: View {
     @State private var editing: ConsoleSheet.Target?
     @State private var styling = false
     @State private var makingVideo = false
+    @State private var makingImage = false
 
     var body: some View {
         ScrollView {
@@ -29,6 +30,12 @@ struct ChronicleScreen: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .foregroundStyle(Color.canvas)
+                        Button { makingImage = true } label: {
+                            Label("Make an image", systemImage: "photo")
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .buttonStyle(.bordered)
                     }
                     if let username = chronicle.username, !chronicle.stops.isEmpty,
                        let url = URL(string: "https://beaten.games/\(username)/chronicles") {
@@ -63,6 +70,9 @@ struct ChronicleScreen: View {
         }
         .sheet(item: $editing) { target in
             if let model { ConsoleSheet(model: model, target: target) }
+        }
+        .sheet(isPresented: $makingImage) {
+            if let chronicle = model?.chronicle { ChronicleCardSheet(chronicle: chronicle) }
         }
         .fullScreenCover(isPresented: $makingVideo) {
             if let chronicle = model?.chronicle { ChronicleVideoSheet(chronicle: chronicle) }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { ShareCardBuilder } from "@/components/ShareCardBuilder";
+import { shareCardData } from "@/lib/cards/share-card-data";
 
 export const metadata = { title: "Share — Beaten" };
 
@@ -11,6 +12,8 @@ export default async function SharePage() {
     where: { id: user.id },
     select: { username: true },
   });
+
+  const card = profile?.username ? await shareCardData(profile.username) : null;
 
   return (
     <div>
@@ -22,8 +25,8 @@ export default async function SharePage() {
       </p>
 
       <section className="mt-6 rounded-xl border border-edge bg-card p-5">
-        {profile?.username ? (
-          <ShareCardBuilder username={profile.username} />
+        {profile?.username && card ? (
+          <ShareCardBuilder username={profile.username} data={card.data} />
         ) : (
           <p className="text-sm text-fog">
             Share cards link to your public profile, so you need a username
