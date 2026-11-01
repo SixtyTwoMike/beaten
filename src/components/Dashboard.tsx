@@ -201,7 +201,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
           </div>
         ) : (
           <div className="mt-4">
-            <FeedList cards={feed.cards.slice(0, 6)} />
+            <FeedList cards={feed.cards.slice(0, 6)} viewerId={user.id} />
           </div>
         )}
       </div>

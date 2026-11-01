@@ -16,6 +16,7 @@ import { MAX_EMAIL } from "../src/lib/limits";
 import { normalizeUsername, usernameError } from "../src/lib/username";
 import { isBuiltInReserved } from "../src/lib/username-rules";
 import { reserveUsername } from "../src/lib/reserved-usernames";
+import { sendNotificationEmails } from "../src/lib/notifications";
 import {
   sendAccountDeletedEmail,
   sendEmailChangedEmail,
@@ -44,6 +45,8 @@ const USAGE = `Usage: beaten-admin <command> <email | username>
   unreserve <username>           release a reserved username
   reservations                   list reserved and held usernames
   check-usernames                list accounts whose username breaks the rules
+  notify                         email notifications that are due (the
+                                 beaten-notify timer runs this every 15 min)
 
 Only act on requests sent from the account's own email address.`;
 
@@ -252,6 +255,11 @@ async function checkUsernames() {
   log(found ? `${found} of ${users.length} usernames need a look (fix with: rename <who> <username>).` : `All ${users.length} usernames pass.`);
 }
 
+async function notify() {
+  const { emails, notifications } = await sendNotificationEmails();
+  if (emails) log(`Sent ${emails} email(s) covering ${notifications} notification(s).`);
+}
+
 async function main(argv: string[]) {
   const [command, who, extra] = argv;
   switch (command) {
@@ -261,6 +269,7 @@ async function main(argv: string[]) {
     case "unreserve": return unreserve(who);
     case "reservations": return reservations();
     case "check-usernames": return checkUsernames();
+    case "notify": return notify();
     case "find": return find(await findUser(who));
     case "send-reset": return sendReset(await findUser(who));
     case "send-verify": return sendVerify(await findUser(who));

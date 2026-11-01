@@ -96,6 +96,8 @@ nonisolated struct GameDetail: Codable, Sendable {
     let game: Game
     let logs: [PlayLog]
     let shelfIds: [String]
+    // Reactions and comment counts on your reviews, by log id.
+    let social: [String: ReviewSocial]?
 }
 
 // Body of POST /logs and PATCH /logs/:id (SaveLogInput in src/lib/logs.ts).

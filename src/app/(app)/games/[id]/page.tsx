@@ -8,13 +8,17 @@ import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms } from "@/lib/platforms";
 import { raGameUrl } from "@/lib/retroachievements";
+import { reviewPath } from "@/lib/notifications";
+import { reviewSocialFor } from "@/lib/review-social";
 import { requireUser } from "@/lib/session";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { Avatar } from "@/components/Avatar";
 import { Backdrop } from "@/components/Backdrop";
 import { GameShelves } from "@/components/GameShelves";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
+import { ReviewSocialBar } from "@/components/ReviewSocialBar";
 import { ReviewText } from "@/components/ReviewText";
 import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -94,6 +98,10 @@ export default async function GamePage({
       })
     : [];
   const friends = friendLogs.filter((l, i) => friendLogs.findIndex((x) => x.userId === l.userId) === i);
+  // Reactions and comments on these reviews: friends' and your own.
+  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { username: true, emailVerifiedAt: true } });
+  const reviewIds = [...friends, ...(me?.username && me.emailVerifiedAt ? logs : [])].filter((l) => l.reviewText).map((l) => l.id);
+  const reviewSocial = await reviewSocialFor(user.id, reviewIds);
   const friendRatings = friends.filter((f) => f.rating != null).map((f) => f.rating!);
   const friendAverage =
     friendRatings.length >= 3 ? friendRatings.reduce((a, b) => a + b, 0) / friendRatings.length : null;
@@ -251,6 +259,15 @@ export default async function GamePage({
                         {log.reviewText}
                       </p>
                     )}
+                    {reviewSocial.has(log.id) && (
+                      <ReviewSocialBar
+                        logId={log.id}
+                        social={reviewSocial.get(log.id)!}
+                        reportEmail={SUPPORT_EMAIL}
+                        reviewHref={reviewPath(me!.username, log.id)}
+                        own
+                      />
+                    )}
                   </li>
                 );
               })}
@@ -286,6 +303,15 @@ export default async function GamePage({
                       <div className="mt-1.5">
                         <ReviewText text={f.reviewText} spoilers={f.containsSpoilers} className="text-sm text-fog/90" />
                       </div>
+                    )}
+                    {reviewSocial.has(f.id) && (
+                      <ReviewSocialBar
+                        logId={f.id}
+                        social={reviewSocial.get(f.id)!}
+                        reportEmail={SUPPORT_EMAIL}
+                        reviewHref={reviewPath(f.user.username, f.id)}
+                        author={f.user.username}
+                      />
                     )}
                   </div>
                 </li>

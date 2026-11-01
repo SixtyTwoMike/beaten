@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { addComment, deleteComment, loadComments, toggleReaction } from "@/app/actions/review-social";
 import { resolveAvatar } from "@/lib/avatar";
 import { timeAgo } from "@/lib/format";
@@ -10,21 +10,36 @@ import type { CommentView } from "@/lib/review-social";
 import { safeAction } from "@/lib/safe-action";
 import { Avatar } from "./Avatar";
 
-// Reactions and comments under a review in the feed. Reactions update at
-// once and settle on what the server says; comments load when opened.
+// Reactions and comments under a review, wherever it's shown (feeds,
+// profiles, game pages, the review's own page): they belong to the review,
+// so they're the same everywhere. Reactions update at once and settle on
+// what the server says; comments load when opened. Signed out, the counts
+// show with a way to sign in.
 export function ReviewSocialBar({
   logId,
   social: initial,
   reportEmail,
+  reviewHref,
+  author,
+  own = false,
+  signedIn = true,
+  defaultOpen = false,
 }: {
   logId: string;
   social: ReviewSocial;
   reportEmail: string;
+  // The review's own page, for "Link" (left out on that page).
+  reviewHref?: string;
+  // The reviewer's username, for "Report review".
+  author?: string | null;
+  own?: boolean;
+  signedIn?: boolean;
+  defaultOpen?: boolean;
 }) {
   const [social, setSocial] = useState(initial);
   const [picking, setPicking] = useState(false);
   const [comments, setComments] = useState<CommentView[] | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen && signedIn);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -50,17 +65,41 @@ export function ReviewSocialBar({
     });
   }
 
+  function fetchComments() {
+    startTransition(async () => {
+      const result = await safeAction(() => loadComments(logId));
+      // A comment posted meanwhile already brought the latest list.
+      if (result.ok) setComments((cs) => cs ?? result.value);
+      else setError(result.error);
+    });
+  }
+
+  useEffect(() => {
+    if (defaultOpen && signedIn) fetchComments();
+    // Once, on the review's own page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function toggleComments() {
     const next = !open;
     setOpen(next);
-    if (next && !comments) {
-      startTransition(async () => {
-        const result = await safeAction(() => loadComments(logId));
-        // A comment posted meanwhile already brought the latest list.
-        if (result.ok) setComments((cs) => cs ?? result.value);
-        else setError(result.error);
-      });
-    }
+    if (next && !comments) fetchComments();
+  }
+
+  if (!signedIn) {
+    return (
+      <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-fog">
+        {shown.map((r) => (
+          <span key={r.kind} className="rounded-full border border-edge px-2 py-0.5" aria-label={`${REACTION_LABEL[r.kind]}, ${r.count}`}>
+            {REACTION_EMOJI[r.kind]} <span className="tabular-nums">{r.count}</span>
+          </span>
+        ))}
+        {commentCount > 0 && <span>💬 {commentCount} comment{commentCount === 1 ? "" : "s"}</span>}
+        <Link href="/login" className="text-mint hover:underline">
+          Sign in to react or comment
+        </Link>
+      </p>
+    );
   }
 
   function post(e: React.FormEvent) {
@@ -118,6 +157,19 @@ export function ReviewSocialBar({
         >
           💬 {commentCount === 0 ? "Comment" : `${commentCount} comment${commentCount === 1 ? "" : "s"}`}
         </button>
+        {reviewHref && (
+          <Link href={reviewHref} className="rounded-full px-1.5 py-0.5 text-fog hover:text-white">
+            Link
+          </Link>
+        )}
+        {!own && author && (
+          <a
+            href={`mailto:${reportEmail}?subject=${encodeURIComponent(`Report a review by @${author}`)}&body=${encodeURIComponent(`Review: ${logId}\n\nWhat's wrong:\n`)}`}
+            className="rounded-full px-1.5 py-0.5 text-fog/70 hover:text-white"
+          >
+            Report
+          </a>
+        )}
         {picking && (
           <div
             role="menu"

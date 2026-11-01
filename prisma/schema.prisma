@@ -56,6 +56,12 @@ model User {
   activities   Activity[]
   reactions    Reaction[]
   comments     Comment[]
+  notifications Notification[] @relation("Recipient")
+  notificationsCaused Notification[] @relation("Actor")
+  // How often to email about comments and reactions on their reviews:
+  // "instant" | "daily" | "weekly" | "off" (lib/notifications.ts).
+  notifyComments  String @default("instant")
+  notifyReactions String @default("daily")
   // When they last looked at their followers, for the "new followers" dot.
   followersSeenAt DateTime?
 }
@@ -161,6 +167,7 @@ model PlayLog {
   activities Activity[]
   reactions  Reaction[]
   comments   Comment[]
+  notifications Notification[]
   // Reviews with plot details are blurred in feeds and on profiles.
   containsSpoilers Boolean @default(false)
 
@@ -440,7 +447,33 @@ model Comment {
   createdAt DateTime @default(now())
   playLog   PlayLog  @relation(fields: [playLogId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  notifications Notification[]
 
   @@index([playLogId, createdAt])
   @@index([authorId, createdAt])
+}
+
+// Someone commented on or reacted to your review. Shown in the app and on
+// the web; emailed as often as you choose (lib/notifications.ts).
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  actorId   String
+  // "COMMENT" | "REACTION"
+  type      String
+  playLogId String
+  commentId String?
+  // REACTION only: which one.
+  reaction  String?
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+  emailedAt DateTime?
+  user      User      @relation("Recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User      @relation("Actor", fields: [actorId], references: [id], onDelete: Cascade)
+  playLog   PlayLog   @relation(fields: [playLogId], references: [id], onDelete: Cascade)
+  comment   Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([emailedAt, readAt])
+  @@index([actorId])
 }

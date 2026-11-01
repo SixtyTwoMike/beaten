@@ -46,6 +46,8 @@ struct MainTabs: View {
             Tab("Activity", systemImage: "person.2", value: .activity) {
                 NavigationStack { ActivityView() }
             }
+            // Unread comments and reactions on your reviews.
+            .badge(model.me?.social?.unreadNotifications ?? 0)
             Tab("Profile", systemImage: "person.crop.circle", value: .profile) {
                 NavigationStack { ProfileView() }
             }

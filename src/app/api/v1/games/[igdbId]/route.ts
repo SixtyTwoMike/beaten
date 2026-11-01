@@ -3,11 +3,13 @@ import { apiError, apiJson, apiRoute, requireApiUser } from "@/lib/api";
 import { gameJson, logJson } from "@/lib/api-json";
 import { getGame, igdbConfigured } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
+import { reviewSocialFor } from "@/lib/review-social";
 
 type Params = { params: Promise<{ igdbId: string }> };
 
-// GET /api/v1/games/:igdbId → {game, logs, shelfIds}: the game, the user's
-// entries for it, and the shelves it's on.
+// GET /api/v1/games/:igdbId → {game, logs, shelfIds, social}: the game, the
+// user's entries for it, the shelves it's on, and reactions and comment
+// counts on their reviews of it (by log id).
 export const GET = apiRoute("api game", async (request: Request, { params }: Params) => {
   const auth = await requireApiUser(request);
   if (auth instanceof Response) return auth;
@@ -29,5 +31,11 @@ export const GET = apiRoute("api game", async (request: Request, { params }: Par
       select: { shelfId: true },
     }),
   ]);
-  return apiJson({ game: gameJson(game), logs: logs.map((l) => logJson(l)), shelfIds: shelfItems.map((s) => s.shelfId) });
+  const social = await reviewSocialFor(auth.userId, logs.filter((l) => l.reviewText).map((l) => l.id));
+  return apiJson({
+    game: gameJson(game),
+    logs: logs.map((l) => logJson(l)),
+    shelfIds: shelfItems.map((s) => s.shelfId),
+    social: Object.fromEntries(social),
+  });
 });

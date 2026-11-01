@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { resolveAvatar } from "@/lib/avatar";
 import { feedVerb, timeAgo, type FeedCard } from "@/lib/feed";
+import { reviewPath } from "@/lib/notifications";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import { Avatar } from "./Avatar";
 import { Poster } from "./Poster";
@@ -17,7 +18,7 @@ function Who({ actor }: { actor: FeedCard["actor"] }) {
 }
 
 // A feed of activity cards (lib/feed.ts).
-export function FeedList({ cards }: { cards: FeedCard[] }) {
+export function FeedList({ cards, viewerId }: { cards: FeedCard[]; viewerId: string }) {
   return (
     <ul className="space-y-3">
       {cards.map((card) => (
@@ -49,7 +50,16 @@ export function FeedList({ cards }: { cards: FeedCard[] }) {
                     <ReviewText text={card.log.reviewText} spoilers={card.log.containsSpoilers} className="text-sm text-fog/90" />
                   </div>
                 )}
-                {card.social && <ReviewSocialBar logId={card.logId} social={card.social} reportEmail={SUPPORT_EMAIL} />}
+                {card.social && (
+                  <ReviewSocialBar
+                    logId={card.logId}
+                    social={card.social}
+                    reportEmail={SUPPORT_EMAIL}
+                    reviewHref={reviewPath(card.actor.username, card.logId)}
+                    author={card.actor.username}
+                    own={card.actor.id === viewerId}
+                  />
+                )}
               </div>
               <Link href={`/games/${card.game.igdbId}`} className="w-12 shrink-0 sm:w-14">
                 <Poster name={card.game.name} coverUrl={card.game.coverUrl} />

@@ -19,6 +19,8 @@ struct ActivityView: View {
     @State private var error: String?
     @State private var commenting: FeedCard?
 
+    private var unread: Int { model.me?.social?.unreadNotifications ?? 0 }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
@@ -56,11 +58,18 @@ struct ActivityView: View {
                     Label("Find people", systemImage: "person.badge.plus")
                 }
             }
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink { NotificationsView() } label: {
+                    Label("Notifications", systemImage: unread > 0 ? "bell.badge" : "bell")
+                }
+                .accessibilityLabel(unread > 0 ? "Notifications, \(unread) new" : "Notifications")
+            }
         }
         .task(id: scope) { await load() }
+        .task { await model.refreshMe() }
         .refreshable { await load() }
         .sheet(item: $commenting) { card in
-            CommentsSheet(card: card) { count in
+            CommentsSheet(review: card.summary!) { count in
                 if let i = cards.firstIndex(where: { $0.id == card.id }) { cards[i].social?.commentCount = count }
             }
         }
@@ -151,8 +160,8 @@ struct FeedCardView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel(game.name)
                     }
-                    if card.social != nil {
-                        ReactionBar(card: $card, onComments: onComments)
+                    if let logId = card.logId, let social = Binding($card.social) {
+                        ReactionBar(logId: logId, social: social, onComments: onComments)
                     }
                 } else if let games = card.games {
                     Text("\(name) added \(games.count) older game\(games.count == 1 ? "" : "s") to their diary\(when)")
@@ -174,6 +183,14 @@ struct FeedCardView: View {
         .padding(14)
         .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.edge))
+        .contextMenu {
+            if card.social != nil, let summary = card.summary {
+                NavigationLink(value: ReviewRoute(logId: summary.logId)) { Label("Open review", systemImage: "text.bubble") }
+                if card.actor.username != model.me?.username, let url = summary.reportURL {
+                    Link(destination: url) { Label("Report review", systemImage: "flag") }
+                }
+            }
+        }
     }
 
     private var name: Text { Text(card.actor.display).fontWeight(.semibold).foregroundStyle(.white) }
@@ -188,40 +205,43 @@ struct FeedCardView: View {
 
 // Reaction chips (the ones people have used), a picker for the rest, and
 // the comment count. Taps show at once and settle on the server's answer.
+// The reactions belong to the review, so they're the same wherever it shows.
 struct ReactionBar: View {
     @Environment(AppModel.self) private var model
-    @Binding var card: FeedCard
-    let onComments: () -> Void
+    let logId: String
+    @Binding var social: ReviewSocial
+    // Nil where the comments are already showing (the review's own screen).
+    let onComments: (() -> Void)?
     @State private var error: String?
 
     nonisolated private struct Response: Decodable { let social: ReviewSocial }
     private struct Payload: Encodable { let kind: String }
 
     var body: some View {
-        if let social = card.social {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    ForEach(social.reactions.filter { $0.count > 0 }, id: \.kind) { r in
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                ForEach(social.reactions.filter { $0.count > 0 }, id: \.kind) { r in
+                    Button { toggle(r.kind) } label: {
+                        Text("\(r.emoji) \(r.count)").monospacedDigit()
+                    }
+                    .buttonStyle(Chip(selected: r.mine))
+                    .accessibilityLabel("\(r.label), \(r.count)")
+                    .accessibilityAddTraits(r.mine ? .isSelected : [])
+                }
+                Menu {
+                    ForEach(social.reactions, id: \.kind) { r in
                         Button { toggle(r.kind) } label: {
-                            Text("\(r.emoji) \(r.count)").monospacedDigit()
+                            Text(r.mine ? "\(r.emoji)  \(r.label) ✓" : "\(r.emoji)  \(r.label)")
                         }
-                        .buttonStyle(Chip(selected: r.mine))
-                        .accessibilityLabel("\(r.label), \(r.count)")
-                        .accessibilityAddTraits(r.mine ? .isSelected : [])
                     }
-                    Menu {
-                        ForEach(social.reactions, id: \.kind) { r in
-                            Button { toggle(r.kind) } label: {
-                                Text(r.mine ? "\(r.emoji)  \(r.label) ✓" : "\(r.emoji)  \(r.label)")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "face.smiling")
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .overlay(Capsule().strokeBorder(Color.edge))
-                    }
-                    .accessibilityLabel("React")
+                } label: {
+                    Image(systemName: "face.smiling")
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .overlay(Capsule().strokeBorder(Color.edge))
+                }
+                .accessibilityLabel("React")
+                if let onComments {
                     Button(action: onComments) {
                         Label(
                             social.commentCount == 0 ? "Comment" : "\(social.commentCount) comment\(social.commentCount == 1 ? "" : "s")",
@@ -229,26 +249,26 @@ struct ReactionBar: View {
                         )
                     }
                     .padding(.leading, 4)
-                    Spacer(minLength: 0)
                 }
-                .font(.caption)
-                .foregroundStyle(Color.fog)
-                if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                Spacer(minLength: 0)
             }
-            .sensoryFeedback(.selection, trigger: social.reactions.filter(\.mine).count)
+            .font(.caption)
+            .foregroundStyle(Color.fog)
+            if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
+        .sensoryFeedback(.selection, trigger: social.reactions.filter(\.mine).count)
     }
 
     private func toggle(_ kind: String) {
-        guard let before = card.social, let logId = card.logId else { return }
+        let before = social
         error = nil
-        card.social = before.toggled(kind)
+        social = before.toggled(kind)
         Task {
             do {
                 let res: Response = try await model.api.send("POST", "/reviews/\(logId)/reactions", body: Payload(kind: kind))
-                card.social = res.social
+                social = res.social
             } catch {
-                card.social = before
+                social = before
                 self.error = error.localizedDescription
             }
         }

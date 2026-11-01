@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { PUBLIC_USER_SELECT, blockedEitherWay, canSocialise, type PublicUser } from "./follows";
 import { COMMENT_MAX, REACTIONS, isReaction, type ReviewSocial } from "./reactions";
+import { notifyComment, notifyReaction } from "./notifications";
 import { TOO_MANY_ATTEMPTS, isLimited, recordAttempt, type Limit } from "./rate-limit";
 
 export type { ReviewSocial } from "./reactions";
@@ -19,17 +20,18 @@ const NOT_FOUND = { ok: false as const, error: "That review isn't there any more
 
 // Reaction counts (all five, zeros included) and comment counts for each
 // review, leaving out anyone blocked either way with the viewer.
-export async function reviewSocialFor(viewerId: string, logIds: string[]): Promise<Map<string, ReviewSocial>> {
+// Signed out (viewerId null): plain counts, nothing marked as yours.
+export async function reviewSocialFor(viewerId: string | null, logIds: string[]): Promise<Map<string, ReviewSocial>> {
   const out = new Map<string, ReviewSocial>();
   if (logIds.length === 0) return out;
-  const hidden = [...(await blockedEitherWay(viewerId))];
+  const hidden = viewerId ? [...(await blockedEitherWay(viewerId))] : [];
   const [reactions, mine, comments] = await Promise.all([
     prisma.reaction.groupBy({
       by: ["playLogId", "kind"],
       where: { playLogId: { in: logIds }, userId: { notIn: hidden } },
       _count: { _all: true },
     }),
-    prisma.reaction.findMany({ where: { playLogId: { in: logIds }, userId: viewerId }, select: { playLogId: true, kind: true } }),
+    viewerId ? prisma.reaction.findMany({ where: { playLogId: { in: logIds }, userId: viewerId }, select: { playLogId: true, kind: true } }) : [],
     prisma.comment.groupBy({
       by: ["playLogId"],
       where: { playLogId: { in: logIds }, authorId: { notIn: hidden } },
@@ -78,6 +80,7 @@ export async function toggleReactionForUser(userId: string, logId: string, kind:
   const key3 = { playLogId: logId, userId, kind };
   const removed = await prisma.reaction.deleteMany({ where: key3 });
   if (removed.count === 0) await prisma.reaction.upsert({ where: { playLogId_userId_kind: key3 }, update: {}, create: key3 });
+  await notifyReaction(found.log.userId, userId, logId, kind, removed.count === 0);
   return { ok: true, value: (await reviewSocialFor(userId, [logId])).get(logId)! };
 }
 
@@ -122,7 +125,8 @@ export async function addCommentForUser(userId: string, logId: string, raw: unkn
   const key = `comment:${userId}`;
   if (isLimited(key, COMMENT_LIMIT)) return { ok: false, error: TOO_MANY_ATTEMPTS };
   recordAttempt(key, COMMENT_LIMIT);
-  await prisma.comment.create({ data: { playLogId: logId, authorId: userId, body } });
+  const comment = await prisma.comment.create({ data: { playLogId: logId, authorId: userId, body } });
+  await notifyComment(found.log.userId, userId, logId, comment.id);
   return commentsForUser(userId, logId);
 }
 
@@ -138,4 +142,19 @@ export async function deleteCommentForUser(userId: string, commentId: string): P
   }
   await prisma.comment.delete({ where: { id: commentId } });
   return { ok: true, value: null };
+}
+
+// One review on its own (its page on the web, and the app's review screen):
+// the entry, its game and author, and the reactions. Null when there's no
+// such review, its author can't take part socially, or a block either way.
+export async function reviewFor(viewerId: string | null, logId: string) {
+  if (typeof logId !== "string" || logId.length > 40) return null;
+  const log = await prisma.playLog.findUnique({
+    where: { id: logId },
+    include: { game: true, user: { select: { ...PUBLIC_USER_SELECT, emailVerifiedAt: true } } },
+  });
+  if (!log?.reviewText || !canSocialise(log.user)) return null;
+  if (viewerId && log.userId !== viewerId && (await blockedEitherWay(viewerId)).has(log.userId)) return null;
+  const social = (await reviewSocialFor(viewerId, [log.id])).get(log.id)!;
+  return { log, author: log.user, social, isYours: log.userId === viewerId };
 }

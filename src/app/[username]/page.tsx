@@ -8,10 +8,13 @@ import { normalizeUsername } from "@/lib/username";
 import { isFinishedStatus } from "@/lib/status";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
 import { blueskyUrl, instagramUrl } from "@/lib/social";
-import { canSocialise, followCounts } from "@/lib/follows";
+import { blockedEitherWay, canSocialise, followCounts } from "@/lib/follows";
+import { reviewPath } from "@/lib/notifications";
+import { reviewSocialFor } from "@/lib/review-social";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import { Avatar } from "@/components/Avatar";
 import { FollowControls } from "@/components/FollowControls";
+import { ReviewSocialBar } from "@/components/ReviewSocialBar";
 import { ReviewText } from "@/components/ReviewText";
 import { Backdrop } from "@/components/Backdrop";
 import { Logo } from "@/components/Logo";
@@ -112,6 +115,10 @@ export default async function ProfilePage({ params }: Params) {
   // Dated finishes first (newest first), then ones finished on an unknown date.
   const finished = logs.filter((l) => isFinishedStatus(l.status));
   const reviews = finished.filter((l) => l.reviewText).slice(0, 10);
+  // Reactions and comments, unless they can't take part socially or there's
+  // a block either way.
+  const socialOn = canSocialise(user) && !(viewerId && !isOwner && (await blockedEitherWay(viewerId)).has(user.id));
+  const reviewSocial = socialOn ? await reviewSocialFor(viewerId, reviews.map((r) => r.id)) : new Map();
   const finishedShown = finished.slice(0, PROFILE_GRID_LIMIT);
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
@@ -323,7 +330,7 @@ export default async function ProfilePage({ params }: Params) {
                       <Poster name={log.game.name} coverUrl={log.game.coverUrl} />
                     </GameLink>
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <h3 className="font-semibold">{log.game.name}</h3>
                       <StatusBadge status={log.status} />
@@ -333,6 +340,17 @@ export default async function ProfilePage({ params }: Params) {
                     <div className="mt-2">
                       <ReviewText text={log.reviewText!} spoilers={log.containsSpoilers} className="text-sm text-fog/90" />
                     </div>
+                    {reviewSocial.has(log.id) && (
+                      <ReviewSocialBar
+                        logId={log.id}
+                        social={reviewSocial.get(log.id)!}
+                        reportEmail={SUPPORT_EMAIL}
+                        reviewHref={reviewPath(user.username, log.id)}
+                        author={user.username}
+                        own={isOwner}
+                        signedIn={viewerSignedIn}
+                      />
+                    )}
                   </div>
                 </li>
               ))}

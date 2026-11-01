@@ -3,6 +3,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { prisma } from "@/lib/db";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
 import { newFollowerCount } from "@/lib/follows";
+import { unreadNotificationCount } from "@/lib/notifications";
 import type { SessionUser } from "@/lib/session";
 
 // Chrome for signed-in pages: the (app) layout, and / when signed in.
@@ -17,7 +18,9 @@ export async function AppShell({
     where: { id: user.id },
     select: { username: true, followersSeenAt: true, ...AVATAR_SELECT },
   });
-  const newFollowers = profile?.username ? await newFollowerCount(user.id, profile.followersSeenAt) : 0;
+  const [newFollowers, unread] = profile?.username
+    ? await Promise.all([newFollowerCount(user.id, profile.followersSeenAt), unreadNotificationCount(user.id)])
+    : [0, 0];
   return (
     <>
       <Nav
@@ -26,6 +29,7 @@ export async function AppShell({
         avatar={profile ? resolveAvatar(profile) : null}
         image={user.image ?? null}
         newFollowers={newFollowers}
+        unreadNotifications={unread}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {children}

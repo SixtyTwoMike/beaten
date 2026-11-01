@@ -65,6 +65,19 @@ struct ProfileView: View {
                 }
             }
 
+            Section("Notifications") {
+                NavigationLink { NotificationsView() } label: {
+                    LabeledContent {
+                        if let unread = model.me?.social?.unreadNotifications, unread > 0 {
+                            Text("\(unread) new").font(.caption.weight(.semibold)).foregroundStyle(Color.mint)
+                        }
+                    } label: {
+                        Label("Notifications", systemImage: "bell")
+                    }
+                }
+                NavigationLink { NotificationSettingsView() } label: { Label("Email alerts", systemImage: "envelope.badge") }
+            }
+
             Section("Account") {
                 NavigationLink { DevicesView() } label: { Label("Signed-in devices", systemImage: "iphone") }
                 Button {

@@ -46,7 +46,7 @@ export default async function ActivityPage({
                 : "You're not following anyone yet."}
           </p>
         ) : (
-          <FeedList cards={feed.cards} />
+          <FeedList cards={feed.cards} viewerId={user.id} />
         )}
       </div>
       {feed.next && (

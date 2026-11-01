@@ -208,5 +208,6 @@ extension View {
         navigationDestination(for: Game.self) { GameView(game: $0) }
             .navigationDestination(for: ProfileRoute.self) { UserProfileView(username: $0.username) }
             .navigationDestination(for: FollowListRoute.self) { FollowListView(route: $0) }
+            .navigationDestination(for: ReviewRoute.self) { ReviewScreen(logId: $0.logId) }
     }
 }

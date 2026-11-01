@@ -118,6 +118,21 @@ struct GameView: View {
             if let review = log.reviewText {
                 Text(review).font(.subheadline).foregroundStyle(.white.opacity(0.9))
             }
+            if let social = detail?.social?[log.id] {
+                NavigationLink(value: ReviewRoute(logId: log.id)) {
+                    HStack(spacing: 6) {
+                        ForEach(social.reactions.filter { $0.count > 0 }, id: \.kind) { Text("\($0.emoji) \($0.count)") }
+                        Label(
+                            social.commentCount == 0 ? "Reactions and comments" : "\(social.commentCount) comment\(social.commentCount == 1 ? "" : "s")",
+                            systemImage: "bubble.left"
+                        )
+                        Image(systemName: "chevron.right").font(.caption2)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(Color.fog)
+                }
+                .buttonStyle(.plain)
+            }
             HStack(spacing: 18) {
                 Button("Edit") { logging = .init(game: shown, status: log.status, log: log) }
                 Button("Delete", role: .destructive) { deleting = log }

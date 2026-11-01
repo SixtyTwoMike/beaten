@@ -16,6 +16,7 @@ nonisolated struct MySocial: Codable, Hashable, Sendable {
     let followers: Int
     let following: Int
     let newFollowers: Int
+    let unreadNotifications: Int?
 }
 
 nonisolated struct ReviewSocial: Codable, Hashable, Sendable {
@@ -114,7 +115,72 @@ nonisolated struct Profile: Decodable, Sendable {
     let playing: [Game]
     let finished: [PlayLog]
     let finishedTotal: Int
-    let reviews: [PlayLog]
+    var reviews: [ReviewEntry]
+}
+
+// A diary entry with a review, and its reactions and comment count (nil
+// when they're off: a block, or an author without a username).
+nonisolated struct ReviewEntry: Decodable, Identifiable, Sendable {
+    let log: PlayLog
+    var social: ReviewSocial?
+    var id: String { log.id }
+
+    private enum CodingKeys: String, CodingKey { case social }
+
+    init(from decoder: Decoder) throws {
+        log = try PlayLog(from: decoder)
+        social = try decoder.container(keyedBy: CodingKeys.self).decodeIfPresent(ReviewSocial.self, forKey: .social)
+    }
+}
+
+// GET /reviews/:id — the review on its own (notifications open this).
+nonisolated struct ReviewDetail: Decodable, Sendable {
+    let log: PlayLog
+    let author: Person
+    var social: ReviewSocial
+    let isYours: Bool
+}
+
+nonisolated struct AppNotification: Decodable, Identifiable, Sendable {
+    nonisolated struct GameRef: Decodable, Sendable {
+        let igdbId: Int
+        let name: String
+        let coverUrl: URL?
+    }
+
+    let id: String
+    let type: String
+    let actor: Person
+    let reaction: String?
+    let comment: String?
+    let text: String
+    let logId: String
+    let game: GameRef
+    let createdAt: Date
+    let read: Bool
+}
+
+nonisolated struct NotificationSettings: Codable, Sendable {
+    enum Frequency: String, Codable, CaseIterable, Identifiable, Sendable {
+        case instant, daily, weekly, off
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .instant: "As they happen"
+            case .daily: "Daily summary"
+            case .weekly: "Weekly summary"
+            case .off: "Off"
+            }
+        }
+    }
+
+    var comments: Frequency
+    var reactions: Frequency
+}
+
+// Opens a review on its own screen.
+nonisolated struct ReviewRoute: Hashable, Sendable {
+    let logId: String
 }
 
 // Somewhere to go: a profile, or its followers / following list.

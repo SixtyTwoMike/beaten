@@ -84,6 +84,29 @@ exec runuser -u beaten -- node admin/scripts/admin.js "$@"
 ADMIN
 chmod 755 /usr/local/bin/beaten-admin
 
+# Notification emails (lib/notifications.ts): every 15 minutes.
+cat > /etc/systemd/system/beaten-notify.service <<'UNIT'
+[Unit]
+Description=Beaten notification emails
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/beaten-admin notify
+UNIT
+cat > /etc/systemd/system/beaten-notify.timer <<'UNIT'
+[Unit]
+Description=Beaten notification emails every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now beaten-notify.timer
+
 mkdir -p /var/www/certbot
 # Share-card cache (proxy_cache_path below); nginx creates only the last level.
 mkdir -p /var/cache/nginx/beaten-cards

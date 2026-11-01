@@ -165,6 +165,7 @@ struct UserProfileView: View {
     @State private var busy = false
     @State private var confirmUnfollow = false
     @State private var confirmBlock = false
+    @State private var commenting: ReviewSummary?
 
     nonisolated private struct Response: Decodable { let profile: Profile }
 
@@ -188,7 +189,7 @@ struct UserProfileView: View {
                     if !profile.reviews.isEmpty {
                         section("Recent reviews") {
                             VStack(spacing: 12) {
-                                ForEach(profile.reviews) { review($0) }
+                                ForEach(profile.reviews.indices, id: \.self) { review(at: $0, of: profile) }
                             }
                         }
                     }
@@ -208,6 +209,11 @@ struct UserProfileView: View {
         }
         .task { await load() }
         .refreshable { await load() }
+        .sheet(item: $commenting) { review in
+            CommentsSheet(review: review) { count in
+                if let i = profile?.reviews.firstIndex(where: { $0.id == review.logId }) { profile?.reviews[i].social?.commentCount = count }
+            }
+        }
         .confirmationDialog("Unfollow @\(username)?", isPresented: $confirmUnfollow, titleVisibility: .visible) {
             Button("Unfollow", role: .destructive) { change("DELETE", "follow") }
         }
@@ -327,8 +333,10 @@ struct UserProfileView: View {
         }
     }
 
-    private func review(_ log: PlayLog) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+    private func review(at i: Int, of p: Profile) -> some View {
+        let entry = p.reviews[i]
+        let log = entry.log
+        return HStack(alignment: .top, spacing: 12) {
             if let game = log.game {
                 NavigationLink(value: game) { Poster(url: game.coverUrl, width: 48) }.buttonStyle(.plain)
             }
@@ -339,11 +347,38 @@ struct UserProfileView: View {
                     if let rating = log.rating { Stars(rating: rating, size: 10) }
                 }
                 if let text = log.reviewText { ReviewBody(text: text, spoilers: log.containsSpoilers) }
+                if let social = entry.social {
+                    ReactionBar(
+                        logId: log.id,
+                        social: Binding(get: { profile?.reviews[i].social ?? social }, set: { profile?.reviews[i].social = $0 }),
+                        onComments: { commenting = summary(entry, p) }
+                    )
+                    .padding(.top, 2)
+                }
             }
             Spacer(minLength: 0)
         }
         .padding(12)
         .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contextMenu {
+            if entry.social != nil {
+                NavigationLink(value: ReviewRoute(logId: log.id)) { Label("Open review", systemImage: "text.bubble") }
+                if !p.relation.isYou, let url = summary(entry, p).reportURL {
+                    Link(destination: url) { Label("Report review", systemImage: "flag") }
+                }
+            }
+        }
+    }
+
+    private func summary(_ entry: ReviewEntry, _ p: Profile) -> ReviewSummary {
+        ReviewSummary(
+            logId: entry.log.id,
+            author: p.user,
+            gameName: entry.log.game?.name ?? "",
+            rating: entry.log.rating,
+            text: entry.log.reviewText,
+            spoilers: entry.log.containsSpoilers
+        )
     }
 
     private func load() async {

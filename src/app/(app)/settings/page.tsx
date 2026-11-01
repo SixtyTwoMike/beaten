@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { isAvatarSource } from "@/lib/avatar";
@@ -16,6 +17,8 @@ import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/DeleteAccountForm";
 import { SignOutEverywhereButton } from "@/components/SignOutEverywhereButton";
 import { SocialLinksForm } from "@/components/SocialLinksForm";
+import { NotificationSettingsForm } from "@/components/NotificationSettingsForm";
+import { notificationSettingsFor } from "@/lib/notifications";
 import { UsernameForm } from "@/components/UsernameForm";
 
 export const metadata = { title: "Settings — Beaten" };
@@ -145,6 +148,16 @@ export default async function SettingsPage({
         <p className="mt-1 text-sm text-fog">Shown on your public profile.</p>
         <div className="mt-4">
           <SocialLinksForm instagram={profile?.instagram ?? null} bluesky={profile?.bluesky ?? null} />
+        </div>
+      </Section>
+
+      <Section id="notifications" title="Notifications">
+        <p className="mt-1 text-sm text-fog">
+          Everything shows under <Link href="/notifications" className="text-mint hover:underline">Notifications</Link>. Choose how
+          often we email you about it. Ones you&apos;ve already seen aren&apos;t emailed.
+        </p>
+        <div className="mt-4">
+          <NotificationSettingsForm {...await notificationSettingsFor(user.id)} />
         </div>
       </Section>
 

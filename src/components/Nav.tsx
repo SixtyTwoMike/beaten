@@ -22,12 +22,14 @@ export function Nav({
   avatar,
   image,
   newFollowers,
+  unreadNotifications,
 }: {
   userName: string;
   username: string | null;
   avatar: AvatarCrop | null;
   image: string | null;
   newFollowers: number;
+  unreadNotifications: number;
 }) {
   const pathname = usePathname();
   return (
@@ -54,6 +56,26 @@ export function Nav({
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
+          {username && (
+            <Link
+              href="/notifications"
+              aria-label={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} new` : "Notifications"}
+              title="Notifications"
+              className={`relative rounded-md px-1.5 py-1 transition ${
+                pathname.startsWith("/notifications") ? "text-white" : "text-fog hover:text-white"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+              {unreadNotifications > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-mint px-1 text-[10px] font-bold text-canvas">
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              )}
+            </Link>
+          )}
           <Link
             href={username ? (newFollowers > 0 ? `/${username}/followers` : `/${username}`) : "/settings"}
             className="relative flex items-center gap-2 text-fog hover:text-white"

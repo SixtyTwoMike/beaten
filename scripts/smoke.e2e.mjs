@@ -961,6 +961,31 @@ try {
   await page.locator("#following-feed").getByRole("button", { name: "💬 1 comment" }).waitFor();
   check("commenting on a review",
     await page.locator("#following-feed").locator("li p", { hasText: "Didn't see that coming either" }).isVisible());
+  await page.goto(`${BASE}/${friendName}`);
+  check("the same reactions show on the review on their profile",
+    (await page.getByRole("button", { name: "Fire, 1" }).getAttribute("aria-pressed")) === "true" &&
+      (await page.getByRole("button", { name: "💬 1 comment" }).count()) === 1);
+  const anonProfile = await (await browser.newContext()).newPage();
+  await anonProfile.goto(`${BASE}/${friendName}`);
+  check("signed out, a review shows its reactions and a way to sign in",
+    await anonProfile.getByRole("link", { name: "Sign in to react or comment" }).isVisible());
+  await anonProfile.context().close();
+  await friend.goto(`${BASE}/`);
+  check("the reviewer gets a notification badge", (await friend.getByRole("link", { name: "Notifications, 2 new" }).count()) === 1);
+  await friend.goto(`${BASE}/notifications`);
+  check("notifications list the comment and the reaction",
+    await friend.getByText(/commented on your review of Celeste/).isVisible() && await friend.getByText(/reacted 🔥 to your review of Celeste/).isVisible());
+  await friend.getByText(/commented on your review of Celeste/).click();
+  await friend.waitForURL(`**/${friendName}/reviews/**`);
+  await friend.locator("li p", { hasText: "Didn't see that coming either" }).waitFor();
+  check("a notification opens the review page with its comments", true);
+  await friend.goto(`${BASE}/`);
+  check("seeing notifications clears the badge", (await friend.getByRole("link", { name: "Notifications", exact: true }).count()) === 1);
+  await friend.goto(`${BASE}/settings`);
+  await friend.selectOption("#notify-reactions", "weekly");
+  await friend.getByText("Saved.").waitFor();
+  await friend.reload();
+  check("email frequency for notifications saves", (await friend.locator("#notify-reactions").inputValue()) === "weekly");
   await friend.goto(`${BASE}/activity?tab=you`);
   await friend.getByRole("button", { name: "💬 1 comment" }).click();
   await friend.getByText("Didn't see that coming either").waitFor();
