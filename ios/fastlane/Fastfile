@@ -175,6 +175,33 @@ platform :ios do
   end
 
   desc "Submit an already-uploaded build for App Store review: build:\"N\" version:\"1.0.0\""
+  desc "Attach a TestFlight build to the version being edited: build:\"9\""
+  lane :review_build do |options|
+    UI.user_error!("Pass build:\"N\"") unless options[:build]
+    app = connect
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    build = app.get_builds(filter: { version: options[:build].to_s }, includes: "preReleaseVersion")
+               .find { |b| b.pre_release_version&.version == version.version_string }
+    UI.user_error!("No build #{options[:build]} for #{version.version_string}") unless build
+    version.select_build(build_id: build.id)
+    UI.success("#{version.version_string} now uses build #{build.version}")
+  end
+
+  desc "Attach a file (the App Review screen recording) to the version's review details: path:\"…\""
+  lane :review_attach do |options|
+    path = File.expand_path(options[:path].to_s)
+    UI.user_error!("No file at #{path}") unless File.file?(path)
+    app = connect
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    detail = version.fetch_app_store_review_detail
+    detail.app_store_review_attachments.to_a.each do |old|
+      UI.message("removing earlier attachment #{old.file_name}")
+      old.delete!
+    end
+    Spaceship::ConnectAPI::AppStoreReviewAttachment.create(app_store_review_detail_id: detail.id, path: path)
+    UI.success("Attached #{File.basename(path)} (#{(File.size(path) / 1_048_576.0).round(1)} MB)")
+  end
+
   lane :submit do |options|
     UI.user_error!("Pass build:\"N\"") unless options[:build]
     upload_to_app_store(
