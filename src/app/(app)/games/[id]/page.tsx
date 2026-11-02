@@ -10,6 +10,7 @@ import { getPlatforms } from "@/lib/platforms";
 import { raGameUrl } from "@/lib/retroachievements";
 import { reviewPath } from "@/lib/notifications";
 import { reviewSocialFor } from "@/lib/review-social";
+import { isPulled } from "@/lib/pull-list";
 import { requireUser } from "@/lib/session";
 import { SUPPORT_EMAIL } from "@/lib/site";
 import { steamConfigured } from "@/lib/steam";
@@ -18,6 +19,7 @@ import { Avatar } from "@/components/Avatar";
 import { Backdrop } from "@/components/Backdrop";
 import { BeatenAchievementPicker } from "@/components/BeatenAchievementPicker";
 import { GameShelves } from "@/components/GameShelves";
+import { PullButton } from "@/components/PullButton";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
@@ -60,7 +62,7 @@ export default async function GamePage({
   }
   if (!game) notFound();
 
-  const [platforms, shelves, logs, shelfItems, raAwards] = await Promise.all([
+  const [platforms, shelves, logs, shelfItems, raAwards, pulled] = await Promise.all([
     getPlatforms(),
     prisma.shelf.findMany({
       where: { userId: user.id },
@@ -81,6 +83,7 @@ export default async function GamePage({
       select: { raGameId: true, title: true, consoleName: true },
       distinct: ["raGameId"],
     }),
+    cached ? isPulled(user.id, cached.id) : false,
   ]);
 
   // Beaten achievements: the confirmed ones for this game, plus the
@@ -192,12 +195,13 @@ export default async function GamePage({
           </p>
         )}
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap items-start gap-3">
           <LogButtons
             game={modalGame}
             platforms={platformOptions}
             shelves={shelves}
           />
+          {logs.length === 0 && <PullButton igdbId={game.igdbId} pulled={pulled} />}
         </div>
 
         <div className="mt-8">

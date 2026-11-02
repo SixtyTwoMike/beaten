@@ -75,6 +75,23 @@ try {
   check("game detail", detail.status === 200 && detail.json.game.name === game.name && detail.json.logs.length === 0, detail);
   check("unknown game → 404", (await api("GET", "/games/0")).status === 404);
 
+  // --- pull list (the zelda game goes on it, then leaves when logged below)
+  check("empty pull list", (await api("GET", "/pull-list")).json?.items?.length === 0);
+  for (const igdbId of [game.igdbId, 900019, 900020]) await api("POST", "/pull-list", { igdbId });
+  let pull = await api("GET", "/pull-list");
+  check("pull list adds to the bottom", JSON.stringify(pull.json?.items?.map((i) => i.igdbId)) === JSON.stringify([game.igdbId, 900019, 900020]), pull);
+  const gta = pull.json?.items?.find((i) => i.igdbId === 900019);
+  check("pull list items have release date and genres", gta?.releaseDate === "2026-11-19" && gta.genres.includes("Shooter"), gta);
+  check("TBA games have no release date", pull.json?.items?.find((i) => i.igdbId === 900020)?.releaseDate === null);
+  check("adding twice keeps one", (await api("POST", "/pull-list", { igdbId: 900019 })).json?.items?.length === 3);
+  const reordered = await api("PUT", "/pull-list/order", { igdbIds: [900020, game.igdbId, 900019] });
+  check("pull list reorders", JSON.stringify(reordered.json?.items?.map((i) => i.igdbId)) === JSON.stringify([900020, game.igdbId, 900019]), reordered);
+  check("reorder with missing games → 409", (await api("PUT", "/pull-list/order", { igdbIds: [900020] })).status === 409);
+  check("reorder with junk → 400", (await api("PUT", "/pull-list/order", { igdbIds: "nope" })).status === 400);
+  check("game detail says it's pulled", (await api("GET", `/games/${game.igdbId}`)).json?.pulled === true);
+  check("remove from pull list", (await api("DELETE", "/pull-list/900020")).json?.items?.length === 2);
+  check("Steam wishlist needs Steam linked → 409", (await api("POST", "/pull-list/steam")).status === 409);
+
   // --- logs
   const clientId = randomBytes(12).toString("base64url");
   const entry = {
@@ -91,6 +108,8 @@ try {
   };
   const created = await api("POST", "/logs", entry);
   check("create log", created.status === 201 && created.json.log.id === clientId, created);
+  pull = await api("GET", "/pull-list");
+  check("logging a game takes it off the pull list", JSON.stringify(pull.json?.items?.map((i) => i.igdbId)) === JSON.stringify([900019]), pull);
   check("partial dates round-trip", created.json?.log.startedAt === "2026-03" && created.json?.log.finishedAt === "2026-04-02");
   const retried = await api("POST", "/logs", entry);
   check("retried create returns the same log", retried.status === 201 && retried.json.log.id === clientId);

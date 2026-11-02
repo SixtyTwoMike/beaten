@@ -16,6 +16,7 @@ const RESULT_MESSAGES: Record<string, { text: string; error?: boolean }> = {
 
 function syncedMessage(r: SteamSyncResult): string {
   const parts = [r.added ? `${r.added} new game${r.added === 1 ? "" : "s"}` : "No new games"];
+  if (r.pulled) parts.push(`${r.pulled} from your wishlist added to your Pull List`);
   if (r.remaining) parts.push(`achievements for ${r.remaining} more still to fetch — sync again in a minute`);
   return parts.join(" · ");
 }

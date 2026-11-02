@@ -22,6 +22,10 @@ export async function buildExport(userId: string) {
         raAccount: { select: { raUsername: true } },
         steamAccount: { select: { steamId: true } },
         following: { orderBy: { createdAt: "asc" }, select: { createdAt: true, followee: { select: { username: true } } } },
+        pullItems: {
+          orderBy: [{ position: "asc" }, { addedAt: "asc" }],
+          select: { source: true, addedAt: true, game: { select: { name: true, igdbId: true } } },
+        },
         comments: {
           orderBy: { createdAt: "asc" },
           select: {
@@ -135,6 +139,12 @@ export async function buildExport(userId: string) {
         name: item.game.name,
         addedAt: item.addedAt.toISOString(),
       })),
+    })),
+    pullList: user.pullItems.map((p) => ({
+      igdbId: p.game.igdbId,
+      name: p.game.name,
+      fromSteamWishlist: p.source === "STEAM",
+      addedAt: p.addedAt.toISOString(),
     })),
     consoleChronicle: chronicle && {
       title: chronicle.title,

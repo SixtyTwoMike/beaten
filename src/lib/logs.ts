@@ -1,5 +1,6 @@
 import type { PlayLog } from "@prisma/client";
 import { prisma } from "./db";
+import { leavePullList } from "./pull-list";
 import { ensureGame } from "./games";
 import { MAX_REVIEW, MAX_SHELF_NAME, MAX_SHELVES_PER_LOG, isIgdbId } from "./limits";
 import { recordLogActivity } from "./activity";
@@ -148,6 +149,7 @@ export async function saveLogForUser(userId: string, input: SaveLogInput): Promi
       throw e;
     }
     await recordLogActivity(null, log);
+    await leavePullList(userId, game.id);
   }
 
   // Optional shelf additions

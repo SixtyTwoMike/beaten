@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { recordLogActivity } from "@/lib/activity";
 import { prisma } from "@/lib/db";
+import { leavePullList } from "@/lib/pull-list";
 import { ensureGame } from "@/lib/games";
 import { isIgdbId } from "@/lib/limits";
 import { RA_TO_IGDB_PLATFORM, matchRaGame } from "@/lib/ra-match";
@@ -223,6 +224,7 @@ export async function importRetroAchievements(
           },
         });
         await recordLogActivity(null, log);
+        await leavePullList(userId, game.id);
         playLogId = log.id;
         state = "IMPORTED";
         imported++;

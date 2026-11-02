@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { recordLogActivity } from "@/lib/activity";
 import { prisma } from "@/lib/db";
+import { importSteamWishlistForUser, leavePullList } from "@/lib/pull-list";
 import { ensureGame } from "@/lib/games";
 import { findBySteamAppIds } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
@@ -34,7 +35,7 @@ const MAX_IMPORT = 300;
 // PC (Microsoft Windows) in IGDB.
 const PC_PLATFORM = 6;
 
-export type SteamSyncResult = ActionResult & { added?: number; remaining?: number; privateLibrary?: boolean };
+export type SteamSyncResult = ActionResult & { added?: number; remaining?: number; privateLibrary?: boolean; pulled?: number };
 
 export async function syncSteam(): Promise<SteamSyncResult> {
   try {
@@ -90,12 +91,19 @@ async function sync(userId: string): Promise<SteamSyncResult> {
   await matchGames(userId);
   await fetchStats(userId, account.steamId);
   await reopenCompleted(userId);
+  // New wishlist games go on the Pull List. Best effort: the library sync
+  // has worked either way.
+  const pulled = await importSteamWishlistForUser(userId, { force: true }).catch((e) => {
+    console.error("Steam wishlist import failed:", e);
+    return null;
+  });
 
   await prisma.steamAccount.update({ where: { userId }, data: { lastSyncedAt: new Date(), privateLibrary: false } });
   const remaining = await prisma.steamGame.count({ where: { userId, ...NEEDS_STATS } });
   revalidatePath("/settings");
   revalidatePath("/import/steam");
-  return { ok: true, added, remaining };
+  revalidatePath("/pull-list");
+  return { ok: true, added, remaining, pulled: pulled?.ok ? pulled.added : 0 };
 }
 
 async function matchGames(userId: string) {
@@ -262,6 +270,7 @@ export async function importSteamGames(
           data: { userId, gameId: game.id, status, ...dates, platformId: platformIds.includes(PC_PLATFORM) ? PC_PLATFORM : null },
         });
         await recordLogActivity(null, log);
+        await leavePullList(userId, game.id);
         playLogId = log.id;
         state = "IMPORTED";
         imported++;

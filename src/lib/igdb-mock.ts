@@ -228,16 +228,74 @@ export const mockGames: IgdbGame[] = [
       "Link travels through time to stop Ganondorf in the N64 masterpiece.",
     platformIds: [4, 21, 37],
   },
+  {
+    igdbId: 900019,
+    name: "Grand Theft Auto VI",
+    slug: "grand-theft-auto-vi",
+    coverUrl: null,
+    artworkUrl: null,
+    releaseYear: 2026,
+    releaseDate: "2026-11-19",
+    summary: "Vice City, and the biggest, most immersive Grand Theft Auto yet.",
+    platformIds: [167, 169],
+  },
+  {
+    igdbId: 900020,
+    name: "Untitled Space Game",
+    slug: "untitled-space-game",
+    coverUrl: null,
+    artworkUrl: null,
+    releaseYear: null,
+    releaseDate: null,
+    summary: "Announced, not dated: a TBA game for the Pull List.",
+    platformIds: [6],
+  },
 ];
+
+// Genres by mock id, in IGDB's names.
+const MOCK_GENRES: Record<number, string[]> = {
+  900001: ["Adventure", "Role-playing (RPG)"],
+  900002: ["Adventure", "Role-playing (RPG)"],
+  900003: ["Indie", "Role-playing (RPG)", "Hack and slash/Beat 'em up"],
+  900004: ["Platform", "Adventure", "Indie"],
+  900005: ["Role-playing (RPG)"],
+  900006: ["Platform", "Adventure"],
+  900007: ["Shooter"],
+  900008: ["Puzzle", "Platform"],
+  900009: ["Adventure", "Role-playing (RPG)"],
+  900010: ["Adventure", "Hack and slash/Beat 'em up"],
+  900011: ["Platform", "Indie"],
+  900012: ["Simulator", "Role-playing (RPG)", "Indie"],
+  900013: ["Platform", "Adventure"],
+  900014: ["Role-playing (RPG)"],
+  900015: ["Adventure", "Role-playing (RPG)"],
+  900016: ["Shooter", "Adventure"],
+  900017: ["Platform"],
+  900018: ["Adventure", "Puzzle"],
+  900019: ["Racing", "Shooter", "Adventure"],
+  900020: ["Simulator"],
+};
+
+// Mock games with genres, and a release day (1 January of the year unless
+// the entry gives one).
+function withDetails(g: IgdbGame): IgdbGame {
+  return {
+    ...g,
+    releaseDate: g.releaseDate !== undefined ? g.releaseDate : g.releaseYear ? `${g.releaseYear}-01-01` : null,
+    genres: MOCK_GENRES[g.igdbId] ?? [],
+  };
+}
 
 export function mockSearch(query: string, platformId?: number): IgdbGame[] {
   const q = query.trim().toLowerCase();
   return mockGames
     .filter((g) => g.name.toLowerCase().includes(q))
     .filter((g) => (platformId ? g.platformIds.includes(platformId) : true))
-    .slice(0, 24);
+    .slice(0, 24)
+    .map(withDetails);
 }
 
 export function mockGetGame(igdbId: number): IgdbGame | null {
-  return mockGames.find((g) => g.igdbId === igdbId) ?? null;
+  const g = mockGames.find((g) => g.igdbId === igdbId);
+  return g ? withDetails(g) : null;
 }

@@ -14,6 +14,10 @@ export type IgdbGame = {
   releaseYear: number | null;
   summary: string | null;
   platformIds: number[];
+  // First release day as YYYY-MM-DD (null: TBA) and genre names. Optional
+  // so older callers and cached rows without them still type-check.
+  releaseDate?: string | null;
+  genres?: string[];
   // Search-only extras (absent from mock data and cached Game rows).
   ratingCount?: number;
   altNames?: string[];
@@ -92,6 +96,7 @@ type RawGame = {
   summary?: string;
   first_release_date?: number;
   platforms?: number[];
+  genres?: { name?: string }[];
   cover?: { image_id?: string };
   artworks?: { image_id?: string }[];
   screenshots?: { image_id?: string }[];
@@ -130,13 +135,17 @@ function toIgdbGame(raw: RawGame): IgdbGame {
       : null,
     summary: raw.summary ?? null,
     platformIds: raw.platforms ?? [],
+    releaseDate: raw.first_release_date
+      ? new Date(raw.first_release_date * 1000).toISOString().slice(0, 10)
+      : null,
+    genres: (raw.genres ?? []).flatMap((g) => (g.name ? [g.name] : [])),
     ratingCount: (raw.total_rating_count ?? 0) + (raw.hypes ?? 0),
     altNames: (raw.alternative_names ?? []).flatMap((a) => (a.name ? [a.name] : [])),
   };
 }
 
 const GAME_FIELDS =
-  "fields name,slug,summary,first_release_date,platforms,cover.image_id," +
+  "fields name,slug,summary,first_release_date,platforms,genres.name,cover.image_id," +
   "artworks.image_id,screenshots.image_id," +
   "game_type,version_parent,parent_game,total_rating_count,hypes,alternative_names.name;";
 

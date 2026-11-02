@@ -12,6 +12,7 @@ const links = [
   { href: "/search", label: "Search" },
   { href: "/log", label: "Diary" },
   { href: "/shelves", label: "Shelves" },
+  { href: "/pull-list", label: "Pull List" },
   { href: "/share", label: "Share" },
   { href: "/extras", label: "Extras" },
 ];

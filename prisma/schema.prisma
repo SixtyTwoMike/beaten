@@ -42,6 +42,7 @@ model User {
   createdAt    DateTime  @default(now())
   playLogs     PlayLog[]
   shelves      Shelf[]
+  pullItems    PullItem[]
   authTokens   AuthToken[]
   apiTokens    ApiToken[]
   raAccount    RaAccount?
@@ -110,6 +111,11 @@ model Game {
   // Wide key art (IGDB artwork, falling back to a screenshot) for banners
   artworkUrl  String?
   releaseYear Int?
+  // First release, to the day (null: TBA). Stored from IGDB alongside
+  // genres; genres null means the row predates them and is backfilled.
+  releaseDate DateTime?
+  // JSON array of IGDB genre names, e.g. '["Adventure","Indie"]'
+  genres      String?
   summary     String?
   // JSON array of IGDB platform ids, e.g. "[48,6,130]"
   platformIds String      @default("[]")
@@ -119,6 +125,7 @@ model Game {
   avatarOf    User[]
   chronicleGames ChronicleGame[]
   activities     Activity[]
+  pullItems      PullItem[]
 }
 
 // Synced from IGDB /platforms; drives platform dropdowns.
@@ -187,6 +194,24 @@ model Shelf {
   items       ShelfItem[]
 
   @@unique([userId, name])
+}
+
+// The Pull List: games someone is interested in, in their own order.
+// Games leave it when they're logged.
+model PullItem {
+  id       String   @id @default(cuid())
+  userId   String
+  gameId   String
+  // The user's order, 0 first
+  position Int
+  // "MANUAL" | "STEAM" (from their Steam wishlist)
+  source   String   @default("MANUAL")
+  addedAt  DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game     Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+  @@index([userId, position])
 }
 
 model ShelfItem {
@@ -269,6 +294,9 @@ model SteamAccount {
   lastAttemptAt DateTime?
   // Steam returned no games at the last sync: "Game details" is private
   privateLibrary Boolean  @default(false)
+  // Last Steam wishlist read for the Pull List: only games wishlisted after
+  // it are added, so ones removed from the list don't come back.
+  wishlistSyncedAt DateTime?
   createdAt     DateTime  @default(now())
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

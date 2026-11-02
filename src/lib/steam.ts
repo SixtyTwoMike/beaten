@@ -154,6 +154,25 @@ export async function getOwnedGames(steamId: string): Promise<OwnedGame[]> {
   return (data.response.games ?? []).map(toOwned).filter((g): g is OwnedGame => g !== null);
 }
 
+export type WishlistItem = { appId: number; priority: number; addedAt: Date };
+
+// Steam wishlist, in the user's order (priority 1 first; 0 means unranked,
+// which Steam lists last). Private wishlists come back empty, so this can't
+// tell "private" from "empty".
+export async function getWishlist(steamId: string): Promise<WishlistItem[]> {
+  type Raw = { appid?: number; priority?: number; date_added?: number };
+  const raw: Raw[] = mockEnabled()
+    ? MOCK_WISHLIST
+    : ((await steamGet<{ response?: { items?: Raw[] } }>("IWishlistService/GetWishlist/v1", { steamid: steamId })).response?.items ?? []);
+  return raw
+    .flatMap((r) =>
+      Number.isInteger(r.appid) && r.appid! > 0
+        ? [{ appId: r.appid!, priority: Math.max(0, Math.floor(r.priority ?? 0)), addedAt: new Date((r.date_added ?? 0) * 1000) }]
+        : []
+    )
+    .sort((a, b) => (a.priority || Infinity) - (b.priority || Infinity) || a.addedAt.getTime() - b.addedAt.getTime());
+}
+
 export type AchievementSummary = {
   total: number;
   unlocked: number;
@@ -272,6 +291,14 @@ const MOCK_OWNED: RawOwned[] = [
   { appid: 431960, name: "Wallpaper Engine", playtime_forever: 9000, rtime_last_played: now() - DAY, has_community_visible_stats: false },
   { appid: 504230, name: "Celeste", playtime_forever: 25, rtime_last_played: 1650000000, has_community_visible_stats: true },
   { appid: 292030, name: "The Witcher 3: Wild Hunt", playtime_forever: 0, has_community_visible_stats: true },
+];
+
+// Wishlist: three games the mock IGDB knows by app id and one it doesn't.
+const MOCK_WISHLIST = [
+  { appid: 1593500, priority: 2, date_added: 1700000000 },
+  { appid: 570940, priority: 1, date_added: 1690000000 },
+  { appid: 220, priority: 0, date_added: 1710000000 },
+  { appid: 999999999, priority: 3, date_added: 1700500000 },
 ];
 
 const at = (t: number) => new Date(t * 1000);

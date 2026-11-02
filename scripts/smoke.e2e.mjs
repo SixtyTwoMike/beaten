@@ -562,6 +562,54 @@ try {
     check("admin pages are a 404 for everyone else", res?.status() === 404);
   }
 
+  // 12e3. Pull List: the Steam sync above brought in the (mocked) wishlist,
+  // in Steam's order; add by search, sort, filter by genre, reorder, remove.
+  await page.goto(`${BASE}/pull-list`);
+  const pullNames = async () => (await page.locator("ol li").locator("a.font-medium").allInnerTexts()).map((t) => t.trim());
+  check("Steam wishlist games land on the Pull List in Steam's order",
+    JSON.stringify(await pullNames()) === JSON.stringify(["Dark Souls", "God of War", "Half-Life 2"]));
+  check("wishlist games are marked as from Steam", await page.getByText("from Steam wishlist").count() === 3);
+  await page.getByLabel("Add a game to your Pull List").fill("Grand Theft");
+  await page.getByRole("button", { name: "Add Grand Theft Auto VI to your Pull List" }).click();
+  await page.getByRole("button", { name: "Grand Theft Auto VI is on your Pull List" }).waitFor();
+  await page.locator("ol li", { hasText: "Grand Theft Auto VI" }).waitFor();
+  check("search adds a game to the bottom of the Pull List", (await pullNames()).at(-1) === "Grand Theft Auto VI");
+  check("an upcoming game shows its release date",
+    await page.locator("ol li", { hasText: "Grand Theft Auto VI" }).getByText("Out Nov 19, 2026").isVisible());
+  await page.getByRole("button", { name: "Release date", exact: true }).click();
+  await page.waitForURL("**/pull-list?sort=release");
+  const comingUp = page.locator("section", { has: page.getByRole("heading", { name: /Coming up/ }) });
+  check("release-date sort puts upcoming games first",
+    JSON.stringify(await comingUp.locator("a.font-medium").allInnerTexts()) === JSON.stringify(["Grand Theft Auto VI"]));
+  await page.reload();
+  check("the sort survives a reload", await page.getByRole("button", { name: "Release date", exact: true }).getAttribute("aria-pressed") === "true");
+  await page.getByRole("button", { name: "Genre", exact: true }).click();
+  check("genre sort groups games by genre", await page.getByRole("heading", { name: /^Shooter/ }).isVisible());
+  await page.getByRole("button", { name: "My order", exact: true }).click();
+  await page.getByLabel("Genre").selectOption("Shooter");
+  check("genre filter shows only that genre",
+    JSON.stringify(await pullNames()) === JSON.stringify(["Half-Life 2", "Grand Theft Auto VI"]));
+  check("no reordering while filtered", !(await page.getByRole("button", { name: /^Move / }).count()));
+  await page.getByLabel("Genre").selectOption("");
+  await page.getByRole("button", { name: "Move Grand Theft Auto VI up" }).click();
+  await page.waitForTimeout(500);
+  await page.reload();
+  check("moving a game up is saved",
+    JSON.stringify(await pullNames()) === JSON.stringify(["Dark Souls", "God of War", "Grand Theft Auto VI", "Half-Life 2"]));
+  await page.getByRole("button", { name: "Remove Half-Life 2 from your Pull List" }).click();
+  await page.locator("ol li", { hasText: "Half-Life 2" }).waitFor({ state: "detached" });
+  await page.reload();
+  check("removing a game is saved", !(await pullNames()).includes("Half-Life 2"));
+  await page.getByRole("button", { name: "Bring in my Steam wishlist" }).click();
+  check("the wishlist can't be re-read straight away",
+    await page.getByText("Checked a moment ago").waitFor({ timeout: 10000 }).then(() => true, () => false));
+  await page.goto(`${BASE}/games/900016`);
+  await page.getByRole("button", { name: "+ Pull List" }).click();
+  await page.getByRole("button", { name: "✓ On your Pull List" }).waitFor();
+  await page.goto(`${BASE}/pull-list`);
+  check("game pages add to the Pull List", (await pullNames()).includes("Metroid Prime"));
+  await page.screenshot({ path: `${shots}/smoke-pull-list.png`, fullPage: true });
+
   // 12f. Console Chronicles (Extras): consoles with dates, ages, badges
   // and favourite games, drawn as a zig-zag map
   await page.goto(`${BASE}/extras`);
@@ -881,6 +929,8 @@ try {
     exported.logs.some((l) => l.review?.includes("Masterpiece")) &&
       exported.shelves.some((s) => s.name === "All-timers")
   );
+  check("JSON export includes the Pull List",
+    exported.pullList?.some((p) => p.name === "Dark Souls" && p.fromSteamWishlist) && exported.pullList.some((p) => p.name === "Metroid Prime"));
   const rawJson = JSON.stringify(exported);
   check("JSON export omits security fields", !/passwordHash|tokenVersion|tokenHash/.test(rawJson));
   const csvText = await (await page.request.get(`${BASE}/api/account/export?format=csv`)).text();
