@@ -47,7 +47,7 @@ export function Nav({
               <Link
                 key={l.href}
                 href={l.href}
-                className={`shrink-0 rounded-md px-2 py-1.5 transition sm:px-3 ${
+                className={`shrink-0 rounded-md px-2 py-1.5 transition sm:px-3 lg:px-2 xl:px-3 ${
                   active
                     ? "bg-card-2 text-white"
                     : "text-fog hover:bg-card hover:text-white"
@@ -96,7 +96,8 @@ export function Nav({
                 {newFollowers > 9 ? "9+" : newFollowers}
               </span>
             )}
-            <span className="hidden sm:inline">{userName}</span>
+            {/* Hidden on lg, where the links share this row and admins have one more item. */}
+            <span className="hidden sm:inline lg:hidden xl:inline">{userName}</span>
           </Link>
           {admin && (
             <Link
