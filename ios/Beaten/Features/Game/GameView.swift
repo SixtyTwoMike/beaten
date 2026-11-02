@@ -33,6 +33,10 @@ struct GameView: View {
                 .buttonStyle(.borderedProminent)
                 .foregroundStyle(Color.canvas)
 
+                // Games you've logged leave the Pull List, so it's only
+                // offered for ones you haven't.
+                if logs.isEmpty { pullButton }
+
                 if !logs.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionTitle("Your entries")
@@ -142,6 +146,25 @@ struct GameView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var pullButton: some View {
+        let on = model.pullList.items.contains { $0.igdbId == game.igdbId }
+        return Button {
+            Task {
+                do {
+                    if on { try await model.removeFromPullList(game.igdbId) } else { try await model.addToPullList(game.igdbId) }
+                } catch {
+                    self.error = error.localizedDescription
+                }
+            }
+        } label: {
+            Label(on ? "On your Pull List" : "Add to Pull List", systemImage: on ? "checkmark" : "list.star")
+                .frame(maxWidth: .infinity, minHeight: 26)
+        }
+        .buttonStyle(.bordered)
+        .tint(on ? Color.mint : Color.fog)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private var shelves: some View {

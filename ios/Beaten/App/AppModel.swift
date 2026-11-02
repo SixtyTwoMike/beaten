@@ -14,6 +14,7 @@ final class AppModel {
     private(set) var me: Me?
     private(set) var logs: [PlayLog] = []
     private(set) var shelves: [Shelf] = []
+    private(set) var pullList: PullList = .empty
     private(set) var platforms: [Platform] = []
     private(set) var loadError: String?
 
@@ -80,6 +81,7 @@ final class AppModel {
         me = nil
         logs = []
         shelves = []
+        pullList = .empty
         phase = .signedOut
     }
 
@@ -106,6 +108,7 @@ final class AppModel {
         } catch {
             loadError = error.localizedDescription
         }
+        if let pull: PullList = try? await api.get("/pull-list") { pullList = pull }
         if platforms.isEmpty {
             platforms = (try? await api.get("/platforms") as PlatformsResponse)?.platforms ?? []
         }
@@ -139,6 +142,8 @@ final class AppModel {
         }
         logs.removeAll { $0.id == res.log.id }
         logs.insert(res.log, at: 0)
+        // Logged games leave the Pull List (the server has done the same).
+        pullList.items.removeAll { $0.igdbId == input.igdbId }
         if !input.shelfIds.isEmpty || input.newShelfName != nil { await refreshShelves() }
         await refreshMe()
         return res.log
@@ -192,6 +197,41 @@ final class AppModel {
     func setGame(_ game: Game, onShelf shelf: Shelf, _ on: Bool) async throws {
         try await api.send(on ? "POST" : "DELETE", "/shelves/\(shelf.id)/games/\(game.igdbId)")
         await refreshShelves()
+    }
+
+    // MARK: Pull List
+
+    func refreshPullList() async throws {
+        pullList = try await api.get("/pull-list")
+    }
+
+    func addToPullList(_ igdbId: Int) async throws {
+        struct Body: Encodable { let igdbId: Int }
+        pullList = try await api.send("POST", "/pull-list", body: Body(igdbId: igdbId))
+    }
+
+    func removeFromPullList(_ igdbId: Int) async throws {
+        pullList = try await api.send("DELETE", "/pull-list/\(igdbId)", body: Optional<Int>.none)
+    }
+
+    // Shows the new order straight away; puts the old one back if the server
+    // refuses it.
+    func reorderPullList(_ items: [PullEntry]) async throws {
+        struct Body: Encodable { let igdbIds: [Int] }
+        let previous = pullList
+        pullList.items = items
+        do {
+            pullList = try await api.send("PUT", "/pull-list/order", body: Body(igdbIds: items.map(\.igdbId)))
+        } catch {
+            pullList = previous
+            throw error
+        }
+    }
+
+    func importSteamWishlist() async throws -> WishlistResult {
+        let res: WishlistResult = try await api.send("POST", "/pull-list/steam", body: Optional<Int>.none)
+        pullList = PullList(items: res.items, steamLinked: res.steamLinked)
+        return res
     }
 
     // MARK: Account
