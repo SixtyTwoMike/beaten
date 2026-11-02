@@ -1,0 +1,7 @@
+New: your Pull List — the games you want to play next, in your own order.
+
+• Add games from search or any game page
+• Drag to put them in the order you want to play them
+• Sort by release date to see what's coming up, or group by genre
+• Your Steam wishlist comes in automatically once Steam is linked on beaten.games
+• Games leave the list when you log them
