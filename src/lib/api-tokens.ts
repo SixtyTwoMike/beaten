@@ -31,16 +31,16 @@ export async function issueApiToken(userId: string, deviceName: unknown): Promis
 }
 
 // The token's id and user, or null when it's unknown, idle too long, or
-// voided by "sign out everywhere".
+// voided by "sign out everywhere" or a suspension.
 export async function resolveApiToken(token: string): Promise<{ id: string; userId: string } | null> {
   if (!token || token.length > 100) return null;
   const row = await prisma.apiToken.findUnique({
     where: { tokenHash: hash(token) },
-    include: { user: { select: { tokenVersion: true } } },
+    include: { user: { select: { tokenVersion: true, suspendedAt: true } } },
   });
   if (!row) return null;
   const now = Date.now();
-  if (row.tokenVersion !== row.user.tokenVersion || now - row.lastUsedAt.getTime() > IDLE_MS) {
+  if (row.user.suspendedAt || row.tokenVersion !== row.user.tokenVersion || now - row.lastUsedAt.getTime() > IDLE_MS) {
     await prisma.apiToken.delete({ where: { id: row.id } }).catch(() => {});
     return null;
   }

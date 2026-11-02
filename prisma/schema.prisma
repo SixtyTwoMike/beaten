@@ -28,6 +28,9 @@ model User {
   // Null until the address is confirmed (verification link, password reset,
   // or Google). Password accounts can't sign in until it's set.
   emailVerifiedAt DateTime?
+  // Set by `beaten-admin suspend`: can't sign in, and the profile is hidden
+  // (username moved to a ReservedUsername hold).
+  suspendedAt  DateTime?
   // Social handles shown on the public profile (normalised, no "@").
   instagram    String?
   bluesky      String?

@@ -97,6 +97,8 @@ export function LoginForm({
         setError(REQUEST_FAILED);
       } else if (res.code === "email_not_verified") {
         setUnverified(true);
+      } else if (res.code === "account_suspended") {
+        setError("This account has been suspended");
       } else if (res?.error) {
         setError("Incorrect email or password");
       } else {

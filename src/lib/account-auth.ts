@@ -47,7 +47,8 @@ const DUMMY_HASH = "$2b$12$bcZWFlt4lprVdx1DlBLZL.VPJAXEI.1FjI1.hT0Acr7FBLUp1Qmhu
 // Email + password sign-in, for the web Credentials provider and the app's
 // /api/v1/auth/login. "unverified": right password, but the address hasn't
 // been confirmed (only reachable with the password, so it doesn't help
-// enumerate accounts).
+// enumerate accounts). "suspended": right password, but an admin has
+// suspended the account.
 export async function checkPassword(rawEmail: unknown, rawPassword: unknown) {
   const email = String(rawEmail ?? "")
     .trim()
@@ -71,8 +72,16 @@ export async function checkPassword(rawEmail: unknown, rawPassword: unknown) {
     return "invalid" as const;
   }
   clearAttempts(attemptKey);
+  if (user.suspendedAt) return "suspended" as const;
   if (!user.emailVerifiedAt) return "unverified" as const;
   return user;
+}
+
+export const SUSPENDED_MESSAGE = "This account has been suspended.";
+
+export async function isSuspendedEmail(rawEmail: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { email: rawEmail.toLowerCase() }, select: { suspendedAt: true } });
+  return Boolean(user?.suspendedAt);
 }
 
 // Google / Apple sign-in with an address the provider has verified: may it
@@ -82,8 +91,9 @@ export async function checkPassword(rawEmail: unknown, rawPassword: unknown) {
 export async function admitOAuthEmail(rawEmail: string): Promise<boolean> {
   const existing = await prisma.user.findUnique({
     where: { email: rawEmail.toLowerCase() },
-    select: { id: true, passwordHash: true, emailVerifiedAt: true },
+    select: { id: true, passwordHash: true, emailVerifiedAt: true, suspendedAt: true },
   });
+  if (existing?.suspendedAt) return false;
   if (!existing?.passwordHash) return true;
   if (existing.emailVerifiedAt) return false;
   // An unconfirmed password sign-up on this address may not be the

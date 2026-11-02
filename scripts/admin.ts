@@ -40,6 +40,11 @@ const USAGE = `Usage: beaten-admin <command> <email | username>
   export <who>                   print the account's data export (JSON)
   delete <who> --yes             permanently delete the account
   rename <who> <username>        change the username (no wait; old name not held)
+  suspend <who> [reason]         block sign-in, sign out everywhere, hide the
+                                 profile (username held), drop follows,
+                                 comments and reactions
+  unsuspend <who>                allow sign-in again and restore the username
+  list                           every account, oldest first (no secrets)
 
   reserve <username> [note]      set a username aside; prints an invite link
                                  for the one person who should get it
@@ -66,12 +71,20 @@ async function findUser(who: string | undefined) {
   const value = who.trim();
   const user = value.includes("@") && !value.startsWith("@")
     ? await prisma.user.findUnique({ where: { email: value.toLowerCase() } })
-    : await prisma.user.findUnique({ where: { username: normalizeUsername(value) } });
+    : await prisma.user.findUnique({ where: { username: normalizeUsername(value) } }) ?? (await suspendedByName(value));
   if (!user) throw new Fail(`No account matches "${value}".`);
   return user;
 }
 
 type User = Awaited<ReturnType<typeof findUser>>;
+
+// A suspended account's username lives in its hold, not on the account.
+async function suspendedByName(value: string) {
+  const held = await prisma.reservedUsername.findUnique({ where: { username: normalizeUsername(value) } });
+  if (!held?.heldForUserId) return null;
+  const user = await prisma.user.findUnique({ where: { id: held.heldForUserId } });
+  return user?.suspendedAt ? user : null;
+}
 
 function label(user: User) {
   return `${user.email}${user.username ? ` (@${user.username})` : ""}`;
@@ -96,6 +109,7 @@ async function find(user: User) {
     ["Email confirmed", user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : "NO"],
     ["Logs / shelves", `${logs} / ${shelves}`],
     ["Session version", String(user.tokenVersion)],
+    ...(user.suspendedAt ? [["SUSPENDED", user.suspendedAt.toISOString()] as [string, string]] : []),
   ];
   for (const [k, v] of rows) log(`${k.padEnd(16)} ${v}`);
   log(`Emails sent in the last 24h: ${recentTokens.length}`);
@@ -201,6 +215,59 @@ async function deleteUser(user: User, flag: string | undefined) {
   await prisma.user.delete({ where: { id: user.id } });
   await sendAccountDeletedEmail(user);
   log(`Deleted ${label(user)}; confirmation emailed.`);
+}
+
+const SUSPEND_NOTE = "suspended account";
+
+async function suspend(user: User, reason: string[]) {
+  if (user.suspendedAt) throw new Fail(`${label(user)} is already suspended.`);
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { suspendedAt: new Date(), username: null, pendingUsername: null, tokenVersion: { increment: 1 } },
+    }),
+    // Held with no expiry so nobody else can take the name (and its links).
+    ...(user.username
+      ? [prisma.reservedUsername.upsert({
+          where: { username: user.username },
+          update: { heldForUserId: user.id, expiresAt: null, inviteHash: null, note: [SUSPEND_NOTE, ...reason].join(": ") },
+          create: { username: user.username, heldForUserId: user.id, note: [SUSPEND_NOTE, ...reason].join(": ") },
+        })]
+      : []),
+    prisma.apiToken.deleteMany({ where: { userId: user.id } }),
+    prisma.authToken.deleteMany({ where: { userId: user.id } }),
+    prisma.follow.deleteMany({ where: { OR: [{ followerId: user.id }, { followeeId: user.id }] } }),
+    prisma.comment.deleteMany({ where: { authorId: user.id } }),
+    prisma.reaction.deleteMany({ where: { userId: user.id } }),
+    prisma.notification.deleteMany({ where: { actorId: user.id } }),
+  ]);
+  log(`Suspended ${label(user)}: signed out everywhere, profile hidden, follows/comments/reactions removed.`);
+}
+
+async function unsuspend(user: User) {
+  if (!user.suspendedAt) throw new Fail(`${label(user)} isn't suspended.`);
+  const held = await prisma.reservedUsername.findFirst({ where: { heldForUserId: user.id, note: { startsWith: SUSPEND_NOTE } } });
+  const taken = held && (await prisma.user.findUnique({ where: { username: held.username } }));
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { suspendedAt: null, ...(held && !taken && { username: held.username }) },
+    }),
+    ...(held ? [prisma.reservedUsername.delete({ where: { username: held.username } })] : []),
+  ]);
+  log(`Unsuspended ${label(user)}${held && !taken ? `; @${held.username} restored` : "; no username to restore"}.`);
+}
+
+async function listUsers() {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { username: true, email: true, emailVerifiedAt: true, passwordHash: true, suspendedAt: true, createdAt: true, _count: { select: { playLogs: true } } },
+  });
+  for (const u of users) {
+    const flags = [u.emailVerifiedAt ? "" : "unconfirmed", u.passwordHash ? "" : "google/apple", u.suspendedAt ? "SUSPENDED" : ""].filter(Boolean);
+    process.stdout.write(`${u.createdAt.toISOString().slice(0, 10)}  ${u.username ? "@" + u.username : "(no username)"}  ${u.email}  ${u._count.playLogs} logs${flags.length ? "  " + flags.join(", ") : ""}\n`);
+  }
+  log(`${users.length} accounts.`);
 }
 
 async function rename(user: User, raw: string | undefined) {
@@ -339,6 +406,9 @@ async function main(argv: string[]) {
     case "change-email": return changeEmail(await findUser(who), extra);
     case "export": return exportData(await findUser(who));
     case "delete": return deleteUser(await findUser(who), extra);
+    case "suspend": return suspend(await findUser(who), argv.slice(2));
+    case "unsuspend": return unsuspend(await findUser(who));
+    case "list": return listUsers();
     default: throw new Fail(USAGE);
   }
 }

@@ -11,6 +11,10 @@ class EmailNotVerified extends CredentialsSignin {
   code = "email_not_verified";
 }
 
+class AccountSuspended extends CredentialsSignin {
+  code = "account_suspended";
+}
+
 // Sessions expire after 14 days instead of Auth.js's 30-day default.
 const SESSION_MAX_AGE = 14 * 24 * 60 * 60;
 
@@ -25,6 +29,7 @@ const providers: NextAuthConfig["providers"] = [
       const result = await checkPassword(credentials?.email, credentials?.password);
       if (result === "invalid") return null;
       if (result === "unverified") throw new EmailNotVerified();
+      if (result === "suspended") throw new AccountSuspended();
       const user = result;
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },
@@ -81,14 +86,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
         token.tv = fresh?.tokenVersion ?? 0;
         return token;
       }
-      // Every later request: reject sessions for deleted users or ones
-      // revoked by "sign out everywhere".
+      // Every later request: reject sessions for deleted or suspended users
+      // or ones revoked by "sign out everywhere".
       if (!token.uid) return null;
       const current = await prisma.user.findUnique({
         where: { id: token.uid as string },
-        select: { tokenVersion: true },
+        select: { tokenVersion: true, suspendedAt: true },
       });
-      if (!current || current.tokenVersion !== token.tv) return null;
+      if (!current || current.suspendedAt || current.tokenVersion !== token.tv) return null;
       return token;
     },
     async session({ session, token }) {

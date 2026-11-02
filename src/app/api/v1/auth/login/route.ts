@@ -1,4 +1,4 @@
-import { checkPassword } from "@/lib/account-auth";
+import { SUSPENDED_MESSAGE, checkPassword } from "@/lib/account-auth";
 import { apiError, apiJson, apiRoute, readJson } from "@/lib/api";
 import { issueApiToken } from "@/lib/api-tokens";
 import { meJson } from "@/lib/api-me";
@@ -13,6 +13,7 @@ export const POST = apiRoute("api login", async (request: Request) => {
   if (result === "unverified") {
     return apiError("Confirm your email address first — check your inbox for the link", 403);
   }
+  if (result === "suspended") return apiError(SUSPENDED_MESSAGE, 403);
   const token = await issueApiToken(result.id, body.deviceName);
   return apiJson({ token, me: await meJson(result.id) });
 });

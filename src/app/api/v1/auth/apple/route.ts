@@ -1,4 +1,4 @@
-import { admitOAuthEmail, upsertOAuthUser } from "@/lib/account-auth";
+import { SUSPENDED_MESSAGE, admitOAuthEmail, isSuspendedEmail, upsertOAuthUser } from "@/lib/account-auth";
 import { apiError, apiJson, apiRoute, readJson } from "@/lib/api";
 import { issueApiToken } from "@/lib/api-tokens";
 import { meJson } from "@/lib/api-me";
@@ -16,6 +16,7 @@ export const POST = apiRoute("api apple sign-in", async (request: Request) => {
   const verified = await verifyAppleIdentityToken(body.identityToken, body.nonce);
   if (!verified.ok) return apiError(verified.error, 401);
   const { email } = verified.identity;
+  if (await isSuspendedEmail(email)) return apiError(SUSPENDED_MESSAGE, 403);
   if (!(await admitOAuthEmail(email))) {
     return apiError("This email already has a Beaten password. Sign in with your email and password instead.", 409);
   }
