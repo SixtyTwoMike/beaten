@@ -5,6 +5,8 @@ import { sendAlreadyRegisteredEmail, sendVerifyEmail } from "./account-emails";
 import { prisma } from "./db";
 import { MAX_EMAIL, MAX_NAME } from "./limits";
 import { passwordError } from "./password";
+import { passwordWorkLimited } from "./password-work";
+import { TOO_MANY_ATTEMPTS } from "./rate-limit";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "./pwned";
 import { reservationError } from "./reserved-usernames";
 import { issueToken } from "./tokens";
@@ -67,6 +69,7 @@ export async function registerAccount(input: {
     // same ("check your email") and takes as long; only the email sent
     // differs. The username is held as pending until the address is
     // confirmed, so nothing public changes either way.
+    if (await passwordWorkLimited()) return { ok: false, error: TOO_MANY_ATTEMPTS };
     const passwordHash = await bcrypt.hash(password, 12);
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {

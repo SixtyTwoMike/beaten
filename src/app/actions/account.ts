@@ -14,8 +14,9 @@ import { MAX_EMAIL } from "@/lib/limits";
 import { passwordError } from "@/lib/password";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
 import { deleteAccountForUser } from "@/lib/account-auth";
+import { passwordWorkLimited } from "@/lib/password-work";
 import { markEmailVerified } from "@/lib/accounts";
-import { clearAttempts } from "@/lib/rate-limit";
+import { TOO_MANY_ATTEMPTS, clearAttempts } from "@/lib/rate-limit";
 import { requireUserId } from "@/lib/session";
 import { consumeToken, issueToken } from "@/lib/tokens";
 import type { ActionResult } from "./logs";
@@ -65,6 +66,7 @@ export async function resetPassword(input: {
     if (await isBreachedPassword(input.newPassword)) {
       return { ok: false, error: BREACHED_PASSWORD_ERROR };
     }
+    if (await passwordWorkLimited()) return { ok: false, error: TOO_MANY_ATTEMPTS };
     const row = await consumeToken(input.token, "RESET_PASSWORD");
     if (!row) {
       return { ok: false, error: "This reset link has expired or was already used" };

@@ -21,6 +21,7 @@ import { holdPreviousUsername, reservationError, usernameForInvite } from "@/lib
 import { USERNAME_CHANGE_DAYS } from "@/lib/limits";
 import { nextUsernameChange, normalizeUsername, usernameError } from "@/lib/username";
 import { registerAccount } from "@/lib/register";
+import { passwordWorkLimited } from "@/lib/password-work";
 import type { ActionResult } from "./logs";
 
 export async function registerUser(input: {
@@ -102,7 +103,9 @@ export async function changePassword(input: {
       return { ok: false, error: "This account signs in with Google" };
     }
     const attemptKey = `password:${userId}`;
-    if (isLimited(attemptKey, PASSWORD_ATTEMPTS)) return { ok: false, error: TOO_MANY_ATTEMPTS };
+    if (isLimited(attemptKey, PASSWORD_ATTEMPTS) || (await passwordWorkLimited())) {
+      return { ok: false, error: TOO_MANY_ATTEMPTS };
+    }
     if (
       input.currentPassword.length > 128 ||
       !(await bcrypt.compare(input.currentPassword, user.passwordHash))

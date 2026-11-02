@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { PASSWORD_ATTEMPTS, TOO_MANY_ATTEMPTS, clearAttempts, isLimited, recordAttempt } from "./rate-limit";
 import { prisma } from "./db";
+import { passwordWorkLimited } from "./password-work";
 
 // Password and Google/Apple account rules shared by the web (Auth.js and
 // server actions) and the app's /api/v1. Kept apart from accounts.ts, which
@@ -22,6 +23,7 @@ export async function deleteAccountForUser(
   if (user.passwordHash && isLimited(attemptKey, PASSWORD_ATTEMPTS)) {
     return { ok: false, error: TOO_MANY_ATTEMPTS };
   }
+  if (user.passwordHash && (await passwordWorkLimited())) return { ok: false, error: TOO_MANY_ATTEMPTS };
   const typed = confirmation.trim().toLowerCase();
   const confirmed = user.passwordHash
     ? await bcrypt.compare(confirmation, user.passwordHash)
@@ -59,6 +61,8 @@ export async function checkPassword(rawEmail: unknown, rawPassword: unknown) {
   // account answers in the usual time.
   const attemptKey = `login:${email}`;
   const limited = isLimited(attemptKey, PASSWORD_ATTEMPTS);
+  // This address has asked for too much bcrypt work: refuse without any.
+  if (await passwordWorkLimited()) return "invalid" as const;
   const user = await prisma.user.findUnique({ where: { email } });
   const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (limited) return "invalid" as const;
