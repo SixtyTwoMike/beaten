@@ -17,7 +17,7 @@ export async function AppShell({
 }) {
   const profile = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { username: true, followersSeenAt: true, ...AVATAR_SELECT },
+    select: { username: true, followersSeenAt: true, collectionEnabled: true, ...AVATAR_SELECT },
   });
   const admin = await isAdmin(user.id);
   const [newFollowers, unread] = profile?.username
@@ -33,6 +33,7 @@ export async function AppShell({
         newFollowers={newFollowers}
         unreadNotifications={unread}
         admin={admin}
+        collection={Boolean(profile?.collectionEnabled)}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {children}

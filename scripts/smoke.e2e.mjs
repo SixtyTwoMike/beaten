@@ -617,6 +617,34 @@ try {
   check("game pages add to the Pull List", (await pullNames()).includes("Metroid Prime"));
   await page.screenshot({ path: `${shots}/smoke-pull-list.png`, fullPage: true });
 
+  // 12e4. Collection: opt-in, separate from the diary, private until shown
+  check("no Collection in the nav until it's turned on", (await page.locator('header nav a[href="/collection"]').count()) === 0);
+  await page.goto(`${BASE}/collection`);
+  await page.getByRole("button", { name: "Start my collection" }).click();
+  await page.waitForSelector('input[aria-label="Add a game to your collection"]');
+  check("starting the collection adds it to the nav", (await page.locator('header nav a[href="/collection"]').count()) === 1);
+  await page.fill('input[aria-label="Add a game to your collection"]', "chrono");
+  await page.getByRole("button", { name: "Add Chrono Trigger to your collection" }).click();
+  await page.waitForSelector("text=Add to your collection");
+  await page.selectOption("#col-platform", { label: "Super Nintendo Entertainment System" });
+  await page.getByRole("group", { name: "What you have" }).getByRole("button", { name: "Boxed (CIB)" }).click();
+  await page.selectOption("#col-region", "PAL");
+  await page.fill("#col-price", "40");
+  await page.getByRole("button", { name: "Add to collection" }).click();
+  await page.waitForSelector("text=Add to your collection", { state: "detached" });
+  await page.waitForSelector("text=PAL · Boxed (CIB) · £40.00");
+  check("collection shows the copy grouped by platform", await page.getByRole("heading", { name: /Super Nintendo Entertainment System · 1/ }).isVisible());
+  await page.screenshot({ path: `${shots}/12e4-collection.png` });
+  await page.goto(`${BASE}/games/900005`);
+  check("game page shows your copy", await page.getByText("In your collection").isVisible() && await page.getByText("PAL · Boxed (CIB) · £40.00").isVisible());
+  check("private collection isn't on the profile", (await (await fetch(`${BASE}/${username}/collection`)).status) === 404);
+  await page.goto(`${BASE}/settings#collection`);
+  await page.getByLabel("Show my collection on my profile").check();
+  await page.waitForTimeout(800);
+  const shownCol = await fetch(`${BASE}/${username}/collection`);
+  const shownColHtml = await shownCol.text();
+  check("shown collection is public without the price", shownCol.status === 200 && shownColHtml.includes("Chrono Trigger") && !shownColHtml.includes("£40"));
+
   // 12f. Console Chronicles (Extras): consoles with dates, ages, badges
   // and favourite games, drawn as a zig-zag map
   await page.goto(`${BASE}/extras`);

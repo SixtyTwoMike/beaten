@@ -31,6 +31,10 @@ model User {
   // Set by `beaten-admin suspend`: can't sign in, and the profile is hidden
   // (username moved to a ReservedUsername hold).
   suspendedAt  DateTime?
+  // Physical collection (docs/collection.md): opt-in, private until shown
+  // on the profile. Prices and notes are never public.
+  collectionEnabled Boolean @default(false)
+  collectionPublic  Boolean @default(false)
   // Social handles shown on the public profile (normalised, no "@").
   instagram    String?
   bluesky      String?
@@ -46,6 +50,7 @@ model User {
   playLogs     PlayLog[]
   shelves      Shelf[]
   pullItems    PullItem[]
+  collectionItems CollectionItem[]
   authTokens   AuthToken[]
   apiTokens    ApiToken[]
   raAccount    RaAccount?
@@ -129,6 +134,7 @@ model Game {
   chronicleGames ChronicleGame[]
   activities     Activity[]
   pullItems      PullItem[]
+  collectionItems CollectionItem[]
 }
 
 // Synced from IGDB /platforms; drives platform dropdowns.
@@ -558,4 +564,38 @@ model Notification {
   @@index([userId, createdAt])
   @@index([emailedAt, readAt])
   @@index([actorId])
+}
+
+// One physical copy of a game (several copies of a game are allowed).
+// Separate from the diary: owning a game never logs it, and vice versa.
+model CollectionItem {
+  id           String    @id @default(cuid())
+  userId       String
+  gameId       String
+  platformId   Int
+  // "PAL" | "NTSC_U" | "NTSC_J" | "OTHER" (lib/collection-shared)
+  region       String?
+  // "LOOSE" | "CIB" | "SEALED" | "BOX_ONLY"
+  completeness String?
+  edition      String?
+  // 1-10, as GAMEYE records them (imports); not edited on the web yet.
+  itemCondition   Int?
+  boxCondition    Int?
+  manualCondition Int?
+  acquiredAt   DateTime?
+  // "MONTH" / "YEAR" when only that much was given (null: exact day)
+  acquiredPrecision String?
+  // Private. Minor units (pence, cents; yen as is) in `currency`.
+  pricePaid    Int?
+  currency     String?
+  notes        String?
+  // "MANUAL" | "GAMEYE" | "CLZ" | "CSV"
+  source       String    @default("MANUAL")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game         Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([userId, platformId])
+  @@index([userId, gameId])
 }

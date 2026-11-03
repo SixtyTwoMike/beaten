@@ -174,6 +174,26 @@ try {
   check("first game and busiest month", review.json?.review?.firstGame?.igdbId === game.igdbId && review.json.review.bestMonth?.month === 4 && review.json.review.bestMonth.count === 1, review.json?.review);
   check("future year → 400", (await api("GET", "/year-review?year=2999")).status === 400);
 
+  // --- collection (physical games; separate from the diary)
+  let col = await api("GET", "/collection");
+  check("collection starts off and private", col.status === 200 && col.json.enabled === false && col.json.public === false && col.json.items.length === 0, col);
+  const copy = await api("POST", "/collection", { igdbId: 900006, platformId: 19, region: "PAL", completeness: "CIB", pricePaid: "12.50", currency: "GBP", acquiredAt: "2019-06", notes: "Car boot" });
+  check("add a copy", copy.status === 201 && copy.json.item.pricePaid === 1250 && copy.json.item.platformName.includes("Super Nintendo") && copy.json.item.acquiredAt === "2019-06", copy);
+  col = await api("GET", "/collection");
+  check("adding turns the collection on (still private)", col.json?.enabled === true && col.json.public === false && col.json.items.length === 1, col);
+  check("a second copy of the same game is allowed", (await api("POST", "/collection", { igdbId: 900006, platformId: 19, region: "NTSC_U", completeness: "LOOSE" })).status === 201);
+  check("platform is required", (await api("POST", "/collection", { igdbId: 900006 })).status === 400);
+  check("bad price → 400", (await api("POST", "/collection", { igdbId: 900006, platformId: 19, pricePaid: "twelve" })).status === 400);
+  check("bad region → 400", (await api("POST", "/collection", { igdbId: 900006, platformId: 19, region: "MARS" })).status === 400);
+  const copyId = copy.json?.item.id;
+  const editedCopy = await api("PATCH", `/collection/${copyId}`, { platformId: 19, region: "PAL", completeness: "SEALED", pricePaid: 999, currency: "USD" });
+  check("edit a copy", editedCopy.json?.item.completeness === "SEALED" && editedCopy.json.item.pricePaid === 999 && editedCopy.json.item.notes === null, editedCopy);
+  const copyDetail = await api("GET", "/games/900006");
+  check("game detail lists your copies", copyDetail.json?.collection?.length === 2, copyDetail.json?.collection);
+  check("owning a game doesn't log it", (await api("GET", "/logs")).json?.logs.every((l) => l.game.igdbId !== 900006));
+  check("collection settings", (await api("PUT", "/collection/settings", { public: true })).json?.public === true);
+  check("bad setting → 400", (await api("PUT", "/collection/settings", { public: "yes" })).status === 400);
+
   // --- following, feed, reactions, comments (with a second account)
   const me0 = (await api("GET", "/me")).json;
   check("me has follower counts", me0?.social?.followers === 0 && me0.social.following === 0, me0?.social);
@@ -183,7 +203,16 @@ try {
   const palLog = await api("POST", "/logs", { igdbId: game.igdbId, status: "BEATEN", finishedAt: "2026-05", rating: 7, reviewText: "Pal's review", containsSpoilers: true });
   check("second account reviews a game", palLog.status === 201, palLog);
   const palLogId = palLog.json?.log.id;
+  check("someone else can't edit your copy", (await api("PATCH", `/collection/${copyId}`, { platformId: 19 })).status === 404);
+  check("someone else can't remove your copy", (await api("DELETE", `/collection/${copyId}`)).status === 404);
   token = myToken;
+  const myName = (await api("GET", "/me")).json?.username;
+  const shownPage = await fetch(`${BASE}/${myName}/collection`);
+  const shownHtml = await shownPage.text();
+  check("shown collection is public, without prices", shownPage.status === 200 && shownHtml.includes("Super Metroid") && !shownHtml.includes("9.99"), shownPage.status);
+  await api("PUT", "/collection/settings", { public: false });
+  check("private collection page → 404", (await fetch(`${BASE}/${myName}/collection`)).status === 404);
+  check("remove a copy", (await api("DELETE", `/collection/${copyId}`)).status === 200 && (await api("GET", "/collection")).json?.items.length === 1);
   check("short people search → empty", (await api("GET", "/people?q=a")).json?.people?.length === 0);
   const found = await api("GET", `/people?q=${pal.username.slice(0, 7)}`);
   check("people search", found.json?.people?.some((p) => p.username === pal.username && p.name === "API Pal"), found);

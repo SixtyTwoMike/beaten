@@ -13,6 +13,8 @@ const links = [
   { href: "/log", label: "Diary" },
   { href: "/shelves", label: "Shelves" },
   { href: "/pull-list", label: "Pull List" },
+  // Only once the collection is turned on (it's opt-in).
+  { href: "/collection", label: "Collection", optIn: true },
   { href: "/share", label: "Share" },
   { href: "/extras", label: "Extras" },
 ];
@@ -25,6 +27,7 @@ export function Nav({
   newFollowers,
   unreadNotifications,
   admin = false,
+  collection = false,
 }: {
   userName: string;
   username: string | null;
@@ -33,6 +36,7 @@ export function Nav({
   newFollowers: number;
   unreadNotifications: number;
   admin?: boolean;
+  collection?: boolean;
 }) {
   const pathname = usePathname();
   return (
@@ -40,7 +44,7 @@ export function Nav({
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
         <Logo href="/" />
         <nav className="order-last flex w-full items-center gap-0 overflow-x-auto text-[13px] min-[380px]:text-sm sm:gap-1 lg:order-none lg:w-auto">
-          {links.map((l) => {
+          {links.filter((l) => !l.optIn || collection).map((l) => {
             const active =
               l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
             return (
@@ -96,8 +100,9 @@ export function Nav({
                 {newFollowers > 9 ? "9+" : newFollowers}
               </span>
             )}
-            {/* Hidden on lg, where the links share this row and admins have one more item. */}
-            <span className="hidden sm:inline lg:hidden xl:inline">{userName}</span>
+            {/* Hidden from lg up, where the links share this row (the page is
+                no wider past xl, so there's never room for it there). */}
+            <span className="hidden sm:inline lg:hidden">{userName}</span>
           </Link>
           {admin && (
             <Link

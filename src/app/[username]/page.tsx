@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatPartialDate } from "@/lib/format";
+import { publicCollection } from "@/lib/collection";
 import { normalizeUsername } from "@/lib/username";
 import { isFinishedStatus } from "@/lib/status";
 import { AVATAR_SELECT, resolveAvatar } from "@/lib/avatar";
@@ -89,7 +90,7 @@ export default async function ProfilePage({ params }: Params) {
   const canFollow = canSocialise(viewer) && canSocialise(user);
   const reportHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Report @${user.username}`)}&body=${encodeURIComponent(`Profile: https://beaten.games/${user.username}\n\nWhat's wrong:\n`)}`;
 
-  const [logs, shelves] = await Promise.all([
+  const [logs, shelves, collection] = await Promise.all([
     prisma.playLog.findMany({
       where: { userId: user.id },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
@@ -103,6 +104,7 @@ export default async function ProfilePage({ params }: Params) {
         _count: { select: { items: true } },
       },
     }),
+    publicCollection(user.id),
   ]);
 
   const playingByGame = new Map<string, (typeof logs)[number]>();
@@ -380,6 +382,27 @@ export default async function ProfilePage({ params }: Params) {
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {collection && collection.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-lg font-semibold">Collection</h2>
+              <Link href={`/${user.username}/collection`} className="text-sm text-mint hover:underline">
+                All {collection.length} {collection.length === 1 ? "copy" : "copies"}
+              </Link>
+            </div>
+            <div className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-12">
+              {[...collection]
+                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                .slice(0, 12)
+                .map((c) => (
+                  <GameLink key={c.id} igdbId={c.igdbId}>
+                    <Poster name={c.name} coverUrl={c.coverUrl} />
+                  </GameLink>
+                ))}
             </div>
           </section>
         )}

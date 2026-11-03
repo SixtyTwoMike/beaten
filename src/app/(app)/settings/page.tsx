@@ -20,6 +20,8 @@ import { SocialLinksForm } from "@/components/SocialLinksForm";
 import { NotificationSettingsForm } from "@/components/NotificationSettingsForm";
 import { notificationSettingsFor } from "@/lib/notifications";
 import { UsernameForm } from "@/components/UsernameForm";
+import { CollectionSettingsForm } from "@/components/CollectionSettingsForm";
+import { collectionSettings } from "@/lib/collection";
 
 export const metadata = { title: "Settings — Beaten" };
 
@@ -158,6 +160,16 @@ export default async function SettingsPage({
         </p>
         <div className="mt-4">
           <NotificationSettingsForm {...await notificationSettingsFor(user.id)} />
+        </div>
+      </Section>
+
+      <Section id="collection" title="Collection">
+        <p className="mt-1 text-sm text-fog">
+          Track the physical games you own, separate from your diary. It&apos;s private unless you show it on your
+          profile.
+        </p>
+        <div className="mt-4">
+          <CollectionSettingsForm {...await collectionSettings(user.id)} />
         </div>
       </Section>
 

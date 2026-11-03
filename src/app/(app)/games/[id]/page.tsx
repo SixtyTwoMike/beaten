@@ -8,6 +8,7 @@ import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
 import { getPlatforms, platformOptions } from "@/lib/platforms";
 import { playedOnLabel } from "@/lib/played-on";
+import { collectionForGame, collectionSettings } from "@/lib/collection";
 import { raGameUrl } from "@/lib/retroachievements";
 import { reviewPath } from "@/lib/notifications";
 import { reviewSocialFor } from "@/lib/review-social";
@@ -21,6 +22,7 @@ import { Backdrop } from "@/components/Backdrop";
 import { BeatenAchievementPicker } from "@/components/BeatenAchievementPicker";
 import { GameShelves } from "@/components/GameShelves";
 import { PullButton } from "@/components/PullButton";
+import { GameCollection } from "@/components/GameCollection";
 import { LogButtons } from "@/components/LogButtons";
 import { LogEntryActions } from "@/components/LogEntryActions";
 import { Poster } from "@/components/Poster";
@@ -63,7 +65,7 @@ export default async function GamePage({
   }
   if (!game) notFound();
 
-  const [platforms, shelves, logs, shelfItems, raAwards, pulled] = await Promise.all([
+  const [platforms, shelves, logs, shelfItems, raAwards, pulled, collection, copies] = await Promise.all([
     getPlatforms(),
     prisma.shelf.findMany({
       where: { userId: user.id },
@@ -85,6 +87,8 @@ export default async function GamePage({
       distinct: ["raGameId"],
     }),
     cached ? isPulled(user.id, cached.id) : false,
+    collectionSettings(user.id),
+    cached ? collectionForGame(user.id, igdbId) : [],
   ]);
 
   // Beaten achievements: the confirmed ones for this game, plus the
@@ -200,6 +204,8 @@ export default async function GamePage({
           />
           {logs.length === 0 && <PullButton igdbId={game.igdbId} pulled={pulled} />}
         </div>
+
+        {collection.enabled && <GameCollection game={modalGame} copies={copies} platforms={platformChoices} />}
 
         <div className="mt-8">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">On your shelves</h2>

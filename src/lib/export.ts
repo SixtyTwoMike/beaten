@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { ratingToStars, toPartialInput } from "./format";
 import { variantOf } from "./console-art";
 import { getPlatforms } from "./platforms";
+import { formatPrice } from "./collection-shared";
 
 // Everything a user has put into Beaten, for the "Download your data"
 // exports. Internal security fields (password hash, session version, tokens)
@@ -22,6 +23,10 @@ export async function buildExport(userId: string) {
         raAccount: { select: { raUsername: true } },
         steamAccount: { select: { steamId: true } },
         following: { orderBy: { createdAt: "asc" }, select: { createdAt: true, followee: { select: { username: true } } } },
+        collectionItems: {
+          orderBy: { createdAt: "asc" },
+          include: { game: { select: { name: true, igdbId: true } } },
+        },
         pullItems: {
           orderBy: [{ position: "asc" }, { addedAt: "asc" }],
           select: { source: true, addedAt: true, game: { select: { name: true, igdbId: true } } },
@@ -140,6 +145,19 @@ export async function buildExport(userId: string) {
         name: item.game.name,
         addedAt: item.addedAt.toISOString(),
       })),
+    })),
+    collection: user.collectionItems.map((c) => ({
+      igdbId: c.game.igdbId,
+      name: c.game.name,
+      platform: platformName.get(c.platformId) ?? null,
+      platformId: c.platformId,
+      region: c.region,
+      completeness: c.completeness,
+      edition: c.edition,
+      acquired: c.acquiredAt ? toPartialInput(c.acquiredAt, c.acquiredPrecision) : null,
+      pricePaid: formatPrice(c.pricePaid, c.currency),
+      notes: c.notes,
+      addedAt: c.createdAt.toISOString(),
     })),
     pullList: user.pullItems.map((p) => ({
       igdbId: p.game.igdbId,
