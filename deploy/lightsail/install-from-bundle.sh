@@ -267,10 +267,13 @@ limit_req_status 429;
 # The two app processes (beaten@3000, beaten@3001). Each client IP sticks to
 # one, so the app's in-memory limits hold per client (src/lib/rate-limit.ts);
 # if one is down (a deploy restarting it), requests go to the other.
+# max_fails=0: never mark a process down. A refused connection costs nothing
+# and moves on to the other, whereas the default 10 s mark outlasts a
+# restart and, when a deploy then restarts the other, leaves no live upstream.
 upstream beaten_app {
     hash $binary_remote_addr consistent;
-    server 127.0.0.1:3000;
-    server 127.0.0.1:3001;
+    server 127.0.0.1:3000 max_fails=0;
+    server 127.0.0.1:3001 max_fails=0;
     keepalive 16;
 }
 server_tokens off;
