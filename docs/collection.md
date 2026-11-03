@@ -136,7 +136,9 @@ Other notes:
 - Re-importing skips copies you already have (same game, platform,
   region and completeness), so running an import twice is harmless.
 
-### Barcode scanning (iPhone, phase 3)
+### Barcode scanning (iPhone, phase 3: deferred)
+
+**Deferred (Mike, 2026-11-03): no barcode lookups for now.** Kept here for later.
 
 - **Scanning** uses Apple's built-in scanner (VisionKit). It's free and
   needs no extra library.
@@ -166,8 +168,7 @@ Other notes:
 2. **Imports.**
    - GAMEYE and CLZ presets, a generic CSV option, the review screen,
      and GAMEYE wish list → Pull List.
-3. **Barcode scanning on the iPhone.**
-   - Needs a decision on the lookup service and its cost.
+3. **Barcode scanning on the iPhone.** Deferred.
 4. **Later, maybe.**
    - Hardware (consoles, controllers) as a second kind of item.
    - A for-sale / trade list.
@@ -219,12 +220,9 @@ free text:
 
 ## Questions for Mike
 
-1. **Re-release option:** should "Official re-release" be its own
-   option, or count as Emulation (which is technically what it is)?
-2. **Device detail:** should it be there from day one, or start with just
-   the three or four main options?
-3. **Barcode lookup:** are you willing to pay for PriceCharting's API for
-   scanning, or should it start with the free lookup plus our own barcode
-   table?
+1. ~~Re-release option~~: decided: its own option, plus Recomp / decomp.
+   Built and deployed 2026-11-03 (81292dc).
+2. ~~Device detail~~: left out for now.
+3. ~~Barcode lookup~~: decided: no barcode lookups for now.
 4. **Collection on profiles:** should it be private only for the first
    version, or have the public switch from the start?
