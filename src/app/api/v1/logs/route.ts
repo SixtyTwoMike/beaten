@@ -3,8 +3,9 @@ import { apiError, apiJson, apiRoute, readJson, requireApiUser } from "@/lib/api
 import { logJson } from "@/lib/api-json";
 import { saveLogForUser, type SaveLogInput } from "@/lib/logs";
 
-// GET /api/v1/logs → {logs}: the whole diary, newest first. Diaries are a few
-// hundred rows at most, so the app filters and groups it locally.
+// GET /api/v1/logs → {logs}: the whole diary, newest first; the app filters
+// and groups it locally. Games come without summaries to keep long diaries
+// (Steam imports can add hundreds) small.
 export const GET = apiRoute("api logs", async (request: Request) => {
   const auth = await requireApiUser(request);
   if (auth instanceof Response) return auth;
@@ -13,7 +14,7 @@ export const GET = apiRoute("api logs", async (request: Request) => {
     orderBy: [{ updatedAt: "desc" }],
     include: { game: true },
   });
-  return apiJson({ logs: logs.map(logJson) });
+  return apiJson({ logs: logs.map((l) => logJson(l)) });
 });
 
 // POST /api/v1/logs {id?, igdbId, status, …SaveLogInput} → {log}

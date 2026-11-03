@@ -14,10 +14,16 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export const metadata = { title: "Diary — Beaten" };
 
+// Entries shown at a time; "Show more" adds another page. Shelved and
+// finished-a-while-ago show this many until "Show all".
+const PAGE = 100;
+const SECTION_PAGE = 30;
+const FILTER_KEYS = ["status", "platform", "year", "via"] as const;
+
 export default async function LogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; platform?: string; year?: string; via?: string }>;
+  searchParams: Promise<{ status?: string; platform?: string; year?: string; via?: string; show?: string; all?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
@@ -45,7 +51,8 @@ export default async function LogPage({
   const [rawLogs, allFinished, platforms, shelves, playedOnUsed] = await Promise.all([
     prisma.playLog.findMany({
       where,
-      include: { game: true },
+      // Everything the entries show; not the (long) summary.
+      include: { game: { select: { igdbId: true, name: true, releaseYear: true, coverUrl: true, platformIds: true } } },
     }),
     prisma.playLog.findMany({
       where: { userId: user.id, finishedAt: { not: null } },
@@ -93,6 +100,29 @@ export default async function LogPage({
   ].sort((a, b) => b - a);
 
   const platformChoices = platformOptions(platforms);
+
+  // Long diaries (Steam imports can add hundreds) render a page at a time.
+  const showParam = Math.floor(Number(params.show));
+  const show = Number.isFinite(showParam) && showParam > PAGE ? Math.min(showParam, 100_000) : PAGE;
+  const showAll = (section: "shelved" | "undated") => params.all === section;
+  const pageHref = (extra: Record<string, string>) => {
+    const q = new URLSearchParams();
+    for (const k of FILTER_KEYS) if (params[k]) q.set(k, params[k]!);
+    // Keep what's already expanded.
+    if (show > PAGE) q.set("show", String(show));
+    if (params.all) q.set("all", params.all);
+    for (const [k, v] of Object.entries(extra)) q.set(k, v);
+    return `/log?${q}`;
+  };
+  const moreLink = (href: string, label: string) => (
+    <Link
+      href={href}
+      scroll={false}
+      className="mt-4 inline-block rounded-md border border-edge px-4 py-2 text-sm text-fog hover:border-fog/50 hover:text-white"
+    >
+      {label}
+    </Link>
+  );
   const platformById = new Map(platforms.map((p) => [p.id, p]));
 
   const selectClass =
@@ -243,7 +273,7 @@ export default async function LogPage({
       {rawLogs.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-edge bg-card/50 p-10 text-center">
           <p className="text-fog">
-            No log entries{Object.keys(params).length ? " match these filters" : " yet"}.
+            No log entries{FILTER_KEYS.some((k) => params[k]) ? " match these filters" : " yet"}.
           </p>
           <Link
             href="/search"
@@ -254,9 +284,11 @@ export default async function LogPage({
         </div>
       ) : (
         logs.length > 0 && (
-          <ul className="mt-6 space-y-3">
-            {logs.map(entry)}
-          </ul>
+          <>
+            <ul className="mt-6 space-y-3">{logs.slice(0, show).map(entry)}</ul>
+            {logs.length > show &&
+              moreLink(pageHref({ show: String(show + PAGE) }), `Show more (${logs.length - show} more)`)}
+          </>
         )
       )}
 
@@ -269,7 +301,9 @@ export default async function LogPage({
             Games you&apos;ve put down without finishing. Pick one back up by
             editing it and setting it to Playing.
           </p>
-          <ul className="mt-4 space-y-3">{shelved.map(entry)}</ul>
+          <ul className="mt-4 space-y-3">{(showAll("shelved") ? shelved : shelved.slice(0, SECTION_PAGE)).map(entry)}</ul>
+          {!showAll("shelved") && shelved.length > SECTION_PAGE &&
+            moreLink(pageHref({ all: "shelved" }), `Show all ${shelved.length}`)}
         </section>
       )}
 
@@ -283,7 +317,9 @@ export default async function LogPage({
             Games you&apos;ve beaten but don&apos;t remember when. They count
             towards your totals, just not any particular year.
           </p>
-          <ul className="mt-4 space-y-3">{undated.map(entry)}</ul>
+          <ul className="mt-4 space-y-3">{(showAll("undated") ? undated : undated.slice(0, SECTION_PAGE)).map(entry)}</ul>
+          {!showAll("undated") && undated.length > SECTION_PAGE &&
+            moreLink(pageHref({ all: "undated" }), `Show all ${undated.length}`)}
         </section>
       )}
     </div>

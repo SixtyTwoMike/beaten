@@ -18,7 +18,7 @@ export const GET = apiRoute("api chronicle", async (request: Request) => {
   const suggestions: Record<number, ReturnType<typeof gameJson>[]> = {};
   for (const l of logs) {
     const list = (suggestions[l.platformId!] ??= []);
-    if (list.length < 12 && !list.some((g) => g.igdbId === l.game.igdbId)) list.push(gameJson(l.game));
+    if (list.length < 12 && !list.some((g) => g.igdbId === l.game.igdbId)) list.push(gameJson(l.game, { summary: false }));
   }
   return apiJson({ chronicle: await chronicleFor(auth.userId), suggestions });
 });

@@ -16,7 +16,7 @@ export const GET = apiRoute("api search", async (request: Request) => {
   if (q.length < 2) return apiJson({ results: [] });
   try {
     const results = await searchGames(q, isIgdbId(platformId) ? platformId : undefined);
-    return apiJson({ results: results.map(gameJson) });
+    return apiJson({ results: results.map((g) => gameJson(g)) });
   } catch (e) {
     console.error("IGDB search failed:", e);
     return apiError("Search failed — try again in a moment", 502);

@@ -10,6 +10,9 @@ import { Stars } from "@/components/Stars";
 import { StatusBadge } from "@/components/StatusBadge";
 
 // Signed-in home page (rendered by src/app/page.tsx).
+// "Currently playing" posters shown; the rest are a link away in the diary.
+const PLAYING_LIMIT = 16;
+
 export async function Dashboard({ user }: { user: SessionUser }) {
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
 
@@ -35,7 +38,7 @@ export async function Dashboard({ user }: { user: SessionUser }) {
       prisma.playLog.findMany({
         where: { userId: user.id, status: "PLAYING" },
         orderBy: [{ startedAt: "desc" }, { createdAt: "desc" }],
-        include: { game: true },
+        include: { game: { select: { igdbId: true, name: true, coverUrl: true } } },
       }),
       prisma.playLog.findMany({
         where: { userId: user.id, finishedAt: { not: null } },
@@ -106,9 +109,14 @@ export async function Dashboard({ user }: { user: SessionUser }) {
         <div className="mt-10">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold">Currently playing</h2>
+            {currentlyPlaying.length > PLAYING_LIMIT && (
+              <Link href="/log?status=PLAYING" className="text-sm text-mint hover:underline">
+                All {currentlyPlaying.length} →
+              </Link>
+            )}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
-            {currentlyPlaying.map((log) => (
+            {currentlyPlaying.slice(0, PLAYING_LIMIT).map((log) => (
               <Link
                 key={log.id}
                 href={`/games/${log.game.igdbId}`}

@@ -354,6 +354,8 @@ model SteamGame {
   @@unique([userId, appId])
   @@index([userId, state])
   @@index([appId])
+  // Game pages look up who owns a game on Steam.
+  @@index([igdbId])
 }
 
 // Achievements that equate to "Beaten" (story/campaign completed) across

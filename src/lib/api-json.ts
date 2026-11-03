@@ -6,7 +6,9 @@ import { toPartialInput } from "./format";
 // Dates are partial ISO strings ("YYYY-MM-DD", "YYYY-MM" or "YYYY") at the
 // precision they were entered; timestamps are full ISO.
 
-export function gameJson(game: Game | IgdbGame) {
+// Lists leave out the summary (often a long paragraph per game); the app
+// shows it from GET /games/:igdbId.
+export function gameJson(game: Game | IgdbGame, { summary = true } = {}) {
   const platformIds = typeof game.platformIds === "string" ? (JSON.parse(game.platformIds) as number[]) : game.platformIds;
   return {
     igdbId: game.igdbId,
@@ -14,14 +16,14 @@ export function gameJson(game: Game | IgdbGame) {
     coverUrl: game.coverUrl,
     artworkUrl: game.artworkUrl,
     releaseYear: game.releaseYear,
-    summary: game.summary,
+    summary: summary ? game.summary : null,
     platformIds,
   };
 }
 
 const partial = (d: Date | null, precision: string | null) => (d ? toPartialInput(d, precision) : null);
 
-export function logJson(log: PlayLog & { game?: Game }) {
+export function logJson(log: PlayLog & { game?: Game }, { summary = false } = {}) {
   return {
     id: log.id,
     status: log.status,
@@ -37,6 +39,6 @@ export function logJson(log: PlayLog & { game?: Game }) {
     containsSpoilers: log.containsSpoilers,
     createdAt: log.createdAt.toISOString(),
     updatedAt: log.updatedAt.toISOString(),
-    ...(log.game && { game: gameJson(log.game) }),
+    ...(log.game && { game: gameJson(log.game, { summary }) }),
   };
 }

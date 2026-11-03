@@ -13,20 +13,23 @@ import { blockedEitherWay } from "./follows";
 // JSON for the app's social screens (mirrored by
 // ios/Beaten/API/SocialModels.swift): feeds, people, profiles, comments.
 
+
+// Games shown under "Playing" on a profile (stats.playing has the count).
+const PLAYING_LIMIT = 24;
 export function personJson(u: PublicUser) {
   return { username: u.username, name: u.name, avatar: resolveAvatar(u), imageUrl: u.image };
 }
 
 export function feedCardJson(card: FeedCard) {
   if (card.kind === "backfill") {
-    return { kind: card.kind, key: card.key, actor: personJson(card.actor), games: card.games.map(gameJson), at: card.at.toISOString() };
+    return { kind: card.kind, key: card.key, actor: personJson(card.actor), games: card.games.map((g) => gameJson(g, { summary: false })), at: card.at.toISOString() };
   }
   return {
     kind: card.kind,
     key: card.key,
     logId: card.logId,
     actor: personJson(card.actor),
-    game: gameJson(card.game),
+    game: gameJson(card.game, { summary: false }),
     verb: feedVerb(card.types),
     reviewed: card.types.includes("REVIEWED"),
     log: {
@@ -126,8 +129,8 @@ export async function profileJson(viewerId: string, raw: string) {
       finishedThisYear: finished.filter((l) => l.finishedAt && l.finishedAt >= yearStart).length,
       year: yearStart.getUTCFullYear(),
     },
-    playing: [...playing.values()].map((l) => gameJson(l.game)),
-    finished: finished.slice(0, GRID).map(logJson),
+    playing: [...playing.values()].slice(0, PLAYING_LIMIT).map((l) => gameJson(l.game, { summary: false })),
+    finished: finished.slice(0, GRID).map((l) => logJson(l)),
     finishedTotal: finished.length,
     reviews: reviewLogs.map((l) => ({ ...logJson(l), social: social.get(l.id) ?? null })),
   };

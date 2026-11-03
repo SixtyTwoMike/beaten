@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Self-contained server bundle for deployment (node .next/standalone/server.js)
   output: "standalone",
+  // No "X-Powered-By: Next.js" on responses.
+  poweredByHeader: false,
   // No next/image usage; keep the /_next/image optimizer endpoint off.
   images: { unoptimized: true },
   // The share card reads its fonts from disk at runtime; the standalone

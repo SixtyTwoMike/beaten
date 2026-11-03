@@ -29,6 +29,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 // Most-recent finishes shown in the grid; the heading still shows the total.
 const PROFILE_GRID_LIMIT = 48;
+// "Currently playing" posters shown; a Steam import can mark hundreds.
+const PLAYING_LIMIT = 24;
 
 type Params = { params: Promise<{ username: string }> };
 
@@ -94,7 +96,8 @@ export default async function ProfilePage({ params }: Params) {
     prisma.playLog.findMany({
       where: { userId: user.id },
       orderBy: [{ finishedAt: "desc" }, { createdAt: "desc" }],
-      include: { game: true },
+      // What the page shows; not the (long) summary.
+      include: { game: { select: { igdbId: true, name: true, coverUrl: true, artworkUrl: true } } },
     }),
     prisma.shelf.findMany({
       where: { userId: user.id },
@@ -281,7 +284,7 @@ export default async function ProfilePage({ params }: Params) {
           <section className="mt-10">
             <h2 className="text-lg font-semibold">Currently playing</h2>
             <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-6 lg:grid-cols-8">
-              {currentlyPlaying.map((log) => (
+              {currentlyPlaying.slice(0, PLAYING_LIMIT).map((log) => (
                 <GameLink key={log.id} igdbId={log.game.igdbId}>
                   <Poster
                     name={log.game.name}
@@ -292,6 +295,9 @@ export default async function ProfilePage({ params }: Params) {
                 </GameLink>
               ))}
             </div>
+            {currentlyPlaying.length > PLAYING_LIMIT && (
+              <p className="mt-3 text-sm text-fog">and {currentlyPlaying.length - PLAYING_LIMIT} more</p>
+            )}
           </section>
         )}
 

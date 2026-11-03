@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { requireAdminPage } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 
 export default async function AdminHome() {
+  // Checked here as well as in the layout: a layout doesn't stop its pages
+  // from rendering (e.g. a request that skips it).
+  await requireAdminPage();
   const [users, verified, suggestions, confirmed, steamLinked] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { emailVerifiedAt: { not: null } } }),

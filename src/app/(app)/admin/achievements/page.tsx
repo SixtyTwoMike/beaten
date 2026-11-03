@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { adminConfirmAchievement, adminDeleteAchievement, adminUnconfirmAchievement } from "@/app/actions/admin";
 import { looksLikeBeatenAchievement } from "@/lib/beaten-achievements";
+import { requireAdminPage } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import { getGameSchemaAchievements, steamConfigured, steamStoreUrl } from "@/lib/steam";
 
@@ -36,6 +37,7 @@ export default async function AdminAchievements({
 }: {
   searchParams: Promise<{ q?: string; app?: string }>;
 }) {
+  await requireAdminPage(); // as well as the layout; see admin/page.tsx
   const { q: rawQ, app: rawApp } = await searchParams;
   const q = (rawQ ?? "").trim().slice(0, 100);
   const appId = Number(rawApp ?? (/^\d+$/.test(q) ? q : NaN));

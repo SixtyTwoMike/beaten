@@ -17,7 +17,7 @@ export const GET = apiRoute("api shelves", async (request: Request) => {
       id: s.id,
       name: s.name,
       description: s.description,
-      games: s.items.map((i) => gameJson(i.game)),
+      games: s.items.map((i) => gameJson(i.game, { summary: false })),
     })),
   });
 });

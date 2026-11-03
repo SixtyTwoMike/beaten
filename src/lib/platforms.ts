@@ -11,7 +11,21 @@ import type { PlatformOption } from "./types";
 let lastAttempt = 0;
 const RETRY_MS = 10 * 60 * 1000;
 
+// The list rarely changes, and most pages need it: keep it in memory for a
+// while rather than reading ~200 rows (and two counts) on every request.
+const MEMO_MS = 10 * 60 * 1000;
+let memo: { at: number; rows: Awaited<ReturnType<typeof loadPlatforms>> } | null = null;
+
 export async function getPlatforms() {
+  if (memo && Date.now() - memo.at < MEMO_MS) return memo.rows;
+  const rows = await loadPlatforms();
+  // Only a full (synced) list is kept; an empty or mock-sized one is
+  // retried on the next request.
+  if (rows.length > mockPlatforms.length || process.env.IGDB_MOCK === "1") memo = { at: Date.now(), rows };
+  return rows;
+}
+
+async function loadPlatforms() {
   const count = await prisma.platform.count();
   const live = process.env.IGDB_MOCK !== "1";
   const due = count === 0 || Date.now() - lastAttempt > RETRY_MS;
