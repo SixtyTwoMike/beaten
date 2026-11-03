@@ -15,6 +15,7 @@ final class AppModel {
     private(set) var logs: [PlayLog] = []
     private(set) var shelves: [Shelf] = []
     private(set) var pullList: PullList = .empty
+    private(set) var collection: CollectionList = .empty
     private(set) var platforms: [Platform] = []
     private(set) var loadError: String?
 
@@ -82,6 +83,7 @@ final class AppModel {
         logs = []
         shelves = []
         pullList = .empty
+        collection = .empty
         phase = .signedOut
     }
 
@@ -109,6 +111,7 @@ final class AppModel {
             loadError = error.localizedDescription
         }
         if let pull: PullList = try? await api.get("/pull-list") { pullList = pull }
+        if let owned: CollectionList = try? await api.get("/collection") { collection = owned }
         if platforms.isEmpty {
             platforms = (try? await api.get("/platforms") as PlatformsResponse)?.platforms ?? []
         }
@@ -232,6 +235,38 @@ final class AppModel {
         let res: WishlistResult = try await api.send("POST", "/pull-list/steam", body: Optional<Int>.none)
         pullList = PullList(items: res.items, steamLinked: res.steamLinked)
         return res
+    }
+
+    // MARK: Collection
+
+    nonisolated private struct CollectionItemResponse: Decodable { let item: CollectionEntry }
+
+    func refreshCollection() async throws {
+        collection = try await api.get("/collection")
+    }
+
+    // Adding the first copy turns the collection on (still private).
+    func addToCollection(_ input: CollectionInput) async throws {
+        let res: CollectionItemResponse = try await api.send("POST", "/collection", body: input)
+        collection.items.append(res.item)
+        collection.enabled = true
+    }
+
+    func updateCollectionItem(_ id: String, _ input: CollectionInput) async throws {
+        let res: CollectionItemResponse = try await api.send("PATCH", "/collection/\(id)", body: input)
+        if let i = collection.items.firstIndex(where: { $0.id == id }) { collection.items[i] = res.item }
+    }
+
+    func removeFromCollection(_ id: String) async throws {
+        try await api.send("DELETE", "/collection/\(id)")
+        collection.items.removeAll { $0.id == id }
+    }
+
+    func setCollection(enabled: Bool? = nil, public shown: Bool? = nil) async throws {
+        struct Body: Encodable { let enabled: Bool?; let `public`: Bool? }
+        let res: CollectionSettings = try await api.send("PUT", "/collection/settings", body: Body(enabled: enabled, public: shown))
+        collection.enabled = res.enabled
+        collection.public = res.public
     }
 
     // MARK: Account

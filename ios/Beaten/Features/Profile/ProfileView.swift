@@ -65,6 +65,23 @@ struct ProfileView: View {
                 }
             }
 
+            Section {
+                Toggle("Collection", isOn: Binding(
+                    get: { model.collection.enabled },
+                    set: { on in Task { await setCollection(enabled: on) } }
+                ))
+                if model.collection.enabled {
+                    Toggle("Show it on my profile", isOn: Binding(
+                        get: { model.collection.public },
+                        set: { on in Task { await setCollection(public: on) } }
+                    ))
+                }
+            } header: {
+                Text("Collection")
+            } footer: {
+                Text("Track the physical games you own, in Library. Separate from your diary and private unless you show it; what you paid and your notes are never shown.")
+            }
+
             Section("Notifications") {
                 NavigationLink { NotificationsView() } label: {
                     LabeledContent {
@@ -122,6 +139,10 @@ struct ProfileView: View {
     private struct ExportFile: Identifiable {
         let url: URL
         var id: URL { url }
+    }
+
+    private func setCollection(enabled: Bool? = nil, public shown: Bool? = nil) async {
+        do { try await model.setCollection(enabled: enabled, public: shown) } catch { self.error = error.localizedDescription }
     }
 }
 

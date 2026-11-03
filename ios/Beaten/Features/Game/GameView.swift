@@ -9,6 +9,7 @@ struct GameView: View {
     @State private var logging: LogSheet.Target?
     @State private var deleting: PlayLog?
     @State private var showFullSummary = false
+    @State private var editingCopy: CollectionItemSheet.Target?
 
     private var shown: Game { detail?.game ?? game }
 
@@ -43,6 +44,8 @@ struct GameView: View {
                         ForEach(logs) { log in entry(log) }
                     }
                 }
+
+                if model.collection.enabled { collection }
 
                 if !model.shelves.isEmpty { shelves }
 
@@ -165,6 +168,35 @@ struct GameView: View {
         .buttonStyle(.bordered)
         .tint(on ? Color.mint : Color.fog)
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    // Your copies of this game, and "I own this" (only once the collection is on).
+    private var collection: some View {
+        let copies = model.collection.items.filter { $0.igdbId == game.igdbId }
+        return VStack(alignment: .leading, spacing: 10) {
+            SectionTitle("In your collection")
+            ForEach(copies) { copy in
+                Button { editingCopy = .init(game: shown, existing: copy) } label: {
+                    HStack {
+                        Text(copy.platformName).font(.footnote.weight(.medium))
+                        Text([copy.details.isEmpty ? nil : copy.details, copy.priceLabel].compactMap { $0 }.joined(separator: " · "))
+                            .font(.footnote)
+                            .foregroundStyle(Color.fog)
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.fog)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Your \(copy.platformName) copy")
+            }
+            Button { editingCopy = .init(game: shown, existing: nil) } label: {
+                Label(copies.isEmpty ? "I own this" : "Another copy", systemImage: "plus")
+                    .frame(maxWidth: .infinity, minHeight: 26)
+            }
+            .buttonStyle(.bordered)
+            .tint(Color.fog)
+        }
+        .sheet(item: $editingCopy) { CollectionItemSheet(target: $0) }
     }
 
     private var shelves: some View {

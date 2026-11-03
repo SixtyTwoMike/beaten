@@ -1,6 +1,9 @@
 # Collection (physical games) and "played on"
 
-Status: **plan** (2026-11-03). Nothing built yet.
+Status: **phase 1 built** (2026-11-03). Web + API live (aa0a435); iPhone
+in the next app build. Private by default, with a Settings switch to show it
+on the profile (Mike's call). Phases 2 (imports) and 3 (barcodes, deferred)
+not started.
 
 Two separate things:
 
@@ -224,5 +227,5 @@ free text:
    Built and deployed 2026-11-03 (81292dc).
 2. ~~Device detail~~: left out for now.
 3. ~~Barcode lookup~~: decided: no barcode lookups for now.
-4. **Collection on profiles:** should it be private only for the first
-   version, or have the public switch from the start?
+4. ~~Collection on profiles~~: decided: private first, with a "show on
+   my profile" switch in Settings.
