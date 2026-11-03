@@ -6,7 +6,8 @@ import { PUBLIC_USER_SELECT, followingIds } from "@/lib/follows";
 import { logDates, toPartialInput } from "@/lib/format";
 import { getGame, igdbConfigured, type IgdbGame } from "@/lib/igdb";
 import { isIgdbId } from "@/lib/limits";
-import { getPlatforms } from "@/lib/platforms";
+import { getPlatforms, platformOptions } from "@/lib/platforms";
+import { playedOnLabel } from "@/lib/played-on";
 import { raGameUrl } from "@/lib/retroachievements";
 import { reviewPath } from "@/lib/notifications";
 import { reviewSocialFor } from "@/lib/review-social";
@@ -132,11 +133,7 @@ export default async function GamePage({
   const friendAverage =
     friendRatings.length >= 3 ? friendRatings.reduce((a, b) => a + b, 0) / friendRatings.length : null;
 
-  const platformOptions = platforms.map((p) => ({
-    id: p.id,
-    name: p.name,
-    abbreviation: p.abbreviation,
-  }));
+  const platformChoices = platformOptions(platforms);
   const platformById = new Map(platforms.map((p) => [p.id, p]));
   const gamePlatformNames = game.platformIds
     .map((pid) => platformById.get(pid))
@@ -198,7 +195,7 @@ export default async function GamePage({
         <div className="mt-6 flex flex-wrap items-start gap-3">
           <LogButtons
             game={modalGame}
-            platforms={platformOptions}
+            platforms={platformChoices}
             shelves={shelves}
           />
           {logs.length === 0 && <PullButton igdbId={game.igdbId} pulled={pulled} />}
@@ -246,6 +243,7 @@ export default async function GamePage({
                       {platform && (
                         <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs text-fog">
                           {platform.abbreviation ?? platform.name}
+                {log.playedOn && ` · ${playedOnLabel(log.playedOn, true)}`}
                         </span>
                       )}
                       {log.notReturning && (
@@ -267,11 +265,12 @@ export default async function GamePage({
                             stoppedAt: log.stoppedAt ? toPartialInput(log.stoppedAt, log.stoppedPrecision) : null,
                             notReturning: log.notReturning,
                             isReplay: log.isReplay,
+                            playedOn: log.playedOn,
                             rating: log.rating,
                             reviewText: log.reviewText,
                             containsSpoilers: log.containsSpoilers,
                           }}
-                          platforms={platformOptions}
+                          platforms={platformChoices}
                           shelves={shelves}
                         />
                       </div>

@@ -31,6 +31,7 @@ export function logJson(log: PlayLog & { game?: Game }) {
     stoppedAt: partial(log.stoppedAt, log.stoppedPrecision),
     notReturning: log.notReturning,
     isReplay: log.isReplay,
+    playedOn: log.playedOn,
     rating: log.rating,
     reviewText: log.reviewText,
     containsSpoilers: log.containsSpoilers,

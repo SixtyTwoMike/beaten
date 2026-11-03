@@ -120,6 +120,15 @@ try {
   check("edit log", edited.status === 200 && edited.json.log.status === "MASTERED" && edited.json.log.rating === 10, edited);
   check("edit unknown log → 404", (await api("PATCH", "/logs/nope", entry)).status === 404);
   check("me stats count it", (await api("GET", "/me")).json?.stats.mastered === 1);
+  const platformList = (await api("GET", "/platforms")).json?.platforms ?? [];
+  check("platforms say which are retro", platformList.find((p) => p.id === 19)?.retro === true && platformList.find((p) => p.id === 167)?.retro === false);
+  const via = await api("PATCH", `/logs/${clientId}`, { ...entry, status: "MASTERED", playedOn: "FPGA" });
+  check("played on saves", via.status === 200 && via.json.log.playedOn === "FPGA", via);
+  const kept = await api("PATCH", `/logs/${clientId}`, { ...entry, status: "MASTERED" });
+  check("an edit without played on keeps it (older app builds)", kept.json?.log.playedOn === "FPGA", kept);
+  check("unknown played on → 400", (await api("PATCH", `/logs/${clientId}`, { ...entry, playedOn: "TOASTER" })).status === 400);
+  const cleared = await api("PATCH", `/logs/${clientId}`, { ...entry, status: "MASTERED", playedOn: "" });
+  check("empty played on clears it", cleared.json?.log.playedOn === null, cleared);
 
   // --- shelves
   let shelves = await api("GET", "/shelves");

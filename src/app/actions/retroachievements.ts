@@ -221,6 +221,8 @@ export async function importRetroAchievements(
             status: top.kind,
             finishedAt,
             platformId: mapped && platformIds.includes(mapped) ? mapped : null,
+            // RetroAchievements mostly runs through emulators; editable.
+            playedOn: "EMULATION",
           },
         });
         await recordLogActivity(null, log);

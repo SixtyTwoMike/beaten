@@ -6,6 +6,7 @@ import { MAX_REVIEW, MAX_SHELF_NAME, MAX_SHELVES_PER_LOG, isIgdbId } from "./lim
 import { recordLogActivity } from "./activity";
 import { parsePartialDate, periodEnd } from "./dates";
 import type { DatePrecision } from "./format";
+import { isPlayedOn } from "./played-on";
 import { isFinishedStatus, isPlayStatus } from "./status";
 
 // Play-log writes for a known user. The web's server actions and the
@@ -26,6 +27,9 @@ export type SaveLogInput = {
   stoppedAt?: string | null; // YYYY-MM-DD / YYYY-MM / YYYY; SHELVED only, optional
   notReturning?: boolean; // SHELVED only
   isReplay: boolean;
+  // lib/played-on; "" or null clears it; omitted (older app builds) keeps
+  // what an edit had.
+  playedOn?: string | null;
   rating?: number | null; // 1-10 half-star steps
   reviewText?: string | null;
   containsSpoilers?: boolean;
@@ -97,6 +101,9 @@ export async function saveLogForUser(userId: string, input: SaveLogInput): Promi
   if ((input.shelfIds?.length ?? 0) > MAX_SHELVES_PER_LOG) {
     return { ok: false, error: "Too many shelves" };
   }
+  if (input.playedOn != null && input.playedOn !== "" && !isPlayedOn(input.playedOn)) {
+    return { ok: false, error: "Invalid played on" };
+  }
   const platformId = input.platformId ?? null;
   if (platformId !== null && !isIgdbId(platformId)) {
     return { ok: false, error: "Invalid platform" };
@@ -122,6 +129,7 @@ export async function saveLogForUser(userId: string, input: SaveLogInput): Promi
     stoppedPrecision: stopped && stopped.precision !== "DAY" ? stopped.precision : null,
     notReturning: shelved && input.notReturning === true,
     isReplay: Boolean(input.isReplay),
+    ...(input.playedOn !== undefined && { playedOn: input.playedOn || null }),
     rating,
     reviewText,
     containsSpoilers: Boolean(reviewText) && input.containsSpoilers === true,

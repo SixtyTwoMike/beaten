@@ -179,6 +179,7 @@ try {
   await botwCard.getByRole("button", { name: "Beaten", exact: true }).click();
   await page.waitForSelector("text=Add to your played log");
   await page.selectOption("#log-platform", { label: "Nintendo Switch" });
+  check("no 'played on' question for a modern platform", !(await page.getByRole("group", { name: "Played on" }).isVisible()));
   await page.fill("#log-started", "2026-06-01");
   await page.fill("#log-finished", "2026-07-01");
   // 4.5 stars = 9 half-steps
@@ -198,6 +199,10 @@ try {
   await page.waitForSelector("text=Add to your played log");
   // switch status to Mastered inside the modal (card button opens it on MASTERED already)
   await page.getByRole("button", { name: "Replay" }).click();
+  await page.selectOption("#log-platform", { label: "Super Nintendo Entertainment System" });
+  const playedOnGroup = page.getByRole("group", { name: "Played on" });
+  check("retro platform asks 'played on'", await playedOnGroup.isVisible());
+  await playedOnGroup.getByRole("button", { name: "FPGA" }).click();
   await page.getByRole("radio", { name: "5 stars", exact: true }).click();
   await page.getByRole("button", { name: "Save log" }).click();
   await page.waitForSelector("text=Add to your played log", { state: "detached" });
@@ -215,6 +220,8 @@ try {
   await page.waitForSelector("text=Diary");
   check("diary shows BotW review", await page.getByText("trusts the player").isVisible());
   check("diary shows replay tag", await page.getByText("↻ Replay").isVisible());
+  check("diary shows played on", await page.getByText("SNES · FPGA").isVisible());
+  check("played on filter appears once used", await page.locator('select[name="via"]').isVisible());
   await page.selectOption('select[name="status"]', "MASTERED");
   await page.click('button:has-text("Filter")');
   await page.waitForSelector("text=Super Metroid");

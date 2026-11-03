@@ -198,6 +198,7 @@ extension PlayLog {
             }
         }
         if let platform { parts.append(platform) }
+        if let via = playedOn.flatMap(PlayedOn.init(rawValue:)) { parts.append(via.short) }
         return parts.joined(separator: " · ")
     }
 }

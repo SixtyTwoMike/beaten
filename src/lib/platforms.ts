@@ -1,6 +1,8 @@
 import { prisma } from "./db";
 import { fetchPlatforms, igdbConfigured } from "./igdb";
 import { mockPlatforms } from "./igdb-mock";
+import { isRetroPlatform } from "./played-on";
+import type { PlatformOption } from "./types";
 
 // Returns the cached platform list, lazily syncing from IGDB on first use.
 // A table holding only the mock catalogue's handful (a box that ran with
@@ -39,4 +41,11 @@ export async function getPlatforms() {
     }
   }
   return prisma.platform.findMany({ orderBy: { name: "asc" } });
+}
+
+// What the log form's platform picker needs.
+export function platformOptions(
+  platforms: { id: number; name: string; abbreviation: string | null; generation: number | null; category: number | null }[]
+): PlatformOption[] {
+  return platforms.map((p) => ({ id: p.id, name: p.name, abbreviation: p.abbreviation, retro: isRetroPlatform(p) }));
 }

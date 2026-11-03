@@ -3,7 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logDates, toPartialInput } from "@/lib/format";
 import { MAX_YEAR, MIN_YEAR, isIgdbId } from "@/lib/limits";
-import { getPlatforms } from "@/lib/platforms";
+import { getPlatforms, platformOptions } from "@/lib/platforms";
+import { PLAYED_ON, isPlayedOn, playedOnLabel } from "@/lib/played-on";
 import { requireUser } from "@/lib/session";
 import { isFinishedStatus, isPlayStatus } from "@/lib/status";
 import { LogEntryActions } from "@/components/LogEntryActions";
@@ -16,7 +17,7 @@ export const metadata = { title: "Diary — Beaten" };
 export default async function LogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; platform?: string; year?: string }>;
+  searchParams: Promise<{ status?: string; platform?: string; year?: string; via?: string }>;
 }) {
   const user = await requireUser();
   const params = await searchParams;
@@ -29,6 +30,8 @@ export default async function LogPage({
   const platformParam = params.platform ? Number(params.platform) : null;
   const platformFilter = isIgdbId(platformParam) ? platformParam : null;
   if (platformFilter) where.platformId = platformFilter;
+  const viaFilter = isPlayedOn(params.via) ? params.via : null;
+  if (viaFilter) where.playedOn = viaFilter;
   const yearParam = params.year ? Number(params.year) : null;
   const yearFilter =
     Number.isInteger(yearParam) && yearParam! >= MIN_YEAR && yearParam! <= MAX_YEAR ? yearParam : null;
@@ -39,7 +42,7 @@ export default async function LogPage({
     };
   }
 
-  const [rawLogs, allFinished, platforms, shelves] = await Promise.all([
+  const [rawLogs, allFinished, platforms, shelves, playedOnUsed] = await Promise.all([
     prisma.playLog.findMany({
       where,
       include: { game: true },
@@ -54,6 +57,8 @@ export default async function LogPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    // The "played on" filter only appears once they've used it.
+    prisma.playLog.count({ where: { userId: user.id, playedOn: { not: null } } }),
   ]);
 
   // Games finished on an unknown date get their own section at the end.
@@ -87,11 +92,7 @@ export default async function LogPage({
     ...new Set(allFinished.map((l) => l.finishedAt!.getUTCFullYear())),
   ].sort((a, b) => b - a);
 
-  const platformOptions = platforms.map((p) => ({
-    id: p.id,
-    name: p.name,
-    abbreviation: p.abbreviation,
-  }));
+  const platformChoices = platformOptions(platforms);
   const platformById = new Map(platforms.map((p) => [p.id, p]));
 
   const selectClass =
@@ -137,6 +138,7 @@ export default async function LogPage({
             {platform && (
               <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs">
                 {platform.abbreviation ?? platform.name}
+                {log.playedOn && ` · ${playedOnLabel(log.playedOn, true)}`}
               </span>
             )}
             {log.notReturning && (
@@ -172,11 +174,12 @@ export default async function LogPage({
               stoppedAt: log.stoppedAt ? toPartialInput(log.stoppedAt, log.stoppedPrecision) : null,
               notReturning: log.notReturning,
               isReplay: log.isReplay,
+              playedOn: log.playedOn,
               rating: log.rating,
               reviewText: log.reviewText,
               containsSpoilers: log.containsSpoilers,
             }}
-            platforms={platformOptions}
+            platforms={platformChoices}
             shelves={shelves}
           />
         </div>
@@ -204,12 +207,22 @@ export default async function LogPage({
             className={selectClass}
           >
             <option value="">Any platform</option>
-            {platformOptions.map((p) => (
+            {platformChoices.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
+          {(playedOnUsed > 0 || viaFilter) && (
+            <select name="via" aria-label="Filter by played on" defaultValue={viaFilter ?? ""} className={selectClass}>
+              <option value="">Played on anything</option>
+              {PLAYED_ON.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          )}
           <select name="year" aria-label="Filter by year" defaultValue={params.year ?? ""} className={selectClass}>
             <option value="">Any year</option>
             {years.map((y) => (

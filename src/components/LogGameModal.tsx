@@ -14,6 +14,7 @@ import { isFinishedStatus, isPlayStatus, type PlayStatus } from "@/lib/status";
 import { PartialDateField } from "./PartialDateField";
 import { Poster } from "./Poster";
 import { StarRatingInput } from "./StarRatingInput";
+import { PLAYED_ON } from "@/lib/played-on";
 import { safeAction } from "@/lib/safe-action";
 
 const fieldClass =
@@ -87,6 +88,7 @@ export function LogGameModal({
   );
   const [stoppedAt, setStoppedAt] = useState(existing?.stoppedAt ?? todayDateInput());
   const [notReturning, setNotReturning] = useState(existing?.notReturning ?? false);
+  const [playedOn, setPlayedOn] = useState<string>(existing?.playedOn ?? "");
   const [isReplay, setIsReplay] = useState<"first" | "replay">(
     existing?.isReplay ? "replay" : "first"
   );
@@ -153,6 +155,10 @@ export function LogGameModal({
     );
   }
 
+  // Asked only for retro platforms; a value from before stays editable.
+  const selectedPlatform = platforms.find((p) => String(p.id) === platformId);
+  const askPlayedOn = Boolean(selectedPlatform?.retro);
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -168,6 +174,7 @@ export function LogGameModal({
         stoppedAt: isShelved ? stoppedAt || null : null,
         notReturning: isShelved && notReturning,
         isReplay: isReplay === "replay",
+        playedOn: askPlayedOn ? playedOn || null : null,
         rating: rating || null,
         reviewText: reviewText || null,
         containsSpoilers: spoilers,
@@ -305,6 +312,31 @@ export function LogGameModal({
               </optgroup>
             </select>
           </div>
+
+          {askPlayedOn && (
+            <div>
+              <span className={labelClass}>
+                Played on <span className="normal-case text-fog/85">(optional)</span>
+              </span>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Played on">
+                {PLAYED_ON.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={playedOn === o.value}
+                    onClick={() => setPlayedOn(playedOn === o.value ? "" : o.value)}
+                    className={`rounded-full border px-3 py-1 text-sm transition ${
+                      playedOn === o.value
+                        ? "border-mint bg-mint/15 text-white"
+                        : "border-edge text-fog hover:border-fog/50 hover:text-white"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {(!isFinished || !dateUnknown) && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

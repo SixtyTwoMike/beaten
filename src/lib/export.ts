@@ -122,6 +122,7 @@ export async function buildExport(userId: string) {
       stoppedAt: log.stoppedAt ? toPartialInput(log.stoppedAt, log.stoppedPrecision) : null,
       notReturning: log.notReturning,
       isReplay: log.isReplay,
+      playedOn: log.playedOn,
       // 1-10 half-star steps; ratingStars is the same on a 0.5-5 scale.
       rating: log.rating,
       ratingStars: log.rating != null ? Number(ratingToStars(log.rating)) : null,

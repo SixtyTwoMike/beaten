@@ -16,6 +16,7 @@ struct LogSheet: View {
     @State private var status: PlayStatus
     @State private var isReplay: Bool
     @State private var platformId: Int?
+    @State private var playedOn: PlayedOn?
     @State private var startedAt: PartialDate?
     @State private var finishedAt: PartialDate?
     @State private var dateUnknown: Bool
@@ -39,6 +40,7 @@ struct LogSheet: View {
         _status = State(initialValue: log?.status ?? target.status)
         _isReplay = State(initialValue: log?.isReplay ?? false)
         _platformId = State(initialValue: log?.platformId)
+        _playedOn = State(initialValue: log?.playedOn.flatMap(PlayedOn.init(rawValue:)))
         _startedAt = State(initialValue: log?.startedAt)
         _finishedAt = State(initialValue: log == nil ? today : log?.finishedAt ?? today)
         _dateUnknown = State(initialValue: log.map { $0.status.isFinished && $0.finishedAt == nil } ?? false)
@@ -77,6 +79,12 @@ struct LogSheet: View {
                         Text("Replay").tag(true)
                     }
                     platformPicker
+                    if askPlayedOn {
+                        Picker("Played on", selection: $playedOn) {
+                            Text("Not said").tag(PlayedOn?.none)
+                            ForEach(PlayedOn.allCases) { Text($0.label).tag(PlayedOn?.some($0)) }
+                        }
+                    }
                 }
 
                 Section("Dates") {
@@ -133,6 +141,12 @@ struct LogSheet: View {
         }
     }
 
+    // Asked only for retro platforms, like the web.
+    private var askPlayedOn: Bool {
+        guard let platformId else { return false }
+        return model.platforms.first { $0.id == platformId }?.retro == true
+    }
+
     // This game's platforms first, then the rest.
     private var platformPicker: some View {
         let mine = Set(target.game.platformIds)
@@ -179,6 +193,7 @@ struct LogSheet: View {
             stoppedAt: status == .shelved ? stoppedAt : nil,
             notReturning: status == .shelved && notReturning,
             isReplay: isReplay,
+            playedOn: askPlayedOn ? playedOn?.rawValue ?? "" : "",
             rating: rating == 0 ? nil : rating,
             reviewText: trimmedReview.isEmpty ? nil : trimmedReview,
             containsSpoilers: !trimmedReview.isEmpty && spoilers,

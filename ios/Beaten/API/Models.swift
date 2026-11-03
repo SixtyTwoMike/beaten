@@ -34,6 +34,8 @@ nonisolated struct PlayLog: Codable, Hashable, Identifiable, Sendable {
     let stoppedAt: PartialDate?
     let notReturning: Bool
     let isReplay: Bool
+    // PlayedOn raw value, kept as a string so a value added later still decodes.
+    let playedOn: String?
     let rating: Int?
     let reviewText: String?
     let containsSpoilers: Bool
@@ -75,6 +77,32 @@ nonisolated struct Platform: Codable, Hashable, Identifiable, Sendable {
     let name: String
     let abbreviation: String?
     let generation: Int?
+    // Offers "Played on" (lib/played-on isRetroPlatform); nil from older caches.
+    let retro: Bool?
+}
+
+// How a retro game was played (src/lib/played-on.ts).
+nonisolated enum PlayedOn: String, CaseIterable, Identifiable, Sendable {
+    case original = "ORIGINAL", fpga = "FPGA", emulation = "EMULATION", official = "OFFICIAL", recomp = "RECOMP"
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .original: "Original hardware"
+        case .fpga: "FPGA"
+        case .emulation: "Emulation"
+        case .official: "Official re-release"
+        case .recomp: "Recomp / decomp"
+        }
+    }
+    var short: String {
+        switch self {
+        case .original: "Original"
+        case .fpga: "FPGA"
+        case .emulation: "Emulated"
+        case .official: "Re-release"
+        case .recomp: "Recomp"
+        }
+    }
 }
 
 nonisolated struct Shelf: Codable, Hashable, Identifiable, Sendable {
@@ -115,6 +143,8 @@ nonisolated struct LogInput: Encodable, Sendable {
     var stoppedAt: PartialDate?
     var notReturning: Bool
     var isReplay: Bool
+    // Always sent: "" clears it (a left-out field would keep the old value).
+    var playedOn: String
     var rating: Int?
     var reviewText: String?
     var containsSpoilers: Bool

@@ -12,6 +12,8 @@ export type PlatformOption = {
   id: number;
   name: string;
   abbreviation: string | null;
+  // Offers the "Played on" question (lib/played-on).
+  retro: boolean;
 };
 
 export type ShelfOption = { id: string; name: string };
@@ -25,6 +27,7 @@ export type ExistingLog = {
   stoppedAt?: string | null; // YYYY-MM-DD, YYYY-MM or YYYY; SHELVED only
   notReturning?: boolean; // SHELVED only
   isReplay: boolean;
+  playedOn?: string | null;
   rating: number | null;
   reviewText: string | null;
   containsSpoilers?: boolean;

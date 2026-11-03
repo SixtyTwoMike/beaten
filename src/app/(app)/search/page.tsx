@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { igdbConfigured } from "@/lib/igdb";
-import { getPlatforms } from "@/lib/platforms";
+import { getPlatforms, platformOptions } from "@/lib/platforms";
 import { requireUser } from "@/lib/session";
 import { SearchClient } from "@/components/SearchClient";
 
@@ -28,11 +28,7 @@ export default async function SearchPage() {
       <h1 className="mb-6 text-2xl font-bold">Find a game</h1>
       <Suspense>
         <SearchClient
-          platforms={platforms.map((p) => ({
-            id: p.id,
-            name: p.name,
-            abbreviation: p.abbreviation,
-          }))}
+          platforms={platformOptions(platforms)}
           shelves={shelves}
           loggedIgdbIds={loggedIgdbIds}
           igdbConfigured={igdbConfigured()}
