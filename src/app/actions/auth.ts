@@ -11,9 +11,9 @@ import { passwordError } from "@/lib/password";
 import {
   PASSWORD_ATTEMPTS,
   TOO_MANY_ATTEMPTS,
-  clearAttempts,
-  isLimited,
-  recordAttempt,
+  clearAttemptsShared,
+  isLimitedShared,
+  recordAttemptShared,
 } from "@/lib/rate-limit";
 import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
 import { formatDate } from "@/lib/format";
@@ -103,17 +103,17 @@ export async function changePassword(input: {
       return { ok: false, error: "This account signs in with Google" };
     }
     const attemptKey = `password:${userId}`;
-    if (isLimited(attemptKey, PASSWORD_ATTEMPTS) || (await passwordWorkLimited())) {
+    if ((await isLimitedShared(attemptKey, PASSWORD_ATTEMPTS)) || (await passwordWorkLimited())) {
       return { ok: false, error: TOO_MANY_ATTEMPTS };
     }
     if (
       input.currentPassword.length > 128 ||
       !(await bcrypt.compare(input.currentPassword, user.passwordHash))
     ) {
-      recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
+      await recordAttemptShared(attemptKey, PASSWORD_ATTEMPTS);
       return { ok: false, error: "Current password is incorrect" };
     }
-    clearAttempts(attemptKey);
+    await clearAttemptsShared(attemptKey);
     const badPassword = passwordError(input.newPassword);
     if (badPassword) return { ok: false, error: badPassword };
     if (input.newPassword === input.currentPassword) {

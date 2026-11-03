@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { PASSWORD_ATTEMPTS, TOO_MANY_ATTEMPTS, clearAttempts, isLimited, recordAttempt } from "./rate-limit";
+import { PASSWORD_ATTEMPTS, TOO_MANY_ATTEMPTS, clearAttemptsShared, isLimitedShared, recordAttemptShared } from "./rate-limit";
 import { prisma } from "./db";
 import { passwordWorkLimited } from "./password-work";
 
@@ -20,7 +20,7 @@ export async function deleteAccountForUser(
 
   confirmation = typeof confirmation === "string" ? confirmation.slice(0, 254) : "";
   const attemptKey = `password:${userId}`;
-  if (user.passwordHash && isLimited(attemptKey, PASSWORD_ATTEMPTS)) {
+  if (user.passwordHash && (await isLimitedShared(attemptKey, PASSWORD_ATTEMPTS))) {
     return { ok: false, error: TOO_MANY_ATTEMPTS };
   }
   if (user.passwordHash && (await passwordWorkLimited())) return { ok: false, error: TOO_MANY_ATTEMPTS };
@@ -29,7 +29,7 @@ export async function deleteAccountForUser(
     ? await bcrypt.compare(confirmation, user.passwordHash)
     : Boolean(typed) && [user.username, user.email].includes(typed);
   if (!confirmed) {
-    if (user.passwordHash) recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
+    if (user.passwordHash) await recordAttemptShared(attemptKey, PASSWORD_ATTEMPTS);
     return {
       ok: false,
       error: user.passwordHash ? "Password is incorrect" : "Type your username or email exactly to confirm",
@@ -61,17 +61,17 @@ export async function checkPassword(rawEmail: unknown, rawPassword: unknown) {
   // unknown addresses behave the same; still runs bcrypt so a limited
   // account answers in the usual time.
   const attemptKey = `login:${email}`;
-  const limited = isLimited(attemptKey, PASSWORD_ATTEMPTS);
+  const limited = await isLimitedShared(attemptKey, PASSWORD_ATTEMPTS);
   // This address has asked for too much bcrypt work: refuse without any.
   if (await passwordWorkLimited()) return "invalid" as const;
   const user = await prisma.user.findUnique({ where: { email } });
   const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (limited) return "invalid" as const;
   if (!user?.passwordHash || !valid) {
-    recordAttempt(attemptKey, PASSWORD_ATTEMPTS);
+    await recordAttemptShared(attemptKey, PASSWORD_ATTEMPTS);
     return "invalid" as const;
   }
-  clearAttempts(attemptKey);
+  await clearAttemptsShared(attemptKey);
   if (user.suspendedAt) return "suspended" as const;
   if (!user.emailVerifiedAt) return "unverified" as const;
   return user;

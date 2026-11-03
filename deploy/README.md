@@ -8,6 +8,9 @@ included), no other billable resources created.
 
 One instance runs everything: nginx → Node (Next.js standalone) → SQLite on
 the instance disk (`/opt/beaten/data/beaten.db`, survives redeploys).
+Node runs as two processes, `beaten@3000` and `beaten@3001`
+(`journalctl -u 'beaten@*'`); nginx keeps each client IP on one of them, and
+a deploy restarts them one at a time.
 The app is built on your machine and pushed over SSH; no S3 or other
 services are involved. The deploy script prints the bundle's exact monthly
 price before creating anything (it defaults to the cheapest dual-stack Linux

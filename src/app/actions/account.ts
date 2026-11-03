@@ -16,7 +16,7 @@ import { BREACHED_PASSWORD_ERROR, isBreachedPassword } from "@/lib/pwned";
 import { deleteAccountForUser } from "@/lib/account-auth";
 import { passwordWorkLimited } from "@/lib/password-work";
 import { markEmailVerified } from "@/lib/accounts";
-import { TOO_MANY_ATTEMPTS, clearAttempts } from "@/lib/rate-limit";
+import { TOO_MANY_ATTEMPTS, clearAttemptsShared } from "@/lib/rate-limit";
 import { requireUserId } from "@/lib/session";
 import { consumeToken, issueToken } from "@/lib/tokens";
 import type { ActionResult } from "./logs";
@@ -81,7 +81,7 @@ export async function resetPassword(input: {
     });
     // Receiving the link proves the address is theirs.
     if (!user.emailVerifiedAt) await markEmailVerified(user.id);
-    clearAttempts(`password:${user.id}`);
+    await clearAttemptsShared(`password:${user.id}`);
     inBackground("password changed email", () => sendPasswordChangedEmail(user));
     return { ok: true };
   } catch (e) {

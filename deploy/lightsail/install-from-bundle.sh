@@ -51,25 +51,42 @@ chmod 600 "$DATA"/beaten.db*
 rm -rf "$APP"
 mv "$APP.new" "$APP"
 
-cat > /etc/systemd/system/beaten.service <<'UNIT'
+# Two app processes, beaten@3000 and beaten@3001, behind the nginx upstream
+# below: Node renders on one core each, and a deploy restarts them one at a
+# time so the site stays up. PORT is set on the command line because
+# /etc/beaten.env (which also has PORT) overrides Environment=. The heap cap
+# keeps two processes plus Umami inside the box's 1 GB.
+cat > /etc/systemd/system/beaten@.service <<'UNIT'
 [Unit]
-Description=Beaten game tracker
+Description=Beaten game tracker (port %i)
 After=network.target
 
 [Service]
 User=beaten
 EnvironmentFile=/etc/beaten.env
 WorkingDirectory=/opt/beaten/app
-ExecStart=/usr/bin/node /opt/beaten/app/server.js
+ExecStart=/usr/bin/env PORT=%i NODE_OPTIONS=--max-old-space-size=256 /usr/bin/node /opt/beaten/app/server.js
 Restart=always
 RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 UNIT
+# The single-process unit from before.
+if [ -f /etc/systemd/system/beaten.service ]; then
+  systemctl disable --now beaten.service || true
+  rm -f /etc/systemd/system/beaten.service
+fi
 systemctl daemon-reload
-systemctl enable beaten
-systemctl restart beaten
+for port in 3000 3001; do
+  systemctl enable "beaten@$port" >/dev/null 2>&1
+  systemctl restart "beaten@$port"
+  # Wait for this one to answer before restarting the other.
+  for _ in $(seq 1 30); do
+    curl -fsS -o /dev/null "http://127.0.0.1:$port/login" && break
+    sleep 1
+  done
+done
 
 # Support CLI: `sudo beaten-admin <command>` (see docs/support-playbook.md).
 # Runs as the app user with the app's environment, like the service.
@@ -119,6 +136,9 @@ proxy_set_header Host $host;
 proxy_set_header X-Forwarded-Host $host;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
+# Keep-alive to the upstream (keepalive in the upstream block).
+proxy_http_version 1.1;
+proxy_set_header Connection "";
 NGINX
 
 # Headers for every app response. Server actions accept POSTs on any page
@@ -141,14 +161,14 @@ include snippets/beaten-headers.conf;
 location = /api/auth/callback/credentials {
     limit_req zone=auth burst=5 nodelay;
     include snippets/beaten-proxy.conf;
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://beaten_app;
 }
 
 # Pages whose server actions hash passwords or send email.
 location ~ ^/(register|login|forgot-password|reset-password|verify-email|settings)$ {
     limit_req zone=register burst=5 nodelay;
     include snippets/beaten-proxy.conf;
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://beaten_app;
 }
 
 # iPhone app API. Sign-in checks passwords and Apple tokens: same per-IP limit
@@ -158,13 +178,13 @@ location ~ ^/(register|login|forgot-password|reset-password|verify-email|setting
 location /api/v1/auth/ {
     limit_req zone=auth burst=5 nodelay;
     include snippets/beaten-proxy.conf;
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://beaten_app;
 }
 
 location /api/v1/ {
     limit_req zone=api burst=60 nodelay;
     include snippets/beaten-proxy.conf;
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://beaten_app;
 }
 
 # Umami analytics (deploy/umami.sh), served first-party so the tracker
@@ -194,13 +214,13 @@ location ~ ^/[A-Za-z0-9_]+/card$ {
     proxy_ignore_headers Set-Cookie;
     proxy_hide_header Set-Cookie;
     include snippets/beaten-proxy.conf;
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://beaten_app;
 }
 
 location / {
     limit_req zone=posts burst=20 nodelay;
     include snippets/beaten-proxy.conf;
-    proxy_pass http://127.0.0.1:3000;
+    proxy_pass http://beaten_app;
 }
 NGINX
 
@@ -244,6 +264,15 @@ limit_req_zone $binary_remote_addr zone=cardrate:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=api:10m rate=120r/m;
 proxy_cache_path /var/cache/nginx/beaten-cards levels=1:2 keys_zone=cardcache:10m max_size=200m inactive=1h use_temp_path=off;
 limit_req_status 429;
+# The two app processes (beaten@3000, beaten@3001). Each client IP sticks to
+# one, so the app's in-memory limits hold per client (src/lib/rate-limit.ts);
+# if one is down (a deploy restarting it), requests go to the other.
+upstream beaten_app {
+    hash $binary_remote_addr consistent;
+    server 127.0.0.1:3000;
+    server 127.0.0.1:3001;
+    keepalive 16;
+}
 server_tokens off;
 
 NGINX

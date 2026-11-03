@@ -403,6 +403,14 @@ model BeatenAchievementVote {
 // Usernames nobody can take without an invite: names set aside for someone
 // (`beaten-admin reserve`), and a user's previous username, held for them
 // for a while after they change it.
+// Password-guess counts per account (lib/rate-limit), in the database so
+// every app process sees them. `key` is a hash; rows expire with resetAt.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
 model ReservedUsername {
   username      String    @id
   note          String?
