@@ -41,7 +41,12 @@ final class CollectionTests: XCTestCase {
     }
 
     private func collectionSwitch() -> XCUIElement {
-        app.tabBars.buttons["Profile"].tap()
+        // The first tap can land while the app is still loading.
+        let title = app.navigationBars["Profile"]
+        for _ in 0..<3 where !title.exists {
+            app.tabBars.buttons["Profile"].tap()
+            _ = title.waitForExistence(timeout: 3)
+        }
         let toggle = app.switches["Collection"]
         for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
