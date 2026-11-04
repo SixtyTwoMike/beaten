@@ -1,7 +1,9 @@
-New: your Pull List — the games you want to play next, in your own order.
+New: your Collection, for the physical games you own.
 
-• Add games from search or any game page
-• Drag to put them in the order you want to play them
-• Sort by release date to see what's coming up, or group by genre
-• Your Steam wishlist comes in automatically once Steam is linked on beaten.games
-• Games leave the list when you log them
+• Note the platform, region, loose / boxed / sealed, edition and what you paid
+• Turn it on in Profile; it's private unless you choose to show it on your profile
+• What you paid and your notes are only ever shown to you
+
+Also new:
+• Played on: for retro games, say whether you played on original hardware, FPGA, emulation, an official re-release or a recomp
+• Now works on iOS 18
