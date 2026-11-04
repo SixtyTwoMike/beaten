@@ -283,7 +283,7 @@ struct ChronicleCardSheet: View {
             .navigationTitle("Image")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close", role: .close) { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Close", role: .closeIfAvailable) { dismiss() } }
             }
             .task { images = await VideoImages.load(ChronicleVideo.imageURLs(chronicle)) }
             .task(id: RenderKey(options: options, loaded: images != nil)) { render() }

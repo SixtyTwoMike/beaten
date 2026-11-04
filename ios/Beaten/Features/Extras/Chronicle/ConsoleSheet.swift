@@ -129,7 +129,7 @@ struct ConsoleSheet: View {
                     if saving {
                         ProgressView()
                     } else {
-                        Button("Save", role: .confirm, action: save).disabled(console == nil || gotAt == nil)
+                        Button("Save", role: .confirmIfAvailable, action: save).disabled(console == nil || gotAt == nil)
                     }
                 }
             }

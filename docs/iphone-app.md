@@ -3,7 +3,7 @@
 Status: **built; API live on beaten.games (179cdcb, 2026-10-29)**, branch `feature/ios-app`. v1 is the
 logging app: sign in, search, log, diary, shelves, your own profile. Social
 (feed, following, people), imports (Steam, RetroAchievements) and Console
-Chronicles stay web-only for now. iOS 26+, iPhone only.
+Chronicles stay web-only for now. iOS 18+ (iOS 26 APIs behind availability checks, ios/Beaten/Design/Compat.swift), iPhone only.
 
 ## Running it
 

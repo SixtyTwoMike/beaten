@@ -19,6 +19,7 @@
 		3DA9EF5655769604694F35D4 /* ConsoleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11D720CEE0110EFCE2294780 /* ConsoleSheet.swift */; };
 		45D7859FEF74A0519DDB5763 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C579F05444F6ED6F637F8931 /* HomeView.swift */; };
 		4C2098E1078478AEB78B3070 /* PullListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B08FF6D7B778B1278E70B94 /* PullListView.swift */; };
+		4E7A7630721B45D8DD07EFB7 /* Compat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C64A0B6581C8E4F8637992 /* Compat.swift */; };
 		58541700E420D7ADE9F96219 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD3DE657EA5F938F8070CC6 /* LibraryView.swift */; };
 		5A2ADDEE8CAD22D8EE25E58B /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F70781FBD1D6F0D322EB25 /* NotificationsView.swift */; };
 		6253BA2C03BC5AE9787DE85D /* ActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1B6CC201EE11771E51D526 /* ActivityView.swift */; };
@@ -68,6 +69,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00C64A0B6581C8E4F8637992 /* Compat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compat.swift; sourceTree = "<group>"; };
 		03181EA8CF731ACC8399B730 /* CollectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionTests.swift; sourceTree = "<group>"; };
 		05FECFD2DB5D094A4F6E148D /* ChronicleVideoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleVideoSheet.swift; sourceTree = "<group>"; };
 		118510FC28A61C31CC88AA17 /* ShelvesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelvesView.swift; sourceTree = "<group>"; };
@@ -265,6 +267,7 @@
 		861FCBA4E7E831EF0C648DE5 /* Design */ = {
 			isa = PBXGroup;
 			children = (
+				00C64A0B6581C8E4F8637992 /* Compat.swift */,
 				25298FEFB9DE554B4CD068D9 /* Theme.swift */,
 			);
 			path = Design;
@@ -488,6 +491,7 @@
 				CEEBFC60CC6E582986CDAA71 /* ChronicleVideos.swift in Sources */,
 				CFE38232B3BC6AD1CA52660A /* CollectionModels.swift in Sources */,
 				159EF7FFE968A7AB8BFAA65E /* CollectionView.swift in Sources */,
+				4E7A7630721B45D8DD07EFB7 /* Compat.swift in Sources */,
 				3DA9EF5655769604694F35D4 /* ConsoleSheet.swift in Sources */,
 				DAE3D2E95C1B0F99A6DCF2EF /* DiaryView.swift in Sources */,
 				3476BDD601C96AD4929D2E23 /* ExtrasView.swift in Sources */,
@@ -583,7 +587,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.2.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -724,7 +728,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.2.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;

@@ -167,7 +167,7 @@ private struct YearVideoSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close", role: .close) {
+                    Button("Close", role: .closeIfAvailable) {
                         render?.cancel()
                         dismiss()
                     }

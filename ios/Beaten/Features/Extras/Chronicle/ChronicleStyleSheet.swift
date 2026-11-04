@@ -89,7 +89,7 @@ struct ChronicleStyleSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    if saving { ProgressView() } else { Button("Save", role: .confirm, action: save) }
+                    if saving { ProgressView() } else { Button("Save", role: .confirmIfAvailable, action: save) }
                 }
             }
         }

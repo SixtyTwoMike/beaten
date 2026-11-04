@@ -132,7 +132,7 @@ struct LogSheet: View {
                     if saving {
                         ProgressView()
                     } else {
-                        Button("Save", role: .confirm, action: save)
+                        Button("Save", role: .confirmIfAvailable, action: save)
                             .disabled(status.isFinished && !dateUnknown && finishedAt == nil)
                     }
                 }

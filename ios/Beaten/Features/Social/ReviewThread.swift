@@ -192,7 +192,7 @@ struct CommentsSheet: View {
                 .navigationTitle("Comments")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Done", role: .close) { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button("Done", role: .closeIfAvailable) { dismiss() } }
                 }
                 .gameDestinations()
         }

@@ -2,7 +2,7 @@ name: Beaten
 options:
   bundleIdPrefix: games.beaten
   deploymentTarget:
-    iOS: "26.0"
+    iOS: "18.0"
 
 settings:
   base:

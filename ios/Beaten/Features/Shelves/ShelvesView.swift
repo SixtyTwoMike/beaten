@@ -129,7 +129,7 @@ private struct NewShelfSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create", role: .confirm) {
+                    Button("Create", role: .confirmIfAvailable) {
                         saving = true
                         Task {
                             defer { saving = false }
